@@ -80,7 +80,7 @@ const AuthPage = () => {
         {/* Left Column: Auth Forms */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Welcome to Find</CardTitle>
+            <CardTitle>Welcome to Lemur</CardTitle>
             <CardDescription>
               Sign in to access your search history and save your favorite searches.
             </CardDescription>
@@ -194,9 +194,9 @@ const AuthPage = () => {
         {/* Right Column: Hero Section */}
         <div className="flex flex-col justify-center h-full">
           <div className="space-y-4">
-            <h1 className="text-3xl font-bold">Unlock the power of Find</h1>
+            <h1 className="text-3xl font-bold">Unlock the power of Lemur</h1>
             <p className="text-lg text-gray-700">
-              With a Find account, you can:
+              With a Lemur account, you can:
             </p>
             <ul className="space-y-2">
               <li className="flex items-start">
