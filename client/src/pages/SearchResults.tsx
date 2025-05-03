@@ -1,21 +1,14 @@
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import SearchForm from "@/components/SearchForm";
-import LoadingState from "@/components/LoadingState";
 import AIAnswer from "@/components/AIAnswer";
-import TraditionalResults from "@/components/TraditionalResults";
-import SponsoredResult from "@/components/SponsoredResult";
 import { performSearch } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
-type SearchTab = "ai" | "traditional" | "all";
-
 export default function SearchResults() {
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<SearchTab>("ai");
 
   // Get the search query from URL
   const params = new URLSearchParams(window.location.search);
@@ -62,234 +55,61 @@ export default function SearchResults() {
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           </div>
-          <h2 className="text-2xl font-semibold text-neutral mb-4">{errorMessage}</h2>
-          <p className="text-[hsl(var(--neutral-muted))] mb-6">
-            {errorDetail}
-          </p>
-          <button 
-            onClick={() => window.location.href = '/'}
-            className="px-5 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-dark transition-colors"
-          >
-            Return to Home
-          </button>
+          <h2 className="text-2xl font-semibold mb-2">{errorMessage}</h2>
+          {errorDetail && <p className="text-gray-600 mb-6">{errorDetail}</p>}
+          <Button onClick={() => window.location.reload()} className="mr-2">
+            Try Again
+          </Button>
+          <Button variant="outline" onClick={() => setLocation("/")}>
+            Return Home
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-4">
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-full max-w-3xl mx-auto">
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto">
+        {/* Search Form */}
+        <div className="mb-8">
           <SearchForm initialQuery={query} />
         </div>
-      </div>
+        
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center p-12">
+            <Loader2 className="h-12 w-12 animate-spin text-[hsl(var(--primary))]" />
+            <p className="mt-4 text-[hsl(var(--neutral-muted))] text-center">Searching for "{query}"...</p>
+          </div>
+        ) : (
+          <div className="w-full">
+            {/* AI Answer Section */}
+            {data?.ai && (
+              <AIAnswer
+                answer={data.ai.answer}
+                sources={data.ai.sources}
+                model={data.ai.model}
+              />
+            )}
 
-      <div className="mt-4">
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-4 bg-transparent space-x-2">
-            <TabsTrigger value="all" className="data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-white">
-              All
-            </TabsTrigger>
-            <TabsTrigger value="ai" className="data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-white">
-              AI Answer
-            </TabsTrigger>
-            <TabsTrigger value="web" className="data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-white">
-              Web Results
-            </TabsTrigger>
-            <TabsTrigger value="news" className="data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-white">
-              News
-            </TabsTrigger>
-            <TabsTrigger value="images" className="data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-white">
-              Images
-            </TabsTrigger>
-          </TabsList>
-
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center p-12">
-              <Loader2 className="h-12 w-12 animate-spin text-[hsl(var(--primary))]" />
-              <p className="mt-4 text-[hsl(var(--neutral-muted))] text-center">Searching for "{query}"...</p>
+            {/* Traditional Results */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-4">Web Results</h2>
+              {data?.traditional && data.traditional.map((result, index) => (
+                <div key={index} className="mb-4 p-4 bg-white shadow-sm rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="text-xs text-gray-500 mb-1">{result.domain}</div>
+                  <h3 className="text-[hsl(var(--primary))] hover:underline font-medium mb-1">
+                    <a href={result.url} target="_blank" rel="noopener noreferrer">
+                      {result.title}
+                    </a>
+                  </h3>
+                  <p className="text-sm text-gray-700">{result.snippet}</p>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div className="w-full">
-              <TabsContent value="all" className="mt-0">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-2">
-                    {data?.ai && (
-                      <div className="mb-8 bg-white rounded-xl shadow-sm p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h2 className="text-sm text-[hsl(var(--primary))] font-semibold">AI Answer</h2>
-                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                            {data.ai.model}
-                          </span>
-                        </div>
-                        <div className="prose max-w-none text-gray-700">
-                          {data.ai.answer}
-                        </div>
-                        {data.ai.sources && data.ai.sources.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-gray-100">
-                            <p className="text-xs text-gray-500 mb-2">Sources:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {data.ai.sources.map((source, index) => (
-                                <a
-                                  key={index}
-                                  href={source.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-700 transition-colors"
-                                >
-                                  {source.title}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        <div className="mt-4 flex justify-end gap-2">
-                          <Button size="sm" variant="outline">
-                            Copy
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            Save
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mb-6">
-                      <div className="p-4 border rounded-lg bg-amber-50 border-amber-200 mb-6">
-                        <p className="font-medium text-amber-800 mb-1">Renewable Energy Solutions for Your Home - Special Offer</p>
-                        <p className="text-sm text-amber-700 mb-2">Upgrade to solar power with our special 2023 tax rebate offer. Save up to 30% on installation and reduce your energy bills.</p>
-                        <a href="#" className="text-xs text-amber-600">www.greenpower-solutions.com/special-offer</a>
-                        <span className="ml-4 text-xs px-2 py-0.5 bg-amber-200 text-amber-800 rounded-full">Sponsored</span>
-                      </div>
-                      
-                      {/* Traditional Results */}
-                      {data?.traditional && data.traditional.slice(0, 4).map((result, index) => (
-                        <div key={index} className="mb-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                          <div className="text-xs text-gray-500 mb-1">{result.domain}</div>
-                          <h3 className="text-[hsl(var(--primary))] hover:underline font-medium mb-1">
-                            <a href={result.url} target="_blank" rel="noopener noreferrer">
-                              {result.title}
-                            </a>
-                          </h3>
-                          <p className="text-sm text-gray-700">{result.snippet}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="hidden lg:block">
-                    {data?.traditional && data.traditional.slice(4).map((result, index) => (
-                      <div key={index} className="mb-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <div className="text-xs text-gray-500 mb-1">{result.domain}</div>
-                        <h3 className="text-[hsl(var(--primary))] hover:underline font-medium mb-1">
-                          <a href={result.url} target="_blank" rel="noopener noreferrer">
-                            {result.title}
-                          </a>
-                        </h3>
-                        <p className="text-sm text-gray-700">{result.snippet}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Pagination */}
-                {(data?.traditional?.length || 0) > 5 && (
-                  <div className="mt-8 flex justify-center">
-                    <div className="flex gap-1">
-                      <Button variant="outline" size="sm" disabled>
-                        Previous
-                      </Button>
-                      <Button variant="default" size="sm">
-                        1
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        2
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        3
-                      </Button>
-                      <span className="flex items-center px-2 text-sm text-gray-500">...</span>
-                      <Button variant="outline" size="sm">
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="ai" className="mt-0">
-                {data?.ai && (
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-sm text-[hsl(var(--primary))] font-semibold">AI Answer</h2>
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                        {data.ai.model}
-                      </span>
-                    </div>
-                    <div className="prose max-w-none text-gray-700">
-                      {data.ai.answer}
-                    </div>
-                    {data.ai.sources && data.ai.sources.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <p className="text-xs text-gray-500 mb-2">Sources:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {data.ai.sources.map((source, index) => (
-                            <a
-                              key={index}
-                              href={source.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-700 transition-colors"
-                            >
-                              {source.title}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div className="mt-4 flex justify-end gap-2">
-                      <Button size="sm" variant="outline">
-                        Copy
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        Save
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="web" className="mt-0">
-                <div className="grid grid-cols-1 gap-4">
-                  {data?.traditional && data.traditional.map((result, index) => (
-                    <div key={index} className="p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                      <div className="text-xs text-gray-500 mb-1">{result.domain}</div>
-                      <h3 className="text-[hsl(var(--primary))] hover:underline font-medium mb-1">
-                        <a href={result.url} target="_blank" rel="noopener noreferrer">
-                          {result.title}
-                        </a>
-                      </h3>
-                      <p className="text-sm text-gray-700">{result.snippet}</p>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="news" className="mt-0">
-                <div className="text-center py-8">
-                  <p className="text-gray-500">News search coming soon</p>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="images" className="mt-0">
-                <div className="text-center py-8">
-                  <p className="text-gray-500">Image search coming soon</p>
-                </div>
-              </TabsContent>
-            </div>
-          )}
-        </Tabs>
+          </div>
+        )}
       </div>
     </div>
   );
