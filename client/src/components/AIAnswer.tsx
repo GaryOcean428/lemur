@@ -1,4 +1,5 @@
 import { Source } from "@/lib/types";
+import { marked } from 'marked';
 
 interface AIAnswerProps {
   answer: string;
@@ -7,9 +8,6 @@ interface AIAnswerProps {
 }
 
 export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
-  // Import the marked library
-  // @ts-ignore - we know marked exists from package.json
-  const marked = window.marked;
   // Helper function to convert Markdown-like syntax to HTML
   function simpleMarkdownToHtml(text: string): string {
     let html = text;
@@ -127,15 +125,32 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
     return html;
   }
   
-  // Convert markdown to HTML and add citation links
-  const htmlContent = simpleMarkdownToHtml(answer);
-  
-  // Process to replace citation markers with proper links
-  const processedAnswer = htmlContent.replace(/\[Source \d+\]/g, (match: string) => {
-    const sourceNumber = match.match(/\d+/)?.[0] || "1";
+  // Use marked.js library for better markdown parsing
+  let processedAnswer = answer;
+
+  // First, process citation markers with proper links 
+  processedAnswer = processedAnswer.replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
     const sourceIndex = parseInt(sourceNumber) - 1;
     return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
   });
+  
+  // Then parse as markdown using marked library
+  try {
+    if (typeof marked !== 'undefined') {
+      // Use marked library if available
+      processedAnswer = marked.parse(processedAnswer, {
+        breaks: true,
+        gfm: true
+      });
+    } else {
+      // Fallback to our implementation
+      processedAnswer = simpleMarkdownToHtml(processedAnswer);
+    }
+  } catch (error) {
+    console.error('Error parsing markdown:', error);
+    // Fallback to simpler processing
+    processedAnswer = simpleMarkdownToHtml(processedAnswer);
+  }
 
   const handleFeedback = (type: 'like' | 'dislike' | 'share') => {
     // In a real app, this would send feedback to the backend
