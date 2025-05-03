@@ -1,5 +1,4 @@
 import { Source } from "@/lib/types";
-import { marked } from 'marked';
 
 interface AIAnswerProps {
   answer: string;
@@ -8,149 +7,128 @@ interface AIAnswerProps {
 }
 
 export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
-  // Helper function to convert Markdown-like syntax to HTML
-  function simpleMarkdownToHtml(text: string): string {
-    let html = text;
-    
-    // First, escape any HTML to prevent injection
-    html = html.replace(/&/g, '&amp;')
-               .replace(/</g, '&lt;')
-               .replace(/>/g, '&gt;')
-               .replace(/"/g, '&quot;')
-               .replace(/'/g, '&#039;');
-    
-    // Handle code blocks (must be done before other formatting)
-    html = html.replace(/```([\s\S]*?)```/g, (match, p1) => {
-      return '<pre><code>' + p1.trim() + '</code></pre>';
+  // Convert Markdown to HTML
+  function renderMarkdown(text: string): string {
+    // Pre-process Source links to properly link them
+    text = text.replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
+      const sourceIndex = parseInt(sourceNumber) - 1;
+      return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
     });
-    
-    // Handle inline code (must be done before other formatting)
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-    
-    // Handle headings (# Heading 1, ## Heading 2, etc.)
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-    
-    // Handle unordered lists (bulleted)
-    let inList = false;
-    let listItems: string[] = [];
-    
-    // Process unordered lists
-    html = html.split('\n').map(line => {
-      if (line.match(/^\s*[\*\-] (.+)$/)) {
-        const content = line.replace(/^\s*[\*\-] (.+)$/, '$1');
-        if (!inList) {
-          inList = true;
-          listItems = ['<li>' + content + '</li>'];
-          return '';
-        } else {
-          listItems.push('<li>' + content + '</li>');
-          return '';
-        }
-      } else if (inList && line.trim() === '') {
-        inList = false;
-        const list = '<ul>\n' + listItems.join('\n') + '\n</ul>';
-        listItems = [];
-        return list;
-      } else if (inList) {
-        // If this is not a list item but we're in a list, close the list
-        inList = false;
-        const list = '<ul>\n' + listItems.join('\n') + '\n</ul>';
-        listItems = [];
-        return list + '\n' + line;
-      } else {
-        return line;
-      }
-    }).join('\n');
-    
-    // If we're still in a list at the end of processing, close it
-    if (inList) {
-      html += '\n<ul>\n' + listItems.join('\n') + '\n</ul>';
+
+    // Split text into paragraphs (empty lines as separators)
+    const paragraphs = text.split(/\n{2,}/);
+    const processedParagraphs = paragraphs.map(processParagraph);
+    return processedParagraphs.join('');
+  }
+
+  // Process a single paragraph based on its type
+  function processParagraph(paragraph: string): string {
+    paragraph = paragraph.trim();
+    if (!paragraph) return '';
+
+    // Code block
+    if (paragraph.startsWith('```')) {
+      return processCodeBlock(paragraph);
     }
     
-    // Handle ordered lists (numbered)
-    inList = false;
-    listItems = [];
-    
-    // Process ordered lists
-    html = html.split('\n').map(line => {
-      if (line.match(/^\s*\d+\. (.+)$/)) {
-        const content = line.replace(/^\s*\d+\. (.+)$/, '$1');
-        if (!inList) {
-          inList = true;
-          listItems = ['<li>' + content + '</li>'];
-          return '';
-        } else {
-          listItems.push('<li>' + content + '</li>');
-          return '';
-        }
-      } else if (inList && line.trim() === '') {
-        inList = false;
-        const list = '<ol>\n' + listItems.join('\n') + '\n</ol>';
-        listItems = [];
-        return list;
-      } else if (inList) {
-        // If this is not a list item but we're in a list, close the list
-        inList = false;
-        const list = '<ol>\n' + listItems.join('\n') + '\n</ol>';
-        listItems = [];
-        return list + '\n' + line;
-      } else {
-        return line;
-      }
-    }).join('\n');
-    
-    // If we're still in a list at the end of processing, close it
-    if (inList) {
-      html += '\n<ol>\n' + listItems.join('\n') + '\n</ol>';
+    // Unordered list (starts with * or -)
+    if (paragraph.match(/^[\s]*[\*\-]\s/m)) {
+      return processUnorderedList(paragraph);
     }
+    
+    // Ordered list (starts with 1. 2. etc)
+    if (paragraph.match(/^[\s]*\d+\.\s/m)) {
+      return processOrderedList(paragraph);
+    }
+    
+    // Heading (starts with #)
+    if (paragraph.match(/^#+\s/)) {
+      return processHeading(paragraph);
+    }
+    
+    // Regular paragraph
+    return `<p>${processInlineFormats(paragraph)}</p>`;
+  }
+
+  // Process code blocks
+  function processCodeBlock(block: string): string {
+    const match = block.match(/```(?:[a-zA-Z]+)?\n?([\s\S]*?)```/);
+    if (!match) return `<pre><code>${escapeHtml(block)}</code></pre>`;
+    
+    const code = match[1];
+    return `<pre><code>${escapeHtml(code)}</code></pre>`;
+  }
+
+  // Process unordered lists
+  function processUnorderedList(listText: string): string {
+    const items = listText.split('\n')
+      .filter(line => line.trim())
+      .map(line => {
+        const content = line.replace(/^[\s]*[\*\-]\s+/, '');
+        return `<li>${processInlineFormats(content)}</li>`;
+      });
+    
+    return `<ul>${items.join('')}</ul>`;
+  }
+
+  // Process ordered lists
+  function processOrderedList(listText: string): string {
+    const items = listText.split('\n')
+      .filter(line => line.trim())
+      .map(line => {
+        const content = line.replace(/^[\s]*\d+\.\s+/, '');
+        return `<li>${processInlineFormats(content)}</li>`;
+      });
+    
+    return `<ol>${items.join('')}</ol>`;
+  }
+
+  // Process headings
+  function processHeading(headingText: string): string {
+    const match = headingText.match(/^(#+)\s+(.+)$/);
+    if (!match) return `<p>${processInlineFormats(headingText)}</p>`;
+    
+    const level = Math.min(match[1].length, 6); // h1-h6 only
+    const content = match[2];
+    
+    return `<h${level}>${processInlineFormats(content)}</h${level}>`;
+  }
+
+  // Process inline formatting (bold, italic, code)
+  function processInlineFormats(text: string): string {
+    let processed = escapeHtml(text);
+    
+    // Handle citation links that were pre-processed
+    processed = processed.replace(/&lt;a href=&quot;#source-\d+&quot; class=&quot;citation-link&quot;&gt;\[Source \d+\]&lt;\/a&gt;/g, 
+      match => match.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"'));
+    
+    // Handle inline code (between backticks)
+    processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>');
     
     // Handle bold text
-    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    processed = processed.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
     
     // Handle italic text
-    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    processed = processed.replace(/\*([^*]+?)\*/g, '<em>$1</em>');
     
-    // Handle paragraphs (replace double newlines with paragraph tags)
-    html = '<p>' + html.replace(/\n\n+/g, '</p>\n\n<p>') + '</p>';
+    // Handle line breaks
+    processed = processed.replace(/\n/g, '<br>');
     
-    // Handle single line breaks (replace single newlines with break tags, but not inside code blocks)
-    html = html.replace(/<\/p>\n\n<p>/g, '</p><p>');
-    html = html.replace(/\n(?!<\/?(p|ul|ol|li|h[1-6]|pre|code)>)/g, '<br />');
-    
-    // Clean up any empty paragraph tags
-    html = html.replace(/<p>\s*<\/p>/g, '');
-    
-    return html;
+    return processed;
   }
-  
-  // Use marked.js library for better markdown parsing
-  let processedAnswer = answer;
 
-  // First, process citation markers with proper links 
-  processedAnswer = processedAnswer.replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
-    const sourceIndex = parseInt(sourceNumber) - 1;
-    return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
-  });
-  
-  // Then parse as markdown using marked library
-  try {
-    if (typeof marked !== 'undefined') {
-      // Use marked library if available
-      processedAnswer = marked.parse(processedAnswer, {
-        breaks: true,
-        gfm: true
-      });
-    } else {
-      // Fallback to our implementation
-      processedAnswer = simpleMarkdownToHtml(processedAnswer);
-    }
-  } catch (error) {
-    console.error('Error parsing markdown:', error);
-    // Fallback to simpler processing
-    processedAnswer = simpleMarkdownToHtml(processedAnswer);
+  // Helper to escape HTML
+  function escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
+
+  // Process the answer with our markdown renderer
+  const processedAnswer = renderMarkdown(answer);
 
   const handleFeedback = (type: 'like' | 'dislike' | 'share') => {
     // In a real app, this would send feedback to the backend
