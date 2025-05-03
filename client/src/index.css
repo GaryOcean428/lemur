@@ -43,9 +43,9 @@
   /* Glow effect variables */
   --glow-primary: 270 84% 50% / 0.35; /* Purple glow */
   --glow-secondary: 180 100% 42% / 0.4; /* Teal glow */
-  --glow-neon: 140 100% 60% / 0.6; /* Neon green glow */
-  --glow-spread: 20px;
-  --glow-blur: 20px;
+  --glow-neon: 144 100% 54% / 0.75; /* Neon green glow */
+  --glow-spread: 8px;
+  --glow-blur: 12px;
 }
 
 .dark {
@@ -83,9 +83,9 @@
   /* Glow effect variables - stronger in dark mode */
   --glow-primary: 270 84% 65% / 0.45;
   --glow-secondary: 180 100% 60% / 0.5;
-  --glow-neon: 140 100% 70% / 0.65; /* Neon green glow */
-  --glow-spread: 25px;
-  --glow-blur: 25px;
+  --glow-neon: 144 100% 60% / 0.85; /* Neon green glow */
+  --glow-spread: 8px;
+  --glow-blur: 15px;
 }
 
 @layer base {
