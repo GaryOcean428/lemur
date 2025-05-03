@@ -41,6 +41,8 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
       throw new Error('Missing Tavily API key');
     }
 
+    console.log('Making Tavily API request with key:', apiKey);
+    
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: {
@@ -55,6 +57,8 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
         max_results: 10
       })
     });
+    
+    console.log('Tavily API response status:', response.status);
 
     if (!response.ok) {
       let errorMessage = `Tavily API error: ${response.status} ${response.statusText}`;
@@ -166,9 +170,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // API Keys from environment variables
-      const tavilyApiKey = process.env.TAVILY_API_KEY || "";
-      const groqApiKey = process.env.GROQ_API_KEY || "";
+      const tavilyApiKey = process.env.VITE_TAVILY_API_KEY || process.env.TAVILY_API_KEY || "";
+      const groqApiKey = process.env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY || "";
 
+      console.log('API Key status - Tavily:', tavilyApiKey ? 'Present (starts with: ' + tavilyApiKey.substring(0, 5) + '...)' : 'Not found');
+      console.log('API Key status - Groq:', groqApiKey ? 'Present (starts with: ' + groqApiKey.substring(0, 5) + '...)' : 'Not found');
+      
       if (!tavilyApiKey || !groqApiKey) {
         return res.status(500).json({ message: "API keys not configured" });
       }
@@ -240,6 +247,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching search history:", error);
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "An error occurred while fetching search history" 
+      });
+    }
+  });
+  
+  // Create search history record (for testing or manual additions)
+  app.post("/api/search-history", async (req, res) => {
+    try {
+      const { query, userId } = req.body;
+      
+      if (!query) {
+        return res.status(400).json({ message: "query is required" });
+      }
+      
+      const searchHistory = await storage.createSearchHistory({
+        query,
+        userId
+      });
+      
+      res.status(201).json(searchHistory);
+    } catch (error) {
+      console.error("Error creating search history:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "An error occurred while creating search history" 
       });
     }
   });
