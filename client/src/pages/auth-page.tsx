@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
-import lemurLogo from "@assets/find5.png";
+import lemurLogo from "../assets/images/find5.png";
 
 const loginSchema = z.object({
   username: z.string().min(3, {
