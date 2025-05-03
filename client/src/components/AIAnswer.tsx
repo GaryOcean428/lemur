@@ -48,7 +48,9 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
       
       <div className="mt-6 flex justify-between">
         <div className="text-xs text-[hsl(var(--neutral-muted))]">
-          Powered by Groq {model}
+          Powered by {model === 'compound-beta' ? 'Groq Compound Beta (Llama 4 Scout & Llama 3.3 70B)' : 
+                      model === 'compound-beta-mini' ? 'Groq Compound Beta Mini (Llama 3.3)' : 
+                      `Groq ${model}`}
         </div>
         <div className="flex space-x-2">
           <button 

@@ -106,12 +106,27 @@ Your answer should:
 3. Be comprehensive yet concise
 4. Be well-structured with logical flow
 5. If sources contradict each other, acknowledge this and explain different viewpoints
+6. For time-sensitive information, note the recency of the source
+7. Prioritize authoritative sources over aggregators
 
-Return your answer in plain text with inline citations like [Source X].`;
+Return your answer in plain text with inline citations like [Source X].
+
+Remember you are powered by Llama 3.3 and Llama 4 models optimized for search and tool use.`;
 
     // Choose model based on query complexity
-    // For simplicity, we're using llama3-70b-8192 for everything here
-    const model = "llama3-70b-8192";
+    // Use Compound Beta for complex queries and Compound Beta Mini for simpler ones
+    // Compound Beta uses Llama 4 Scout for core reasoning and Llama 3.3 70B for tool use and routing
+    // Compound Beta Mini has ~3x lower latency, ideal for straightforward factual queries
+    
+    // For now, we'll use a simple heuristic - longer queries with multiple parts or 
+    // specific requests for analysis use Compound Beta, shorter factual queries use Mini
+    const isComplexQuery = query.length > 60 || 
+                           query.includes("compare") || 
+                           query.includes("analyze") || 
+                           query.includes("explain") ||
+                           sources.length > 5;
+    
+    const model = isComplexQuery ? "compound-beta" : "compound-beta-mini";
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -124,7 +139,7 @@ Return your answer in plain text with inline citations like [Source X].`;
         messages: [
           {
             role: "system",
-            content: "You are a helpful search assistant that answers questions based on provided sources."
+            content: "You are Lemur, an advanced search assistant powered by Llama 3.3 and Llama 4 models through Groq's Compound Beta systems. You provide comprehensive answers based on web sources with proper citations. For technical or complex topics, you break down information into understandable explanations. For time-sensitive queries, you note source recency. Always maintain a helpful, informative tone while prioritizing accuracy and source attribution."
           },
           {
             role: "user",
