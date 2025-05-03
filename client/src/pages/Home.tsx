@@ -26,21 +26,7 @@ export default function Home() {
           </p>
         </div>
         
-        {/* Feature highlights */}
-        <div className="mt-12 w-full grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="card-glass p-4 card-hover">
-            <div className="text-primary font-bold mb-2 dark:text-primary-light">AI-Powered Answers</div>
-            <p className="text-sm dark:text-gray-400">Get comprehensive answers synthesized from multiple sources</p>
-          </div>
-          <div className="card-glass p-4 card-hover">
-            <div className="text-primary font-bold mb-2 dark:text-primary-light">Reliable Citations</div>
-            <p className="text-sm dark:text-gray-400">Every answer includes citations to original sources</p>
-          </div>
-          <div className="card-glass p-4 card-hover">
-            <div className="text-primary font-bold mb-2 dark:text-primary-light">Traditional Results</div>
-            <p className="text-sm dark:text-gray-400">Browse traditional web results alongside AI insights</p>
-          </div>
-        </div>
+        {/* Removed feature highlights as requested */}
       </div>
     </div>
   );
