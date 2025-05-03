@@ -9,19 +9,35 @@ interface AIAnswerProps {
 export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
   // Convert Markdown to HTML
   function renderMarkdown(text: string): string {
+    // First pass - handle markdown headers (##) directly in the text
+    text = text.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+    text = text.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+    
     // Pre-process Source links to properly link them
     text = text.replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
       const sourceIndex = parseInt(sourceNumber) - 1;
-      return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
+      if (sourceIndex >= 0 && sourceIndex < sources.length) {
+        return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
+      }
+      return match; // No matching source available
     });
 
-    // Also handle other common citation formats like [1], [2], etc.
+    // Handle other citation formats like [1], [2], etc.
     text = text.replace(/\[(\d+)\]/g, (match, sourceNumber) => {
       const sourceIndex = parseInt(sourceNumber) - 1;
       if (sourceIndex >= 0 && sourceIndex < sources.length) {
         return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
       }
       return match; // If it's not a valid source index, leave it as is
+    });
+    
+    // Handle the special case of [Source X] references without proper links
+    text = text.replace(/\[Source\s+(\d+)\]/g, (match, sourceNumber) => {
+      const sourceIndex = parseInt(sourceNumber) - 1;
+      if (sourceIndex >= 0 && sourceIndex < sources.length) {
+        return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
+      }
+      return match; // No matching source available
     });
 
     // Split text into paragraphs (empty lines as separators)
@@ -34,6 +50,13 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
   function processParagraph(paragraph: string): string {
     paragraph = paragraph.trim();
     if (!paragraph) return '';
+
+    // Special handling for lines that start with ## (markdown headers)
+    // This needs to come first because it's a common markdown pattern that
+    // might span multiple lines in the section
+    if (paragraph.match(/^#+\s/m)) {
+      return processHeading(paragraph);
+    }
 
     // Code block
     if (paragraph.startsWith('```')) {
@@ -48,11 +71,6 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
     // Ordered list (starts with 1. 2. etc)
     if (paragraph.match(/^[\s]*\d+\.\s/m)) {
       return processOrderedList(paragraph);
-    }
-    
-    // Heading (starts with #)
-    if (paragraph.match(/^#+\s/)) {
-      return processHeading(paragraph);
     }
     
     // Regular paragraph
