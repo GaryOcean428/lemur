@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
+import lemurLogo from "@assets/find5.png";
 
 const loginSchema = z.object({
   username: z.string().min(3, {
@@ -79,7 +80,10 @@ const AuthPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-start">
         {/* Left Column: Auth Forms */}
         <Card className="w-full">
-          <CardHeader>
+          <CardHeader className="flex flex-col items-center text-center">
+            <div className="w-20 h-20 mb-2">
+              <img src={lemurLogo} alt="Lemur logo" className="w-full h-full" />
+            </div>
             <CardTitle>Welcome to Lemur</CardTitle>
             <CardDescription>
               Sign in to access your search history and save your favorite searches.
