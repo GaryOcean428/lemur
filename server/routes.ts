@@ -47,7 +47,7 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': apiKey
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         query,
