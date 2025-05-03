@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 224 71.4% 4.1%;
+  --muted: 220 14.3% 95.9%;
+  --muted-foreground: 220 8.9% 46.1%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 71.4% 4.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 71.4% 4.1%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  /* Lemur Colors based on design docs */
+  --primary: 270 84% 50%; /* Deep Purple #5E17EB */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 180 100% 42%; /* Electric Teal #00D4C8 */
+  --secondary-foreground: 210 40% 98%;
+  --accent: 333 100% 66%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 270 84% 50%;
+  --radius: 0.5rem;
+
+  /* Custom colors for Lemur search engine */
+  --primary-dark: 270 85% 40%; /* Darker Purple #411BA5 */
+  --primary-light: 270 76% 53%; /* Light Purple #8556FF */
+  --secondary-light: 180 100% 70%; /* Bright Teal #13F0E3 */
+  --neutral: 240 22% 15%; /* Dark Text #1A1A2E */
+  --neutral-muted: 240 7% 45%; /* Medium Gray #626680 */
+  --neutral-light: 240 20% 96%; /* Light Gray #F0F2F8 */
+  --neutral-bg: 240 33% 99%; /* Background White #FAFBFD */
+  --citation: 214 100% 54%; /* Citation Blue #147AFF */
+  --success: 164 100% 39%; /* Success Green #00C896 */
+  --warning: 25 100% 64%; /* Alert Orange #FF8A47 */
+  --sponsored: 45 100% 60%; /* Sponsored Gold #FFCC33 */
+  --navy: 230 50% 19%; /* Navy Blue #141D4E */
+  --accent-pink: 336 83% 86%; /* Pink accent */
+  
+  /* Glow effect variables */
+  --glow-primary: 270 84% 50% / 0.2; /* Purple glow */
+  --glow-secondary: 180 100% 42% / 0.25; /* Teal glow */
+  --glow-spread: 15px;
+  --glow-blur: 15px;
+}
+
+.dark {
+  --background: 230 30% 8%; /* Dark navy-black background */
+  --foreground: 210 40% 98%;
+  --muted: 215 27.9% 16.9%;
+  --muted-foreground: 217.9 10.6% 74.9%; /* Brighter muted text for dark mode */
+  --popover: 230 25% 11%;
+  --popover-foreground: 210 40% 98%;
+  --card: 230 25% 11%;
+  --card-foreground: 210 40% 98%;
+  --border: 215 27.9% 22%; /* Slightly brighter border */
+  --input: 215 27.9% 22%;
+  --primary: 270 84% 65%; /* Bright purple for dark mode #8E4BFF */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 180 100% 60%; /* Brighter teal for dark mode #00F2E6 */
+  --secondary-foreground: 0 0% 0%;
+  --accent: 333 100% 66%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 270 84% 65%;
+
+  /* Dark theme custom colors */
+  --primary-dark: 270 85% 55%; 
+  --primary-light: 270 76% 75%;
+  --secondary-light: 180 100% 75%;
+  --neutral: 240 22% 90%;
+  --neutral-muted: 240 7% 75%;
+  --neutral-light: 240 20% 20%;
+  --neutral-bg: 230 30% 8%;
+  --citation: 214 100% 65%;
+  --navy: 230 50% 19%;
+  
+  /* Glow effect variables - stronger in dark mode */
+  --glow-primary: 270 84% 65% / 0.3;
+  --glow-secondary: 180 100% 60% / 0.35;
+  --glow-spread: 15px;
+  --glow-blur: 20px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-[hsl(var(--neutral-bg))] text-[hsl(var(--neutral))];
+  }
+}
+
+@layer components {
+  .lemur-logo {
+    @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+  }
+  
+  .search-gradient {
+    @apply bg-gradient-to-r from-primary to-secondary;
+  }
+
+  .citation-link {
+    @apply text-[hsl(var(--citation))] font-medium hover:underline;
+  }
+
+  .tab-active {
+    @apply border-primary text-primary font-medium;
+  }
+
+  .tab-inactive {
+    @apply border-transparent text-[hsl(var(--neutral-muted))] hover:text-primary hover:border-primary-light transition-colors;
+  }
+  
+  /* Glow effects */
+  .glow-purple {
+    @apply relative;
+    box-shadow: 0 0 var(--glow-blur) var(--glow-spread) hsla(var(--glow-primary));
+  }
+  
+  .glow-teal {
+    @apply relative;
+    box-shadow: 0 0 var(--glow-blur) var(--glow-spread) hsla(var(--glow-secondary));
+  }
+  
+  .glow-text {
+    text-shadow: 0 0 8px hsla(var(--glow-primary));
+  }
+  
+  .glow-subtle {
+    @apply relative;
+    box-shadow: 0 0 10px 3px hsla(var(--glow-primary));
+  }
+  
+  /* Card and surface styles */
+  .card-glass {
+    @apply bg-background/80 backdrop-blur-md border border-border rounded-lg dark:bg-background/60 dark:border-white/10;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-md hover:-translate-y-1 dark:hover:shadow-black/30;
+  }
+}

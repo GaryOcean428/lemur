@@ -80,18 +80,7 @@ export default function SearchResults() {
   return (
     <div className="container mx-auto px-4 py-4">
       <div className="flex items-center gap-4 mb-6">
-        <div className="w-10 h-10">
-          <svg viewBox="0 0 100 100" className="w-full h-full">
-            <path d="M30 40 Q 20 20 40 15 Q 45 15 45 25 L 45 35 Q 45 40 40 42 Q 25 48 30 40 Z" fill="#4B2A91" />
-            <circle cx="23" cy="38" r="3" fill="#FF9BB3" />
-            <path d="M75 40 Q 85 60 65 65 Q 60 65 60 55 L 60 45 Q 60 40 65 38 Q 80 32 75 40 Z" fill="#FFB6D9" />
-            <path d="M40 42 Q 50 60 60 45" stroke="#4B2A91" strokeWidth="3" fill="none" />
-            <circle cx="77" cy="62" r="3" fill="#4B2A91" />
-            <path d="M55 55 Q 65 75 75 65" stroke="#8FDFD9" strokeWidth="9" fill="none" />
-            <path d="M55 55 Q 65 75 75 65" stroke="#4B2A91" strokeWidth="3" fill="none" />
-          </svg>
-        </div>
-        <div className="w-full max-w-3xl">
+        <div className="w-full max-w-3xl mx-auto">
           <SearchForm initialQuery={query} />
         </div>
       </div>
