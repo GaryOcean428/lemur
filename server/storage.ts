@@ -54,28 +54,27 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getSearchHistoryByUserId(userId: number | null): Promise<SearchHistory[]> {
-    console.log("Fetching search history for userId:", userId);
-    let results;
-    
-    if (userId) {
-      // Get search history for specific user
-      results = await db
-        .select()
-        .from(searchHistory)
-        .where(eq(searchHistory.userId, userId))
-        .orderBy(searchHistory.timestamp);
-    } else {
-      // Get all anonymous search history (null userId)
-      console.log("Getting anonymous search history");
-      results = await db
-        .select()
-        .from(searchHistory)
-        .where(sql`${searchHistory.userId} IS NULL`)
-        .orderBy(searchHistory.timestamp);
+    try {
+      if (userId) {
+        // Get search history for specific user
+        return await db
+          .select()
+          .from(searchHistory)
+          .where(eq(searchHistory.userId, userId))
+          .orderBy(searchHistory.timestamp);
+      } else {
+        // Get all anonymous search history (null userId)
+        // We use a direct SQL query to properly handle NULL values
+        return await db
+          .select()
+          .from(searchHistory)
+          .where(sql`${searchHistory.userId} IS NULL`)
+          .orderBy(searchHistory.timestamp);
+      }
+    } catch (error) {
+      console.error("Error fetching search history:", error);
+      throw error;
     }
-    
-    console.log("Search history results:", results);
-    return results;
   }
   
   // Saved searches operations
