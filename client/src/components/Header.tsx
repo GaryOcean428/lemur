@@ -1,11 +1,19 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, isLoading, logoutMutation } = useAuth();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
   };
 
   return (
@@ -26,7 +34,7 @@ export default function Header() {
           </Link>
         </div>
         
-        <nav className="hidden md:flex space-x-4">
+        <nav className="hidden md:flex space-x-4 items-center">
           <Link href="/about" className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
             About
           </Link>
@@ -36,9 +44,35 @@ export default function Header() {
           <Link href="/settings" className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
             Settings
           </Link>
-          <Link href="/signin" className="bg-[hsl(var(--primary))] text-white px-4 py-1 rounded-full hover:bg-[hsl(var(--primary-dark))] transition-colors">
-            Sign In
-          </Link>
+          
+          {isLoading ? (
+            <Button disabled>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Loading
+            </Button>
+          ) : user ? (
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium">Hi, {user.username}</span>
+              <Button 
+                variant="outline"
+                onClick={handleLogout}
+                disabled={logoutMutation.isPending}
+              >
+                {logoutMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Signing out
+                  </>
+                ) : (
+                  "Sign Out"
+                )}
+              </Button>
+            </div>
+          ) : (
+            <Link href="/auth" className="bg-[hsl(var(--primary))] text-white px-4 py-1 rounded-full hover:bg-[hsl(var(--primary-dark))] transition-colors">
+              Sign In
+            </Link>
+          )}
         </nav>
         
         <button 
@@ -67,9 +101,28 @@ export default function Header() {
             <Link href="/settings" className="py-2 text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
               Settings
             </Link>
-            <Link href="/signin" className="py-2 text-[hsl(var(--primary))] font-medium">
-              Sign In
-            </Link>
+            
+            {isLoading ? (
+              <div className="py-2 flex items-center">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Loading
+              </div>
+            ) : user ? (
+              <div className="py-2 space-y-2">
+                <div className="font-medium">Hi, {user.username}</div>
+                <button 
+                  className="text-[hsl(var(--primary))] font-medium"
+                  onClick={handleLogout}
+                  disabled={logoutMutation.isPending}
+                >
+                  {logoutMutation.isPending ? "Signing out..." : "Sign Out"}
+                </button>
+              </div>
+            ) : (
+              <Link href="/auth" className="py-2 text-[hsl(var(--primary))] font-medium">
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       )}

@@ -161,6 +161,8 @@ Return your answer in plain text with inline citations like [Source X].`;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up authentication routes and middleware
+  setupAuth(app);
   // Search API endpoint
   app.get("/api/search", async (req, res) => {
     try {
