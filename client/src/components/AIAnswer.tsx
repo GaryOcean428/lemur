@@ -1,5 +1,5 @@
 import { Source } from "@/lib/types";
-import { marked } from 'marked';
+import * as DOMPurify from 'dompurify';
 
 interface AIAnswerProps {
   answer: string;
@@ -8,34 +8,68 @@ interface AIAnswerProps {
 }
 
 export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
-  // Configure marked options
-  marked.setOptions({
-    breaks: true,           // Add <br> on single line breaks
-    gfm: true,              // GitHub Flavored Markdown
-  });
+  // Basic markdown rendering function for improved readability
+  function renderMarkdown(text: string): string {
+    // Step 1: Process citations to make them clickable
+    let processedText = text
+      // Handle [Source X] pattern citation links
+      .replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
+        const sourceIndex = parseInt(sourceNumber) - 1;
+        if (sourceIndex >= 0 && sourceIndex < sources.length) {
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
+        }
+        return match;
+      })
+      // Handle simple [X] pattern citation links
+      .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
+        const sourceIndex = parseInt(sourceNumber) - 1;
+        if (sourceIndex >= 0 && sourceIndex < sources.length) {
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
+        }
+        return match;
+      });
+    
+    // Step 2: Convert markdown to HTML
+    // Headers
+    processedText = processedText
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    
+    // Bold and italic
+    processedText = processedText
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+    
+    // Lists
+    // Convert ordered lists (very basic conversion)
+    processedText = processedText.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+    processedText = processedText.replace(/(<li>.+<\/li>\n)+/g, '<ol>$&</ol>');
+    
+    // Convert unordered lists (very basic conversion)
+    processedText = processedText.replace(/^- (.+)$/gm, '<li>$1</li>');
+    processedText = processedText.replace(/^\* (.+)$/gm, '<li>$1</li>');
+    processedText = processedText.replace(/(<li>.+<\/li>\n)+/g, '<ul>$&</ul>');
+    
+    // Links (only handle standard markdown links)
+    processedText = processedText.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    
+    // Code blocks
+    processedText = processedText.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    
+    // Inline code
+    processedText = processedText.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Paragraphs (add p tags to text blocks)
+    processedText = processedText.replace(/^(?!<[a-z][^>]*>)(.+)$/gm, '<p>$1</p>');
+    
+    // Step 3: Sanitize HTML to prevent XSS
+    return DOMPurify.sanitize(processedText);
+  }
 
-  // Pre-process the answer to handle citation links before markdown processing
-  const processedText = answer
-    // Handle [Source X] pattern citation links
-    .replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
-      const sourceIndex = parseInt(sourceNumber) - 1;
-      if (sourceIndex >= 0 && sourceIndex < sources.length) {
-        return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
-      }
-      return match;
-    })
-    // Handle simple [X] pattern citation links
-    .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
-      const sourceIndex = parseInt(sourceNumber) - 1;
-      if (sourceIndex >= 0 && sourceIndex < sources.length) {
-        return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
-      }
-      return match;
-    });
-
-  // Parse markdown into HTML
-  const html = marked.parse(processedText);
-
+  // Render the markdown to HTML
+  const html = renderMarkdown(answer);
+  
   // Handle feedback events
   const handleFeedback = (type: 'like' | 'dislike' | 'share') => {
     console.log(`User ${type}d the answer`);
