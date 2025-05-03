@@ -11,32 +11,115 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
   function simpleMarkdownToHtml(text: string): string {
     let html = text;
     
+    // First, escape any HTML to prevent injection
+    html = html.replace(/&/g, '&amp;')
+               .replace(/</g, '&lt;')
+               .replace(/>/g, '&gt;')
+               .replace(/"/g, '&quot;')
+               .replace(/'/g, '&#039;');
+    
+    // Handle code blocks (must be done before other formatting)
+    html = html.replace(/```([\s\S]*?)```/g, (match, p1) => {
+      return '<pre><code>' + p1.trim() + '</code></pre>';
+    });
+    
+    // Handle inline code (must be done before other formatting)
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
     // Handle headings (# Heading 1, ## Heading 2, etc.)
     html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
     html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
     html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
     
-    // Handle lists (bulleted and numbered)
-    html = html.replace(/^\* (.+)$/gm, '<li>$1</li>').replace(/(<\/li>\s*<li>)/g, '$1');
-    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>').replace(/(<\/li>\s*<li>)/g, '$1');
+    // Handle unordered lists (bulleted)
+    let inList = false;
+    let listItems: string[] = [];
     
-    // Handle consecutive list items
-    html = html.replace(/(<li>.+<\/li>\s*){1,}/g, '<ul>$&</ul>');
+    // Process unordered lists
+    html = html.split('\n').map(line => {
+      if (line.match(/^\s*[\*\-] (.+)$/)) {
+        const content = line.replace(/^\s*[\*\-] (.+)$/, '$1');
+        if (!inList) {
+          inList = true;
+          listItems = ['<li>' + content + '</li>'];
+          return '';
+        } else {
+          listItems.push('<li>' + content + '</li>');
+          return '';
+        }
+      } else if (inList && line.trim() === '') {
+        inList = false;
+        const list = '<ul>\n' + listItems.join('\n') + '\n</ul>';
+        listItems = [];
+        return list;
+      } else if (inList) {
+        // If this is not a list item but we're in a list, close the list
+        inList = false;
+        const list = '<ul>\n' + listItems.join('\n') + '\n</ul>';
+        listItems = [];
+        return list + '\n' + line;
+      } else {
+        return line;
+      }
+    }).join('\n');
+    
+    // If we're still in a list at the end of processing, close it
+    if (inList) {
+      html += '\n<ul>\n' + listItems.join('\n') + '\n</ul>';
+    }
+    
+    // Handle ordered lists (numbered)
+    inList = false;
+    listItems = [];
+    
+    // Process ordered lists
+    html = html.split('\n').map(line => {
+      if (line.match(/^\s*\d+\. (.+)$/)) {
+        const content = line.replace(/^\s*\d+\. (.+)$/, '$1');
+        if (!inList) {
+          inList = true;
+          listItems = ['<li>' + content + '</li>'];
+          return '';
+        } else {
+          listItems.push('<li>' + content + '</li>');
+          return '';
+        }
+      } else if (inList && line.trim() === '') {
+        inList = false;
+        const list = '<ol>\n' + listItems.join('\n') + '\n</ol>';
+        listItems = [];
+        return list;
+      } else if (inList) {
+        // If this is not a list item but we're in a list, close the list
+        inList = false;
+        const list = '<ol>\n' + listItems.join('\n') + '\n</ol>';
+        listItems = [];
+        return list + '\n' + line;
+      } else {
+        return line;
+      }
+    }).join('\n');
+    
+    // If we're still in a list at the end of processing, close it
+    if (inList) {
+      html += '\n<ol>\n' + listItems.join('\n') + '\n</ol>';
+    }
     
     // Handle bold text
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     
     // Handle italic text
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
     
-    // Handle code blocks
-    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    // Handle paragraphs (replace double newlines with paragraph tags)
+    html = '<p>' + html.replace(/\n\n+/g, '</p>\n\n<p>') + '</p>';
     
-    // Handle inline code
-    html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+    // Handle single line breaks (replace single newlines with break tags, but not inside code blocks)
+    html = html.replace(/<\/p>\n\n<p>/g, '</p><p>');
+    html = html.replace(/\n(?!<\/?(p|ul|ol|li|h[1-6]|pre|code)>)/g, '<br />');
     
-    // Handle paragraphs (add breaks at newlines)
-    html = html.replace(/\n\n/g, '<br /><br />');
+    // Clean up any empty paragraph tags
+    html = html.replace(/<p>\s*<\/p>/g, '');
     
     return html;
   }
@@ -57,15 +140,15 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-      <h3 className="text-xl font-semibold mb-4">AI-Generated Answer</h3>
+    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-md dark:shadow-gray-800/30 p-6 mb-6 border border-gray-100 dark:border-gray-800">
+      <h3 className="text-xl font-semibold mb-4 text-[hsl(var(--neutral))] dark:text-white/90">AI-Generated Answer</h3>
       
       <div 
-        className="prose prose-headings:font-semibold prose-headings:text-primary prose-a:text-citation prose-a:no-underline hover:prose-a:underline prose-strong:font-semibold prose-strong:text-primary-dark prose-code:text-primary-dark prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none max-w-none"
+        className="prose dark:prose-invert prose-headings:font-semibold prose-headings:text-primary dark:prose-headings:text-primary-light prose-a:text-citation prose-a:no-underline hover:prose-a:underline prose-strong:font-semibold prose-strong:text-primary-dark dark:prose-strong:text-primary-light prose-code:text-primary-dark dark:prose-code:text-primary-light prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800 prose-pre:rounded-md prose-pre:p-4 prose-pre:overflow-x-auto prose-li:marker:text-primary dark:prose-li:marker:text-primary-light max-w-none"
         dangerouslySetInnerHTML={{ __html: processedAnswer }}
       />
       
-      <div className="mt-6 border-t border-gray-100 pt-4">
+      <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
         <h4 className="text-sm font-semibold text-[hsl(var(--neutral-muted))] mb-2">Sources:</h4>
         <ol className="text-sm space-y-1">
           {sources.map((source, index) => (
