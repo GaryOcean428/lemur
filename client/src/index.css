@@ -41,11 +41,11 @@
   --accent-pink: 336 83% 86%; /* Pink accent */
   
   /* Glow effect variables */
-  --glow-primary: 270 84% 50% / 0.2; /* Purple glow */
-  --glow-secondary: 180 100% 42% / 0.25; /* Teal glow */
-  --glow-neon: 140 100% 50% / 0.3; /* Neon green glow */
-  --glow-spread: 15px;
-  --glow-blur: 15px;
+  --glow-primary: 270 84% 50% / 0.35; /* Purple glow */
+  --glow-secondary: 180 100% 42% / 0.4; /* Teal glow */
+  --glow-neon: 140 100% 60% / 0.6; /* Neon green glow */
+  --glow-spread: 20px;
+  --glow-blur: 20px;
 }
 
 .dark {
@@ -81,11 +81,11 @@
   --navy: 230 50% 19%;
   
   /* Glow effect variables - stronger in dark mode */
-  --glow-primary: 270 84% 65% / 0.3;
-  --glow-secondary: 180 100% 60% / 0.35;
-  --glow-neon: 140 100% 60% / 0.4; /* Neon green glow */
-  --glow-spread: 15px;
-  --glow-blur: 20px;
+  --glow-primary: 270 84% 65% / 0.45;
+  --glow-secondary: 180 100% 60% / 0.5;
+  --glow-neon: 140 100% 70% / 0.65; /* Neon green glow */
+  --glow-spread: 25px;
+  --glow-blur: 25px;
 }
 
 @layer base {

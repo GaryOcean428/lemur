@@ -82,8 +82,8 @@ const AuthPage = () => {
         <Card className="w-full">
           <CardHeader className="flex flex-col items-center text-center">
             <div className="w-20 h-20 mb-2 relative group">
-              <div className="absolute inset-0 bg-[hsl(var(--glow-neon))] rounded-full blur-md group-hover:blur-xl opacity-70 group-hover:opacity-100 transition-all duration-300 -z-10"></div>
-              <img src={lemurLogo} alt="Lemur logo" className="w-full h-full" />
+              <div className="absolute -inset-3 bg-[hsl(var(--glow-neon))] rounded-full blur-lg group-hover:blur-xl opacity-70 group-hover:opacity-100 transition-all duration-300 -z-10"></div>
+              <img src={lemurLogo} alt="Lemur logo" className="w-full h-full relative z-10" />
             </div>
             <CardTitle>Welcome to Lemur</CardTitle>
             <CardDescription>
