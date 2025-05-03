@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 224 71.4% 4.1%;
+  --muted: 220 14.3% 95.9%;
+  --muted-foreground: 220 8.9% 46.1%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 71.4% 4.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 71.4% 4.1%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --primary: 262 87% 50%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 173 100% 41%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 262 87% 50%;
+  --radius: 0.5rem;
+
+  /* Custom colors for Find search engine */
+  --primary-dark: 262 74% 38%;
+  --primary-light: 262 100% 67%;
+  --secondary-light: 173 91% 51%;
+  --neutral: 240 22% 15%;
+  --neutral-muted: 229 9% 45%;
+  --neutral-light: 220 71% 96%;
+  --neutral-bg: 220 100% 99%;
+  --citation: 214 100% 54%;
+  --success: 164 100% 39%;
+  --warning: 25 100% 64%;
+  --sponsored: 45 100% 60%;
+  --navy: 230 58% 19%;
+}
+
+.dark {
+  --background: 224 71.4% 4.1%;
+  --foreground: 210 40% 98%;
+  --muted: 215 27.9% 16.9%;
+  --muted-foreground: 217.9 10.6% 64.9%;
+  --popover: 224 71.4% 4.1%;
+  --popover-foreground: 210 40% 98%;
+  --card: 224 71.4% 4.1%;
+  --card-foreground: 210 40% 98%;
+  --border: 215 27.9% 16.9%;
+  --input: 215 27.9% 16.9%;
+  --primary: 262 87% 50%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 173 100% 41%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 215 27.9% 16.9%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 262 87% 50%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-[hsl(var(--neutral-bg))] text-[hsl(var(--neutral))];
+  }
+}
+
+@layer components {
+  .find-logo {
+    @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+  }
+  
+  .search-gradient {
+    @apply bg-gradient-to-r from-primary to-secondary;
+  }
+
+  .citation-link {
+    @apply text-[hsl(var(--citation))] font-medium hover:underline;
+  }
+
+  .tab-active {
+    @apply border-primary text-primary font-medium;
+  }
+
+  .tab-inactive {
+    @apply border-transparent text-[hsl(var(--neutral-muted))] hover:text-primary hover:border-primary-light transition-colors;
+  }
+}
