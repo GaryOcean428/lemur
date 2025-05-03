@@ -194,6 +194,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         domain: new URL(result.url).hostname.replace("www.", "")
       }));
 
+      // Log search in database (without userId for anonymous searches)
+      try {
+        await storage.createSearchHistory({
+          query,
+          userId: null, // For anonymous searches
+        });
+        console.log(`Search logged: "${query}"`);
+      } catch (dbError) {
+        // Log error but don't fail the search request
+        console.error("Failed to log search to database:", dbError);
+      }
+
       // Return combined results
       res.json({
         ai: {
@@ -207,6 +219,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Search API error:", error);
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "An error occurred while processing your search" 
+      });
+    }
+  });
+  
+  // Get search history (for future authenticated users)
+  app.get("/api/search-history", async (req, res) => {
+    try {
+      const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
+      
+      if (userId) {
+        // Get search history for specific user
+        const history = await storage.getSearchHistoryByUserId(userId);
+        return res.json(history);
+      } else {
+        // For now, return empty array for anonymous users
+        return res.json([]);
+      }
+    } catch (error) {
+      console.error("Error fetching search history:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "An error occurred while fetching search history" 
+      });
+    }
+  });
+  
+  // Save search (for authenticated users)
+  app.post("/api/saved-searches", async (req, res) => {
+    try {
+      const { userId, query, aiAnswer, results } = req.body;
+      
+      if (!userId || !query) {
+        return res.status(400).json({ message: "userId and query are required" });
+      }
+      
+      const savedSearch = await storage.saveSearch({
+        userId,
+        query,
+        aiAnswer,
+        results
+      });
+      
+      res.status(201).json(savedSearch);
+    } catch (error) {
+      console.error("Error saving search:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "An error occurred while saving search" 
+      });
+    }
+  });
+  
+  // Get saved searches (for authenticated users)
+  app.get("/api/saved-searches", async (req, res) => {
+    try {
+      const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "userId is required" });
+      }
+      
+      const savedSearches = await storage.getSavedSearchesByUserId(userId);
+      res.json(savedSearches);
+    } catch (error) {
+      console.error("Error fetching saved searches:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "An error occurred while fetching saved searches" 
+      });
+    }
+  });
+  
+  // Submit search feedback
+  app.post("/api/search-feedback", async (req, res) => {
+    try {
+      const { searchId, userId, feedbackType, comment } = req.body;
+      
+      if (!searchId || !feedbackType) {
+        return res.status(400).json({ message: "searchId and feedbackType are required" });
+      }
+      
+      const feedback = await storage.createSearchFeedback({
+        searchId,
+        userId,
+        feedbackType,
+        comment
+      });
+      
+      res.status(201).json(feedback);
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "An error occurred while submitting feedback" 
       });
     }
   });
