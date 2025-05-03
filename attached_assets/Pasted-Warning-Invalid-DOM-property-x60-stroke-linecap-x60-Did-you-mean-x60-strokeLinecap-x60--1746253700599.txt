@@ -1,0 +1,54 @@
+Warning: Invalid DOM property &#x60;stroke-linecap&#x60;. Did you mean &#x60;strokeLinecap&#x60;?
+    at svg
+    at div
+    at div
+    at div
+    at div
+    at div
+    at Home
+    at Route (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=de57d375:323:16)
+    at Switch (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=de57d375:379:17)
+    at Router
+    at main
+    at div
+    at Provider (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-532U4VYK.js?v=de57d375:72:15)
+    at TooltipProvider (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=de57d375:2247:5)
+    at QueryClientProvider (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=de57d375:2805:3)
+    at App
+Warning: Invalid DOM property &#x60;stroke-linejoin&#x60;. Did you mean &#x60;strokeLinejoin&#x60;?
+    at svg
+    at div
+    at div
+    at div
+    at div
+    at div
+    at Home
+    at Route (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=de57d375:323:16)
+    at Switch (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=de57d375:379:17)
+    at Router
+    at main
+    at div
+    at Provider (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-532U4VYK.js?v=de57d375:72:15)
+    at TooltipProvider (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=de57d375:2247:5)
+    at QueryClientProvider (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=de57d375:2805:3)
+    at App
+at svg
+at div
+at div
+at div
+at div
+at div
+at Home
+at Route (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=de57d375:323:16)
+at Switch (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=de57d375:379:17)
+at Router
+at main
+at div
+at Provider (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-532U4VYK.js?v=de57d375:72:15)
+at TooltipProvider (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=de57d375:2247:5)
+at QueryClientProvider (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=de57d375:2805:3)
+at App
+at t.value (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
