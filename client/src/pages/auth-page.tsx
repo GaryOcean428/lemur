@@ -43,12 +43,6 @@ const AuthPage = () => {
   const [, navigate] = useLocation();
   const { user, loginMutation, registerMutation } = useAuth();
 
-  // Redirect if already logged in
-  if (user) {
-    navigate("/");
-    return null;
-  }
-
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -65,6 +59,12 @@ const AuthPage = () => {
       password: "",
     },
   });
+  
+  // Redirect if already logged in - AFTER all hooks are called
+  if (user) {
+    // Use setTimeout to avoid rendering issues
+    setTimeout(() => navigate("/"), 0);
+  }
 
   const onLoginSubmit = async (values: z.infer<typeof loginSchema>) => {
     await loginMutation.mutateAsync(values);
