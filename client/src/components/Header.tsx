@@ -24,13 +24,16 @@ export default function Header() {
           <Link href="/" className="flex items-center">
             <div className="w-10 h-10 mr-2">
               <svg viewBox="0 0 100 100" className="w-full h-full">
-                <path d="M70 40C70 56.5685 56.5685 70 40 70C23.4315 70 10 56.5685 10 40C10 23.4315 23.4315 10 40 10C56.5685 10 70 23.4315 70 40Z" fill="#5E17EB"/>
-                <path d="M40 70C35 70 25 68 15 55L25 45C30 55 35 60 40 60C45 60 50 55 55 50L90 50L80 60L70 70C65 70 55 70 40 70Z" fill="#00D4C8"/>
-                <circle cx="40" cy="40" r="20" fill="white"/>
-                <path d="M45 30L35 45L25 35" stroke="#5E17EB" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M30 40 Q 20 20 40 15 Q 45 15 45 25 L 45 35 Q 45 40 40 42 Q 25 48 30 40 Z" fill="#4B2A91" />
+                <circle cx="23" cy="38" r="3" fill="#FF9BB3" />
+                <path d="M75 40 Q 85 60 65 65 Q 60 65 60 55 L 60 45 Q 60 40 65 38 Q 80 32 75 40 Z" fill="#FFB6D9" />
+                <path d="M40 42 Q 50 60 60 45" stroke="#4B2A91" strokeWidth="3" fill="none" />
+                <circle cx="77" cy="62" r="3" fill="#4B2A91" />
+                <path d="M55 55 Q 65 75 75 65" stroke="#8FDFD9" strokeWidth="9" fill="none" />
+                <path d="M55 55 Q 65 75 75 65" stroke="#4B2A91" strokeWidth="3" fill="none" />
               </svg>
             </div>
-            <span className="text-2xl font-bold text-[hsl(var(--primary))]">Find</span>
+            <span className="text-2xl font-bold text-[hsl(var(--primary))]">Lemur</span>
           </Link>
         </div>
         
