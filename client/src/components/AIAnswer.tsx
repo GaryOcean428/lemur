@@ -7,6 +7,9 @@ interface AIAnswerProps {
 }
 
 export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
+  // Import the marked library
+  // @ts-ignore - we know marked exists from package.json
+  const marked = window.marked;
   // Helper function to convert Markdown-like syntax to HTML
   function simpleMarkdownToHtml(text: string): string {
     let html = text;

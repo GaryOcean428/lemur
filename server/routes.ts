@@ -10,6 +10,7 @@ interface TavilySearchResult {
   url: string;
   content: string;
   score: number;
+  published_date?: string; // Publication date when available
 }
 
 interface TavilySearchResponse {
@@ -202,12 +203,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tavilyResults = await tavilySearch(query, tavilyApiKey);
       
       // Convert to our format
-      const traditional = tavilyResults.results.map((result) => ({
-        title: result.title,
-        url: result.url,
-        snippet: result.content.substring(0, 200) + "...",
-        domain: new URL(result.url).hostname.replace("www.", "")
-      }));
+      const traditional = tavilyResults.results.map((result) => {
+        // Format the date to display or use placeholder if not available
+        const date = result.published_date ? new Date(result.published_date).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric' 
+        }) : '';
+        
+        return {
+          title: result.title,
+          url: result.url,
+          snippet: result.content.substring(0, 200) + "...",
+          domain: new URL(result.url).hostname.replace("www.", ""),
+          date
+        };
+      });
 
       // Get AI answer from Groq using the sources
       const { answer, model } = await groqSearch(query, tavilyResults.results, groqApiKey);

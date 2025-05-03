@@ -17,7 +17,12 @@ export default function TraditionalResults({ results }: TraditionalResultsProps)
     <div className="space-y-4">
       {results.map((result, index) => (
         <div key={index} className="bg-white rounded-xl shadow-md p-4">
-          <div className="text-xs text-[hsl(var(--neutral-muted))] mb-1">{result.domain}</div>
+          <div className="flex justify-between items-center mb-1">
+            <div className="text-xs text-[hsl(var(--neutral-muted))]">{result.domain}</div>
+            {result.date && (
+              <div className="text-xs text-[hsl(var(--neutral-muted))]">{result.date}</div>
+            )}
+          </div>
           <h3 className="text-lg font-medium">
             <a 
               href={result.url} 

@@ -15,6 +15,7 @@ export interface TraditionalResult {
   url: string;
   snippet: string;
   domain: string;
+  date?: string; // Publication date of the result
 }
 
 export interface SearchResults {
