@@ -68,28 +68,40 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
     return `<pre><code>${escapeHtml(code)}</code></pre>`;
   }
 
-  // Process unordered lists
+  // Process unordered lists with better handling for nested content and spacing
   function processUnorderedList(listText: string): string {
     const items = listText.split('\n')
       .filter(line => line.trim())
       .map(line => {
+        // Extract content after the list marker (* or -) 
         const content = line.replace(/^[\s]*[\*\-]\s+/, '');
-        return `<li>${processInlineFormats(content)}</li>`;
+        
+        // Handle nested lists or complex content in list items
+        const processedContent = processInlineFormats(content);
+        
+        return `<li>${processedContent}</li>`;
       });
     
-    return `<ul>${items.join('')}</ul>`;
+    // Join with newlines for better readability in the HTML source
+    return `<ul>\n  ${items.join('\n  ')}\n</ul>`;
   }
 
-  // Process ordered lists
+  // Process ordered lists with better handling for nested content and spacing
   function processOrderedList(listText: string): string {
     const items = listText.split('\n')
       .filter(line => line.trim())
       .map(line => {
+        // Extract content after the list marker (1., 2., etc)
         const content = line.replace(/^[\s]*\d+\.\s+/, '');
-        return `<li>${processInlineFormats(content)}</li>`;
+        
+        // Handle nested lists or complex content in list items
+        const processedContent = processInlineFormats(content);
+        
+        return `<li>${processedContent}</li>`;
       });
     
-    return `<ol>${items.join('')}</ol>`;
+    // Join with newlines for better readability in the HTML source
+    return `<ol>\n  ${items.join('\n  ')}\n</ol>`;
   }
 
   // Process headings
@@ -139,11 +151,15 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
     // Handle inline code (between backticks)
     processedText = processedText.replace(/`([^`]+)`/g, '<code>$1</code>');
     
-    // Handle bold text - need to be greedy to handle multiple bold sections
+    // Handle bold text - globally to catch all instances
     processedText = processedText.replace(/\*\*([^\*]+?)\*\*/g, '<strong>$1</strong>');
     
-    // Handle italic text - need to be greedy to handle multiple italic sections 
+    // Handle italic text - globally to catch all instances
     processedText = processedText.replace(/\*([^\*]+?)\*/g, '<em>$1</em>');
+    
+    // Also handle underscores for both bold and italic (common alternative syntax)
+    processedText = processedText.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
+    processedText = processedText.replace(/_([^_]+?)_/g, '<em>$1</em>');
     
     // Handle line breaks
     processedText = processedText.replace(/\n/g, '<br>');
