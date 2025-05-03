@@ -1,6 +1,6 @@
 import { users, type User, type InsertUser, searchHistory, type SearchHistory, type InsertSearchHistory, savedSearches, type SavedSearch, type InsertSavedSearch, searchFeedback, type SearchFeedback, type InsertSearchFeedback } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -13,7 +13,7 @@ export interface IStorage {
   
   // Search history operations
   createSearchHistory(history: InsertSearchHistory): Promise<SearchHistory>;
-  getSearchHistoryByUserId(userId: number): Promise<SearchHistory[]>;
+  getSearchHistoryByUserId(userId: number | null): Promise<SearchHistory[]>;
   
   // Saved searches operations
   saveSearch(savedSearch: InsertSavedSearch): Promise<SavedSearch>;
@@ -53,12 +53,29 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
   
-  async getSearchHistoryByUserId(userId: number): Promise<SearchHistory[]> {
-    return await db
-      .select()
-      .from(searchHistory)
-      .where(eq(searchHistory.userId, userId))
-      .orderBy(searchHistory.timestamp);
+  async getSearchHistoryByUserId(userId: number | null): Promise<SearchHistory[]> {
+    console.log("Fetching search history for userId:", userId);
+    let results;
+    
+    if (userId) {
+      // Get search history for specific user
+      results = await db
+        .select()
+        .from(searchHistory)
+        .where(eq(searchHistory.userId, userId))
+        .orderBy(searchHistory.timestamp);
+    } else {
+      // Get all anonymous search history (null userId)
+      console.log("Getting anonymous search history");
+      results = await db
+        .select()
+        .from(searchHistory)
+        .where(sql`${searchHistory.userId} IS NULL`)
+        .orderBy(searchHistory.timestamp);
+    }
+    
+    console.log("Search history results:", results);
+    return results;
   }
   
   // Saved searches operations

@@ -234,15 +234,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/search-history", async (req, res) => {
     try {
       const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
-      
-      if (userId) {
-        // Get search history for specific user
-        const history = await storage.getSearchHistoryByUserId(userId);
-        return res.json(history);
-      } else {
-        // For now, return empty array for anonymous users
-        return res.json([]);
-      }
+      const history = await storage.getSearchHistoryByUserId(userId);
+      return res.json(history);
     } catch (error) {
       console.error("Error fetching search history:", error);
       res.status(500).json({ 
