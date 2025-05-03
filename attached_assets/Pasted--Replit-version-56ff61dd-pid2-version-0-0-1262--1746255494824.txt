@@ -1,0 +1,128 @@
+ Replit version 56ff61dd, pid2 version 0.0.1262
+ 
+      /////////////////////
+   ///////////////////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////        Curious and driven?
+  ///////////////@@@@@@@///////        Work with us!
+  ///////////////@@@@@@@///////
+  ///////////////@@@@@@@///////        https://join.replit.com/hack.with.us
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@#//////////////
+   ///////////////////////////
+      /////////////////////
+      
+ [LaunchDarkly] LaunchDarkly client initialized
+ Adding extension: GPT-Replit - ChatGPT in your Repl. Object
+ Adding extension: Perplexity Object
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+ Unrecognized feature: 'ambient-light-sensor'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'battery'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'execution-while-not-rendered'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'execution-while-out-of-viewport'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'layout-animations'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'legacy-image-formats'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'navigation-override'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'oversized-images'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'publickey-credentials'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'speaker-selection'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'unoptimized-images'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'unsized-media'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'web-share'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Unrecognized feature: 'pointer-lock'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Allow attribute will take precedence over 'allowfullscreen'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Allow attribute will take precedence over 'allowpaymentrequest'.
+_ @ framework-22538d6c72a2b9e0.js:1
+ Adding extension: Javascript Commands Object
+_app-21d6f4fcc26e6357.js:13 Command: hello has unrecognized contributions: editor-context-menu. Valid contributions are commandbar,filetree-context-menu,sidebar-search,editor-context-menu Object
+(anonymous) @ _app-21d6f4fcc26e6357.js:13
+ [Report Only] Refused to compile or instantiate WebAssembly module because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: "script-src 'self'".
+
+ [Report Only] Refused to compile or instantiate WebAssembly module because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: "script-src 'self'".
+
+/~:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+_app-21d6f4fcc26e6357.js:13 Adding extension: GPT-Replit - ChatGPT in your Repl. Object
+_app-21d6f4fcc26e6357.js:13 Adding extension: Perplexity Object
+_app-21d6f4fcc26e6357.js:13 Adding extension: Javascript Commands Object
+_app-21d6f4fcc26e6357.js:13 Command: hello has unrecognized contributions: editor-context-menu. Valid contributions are commandbar,filetree-context-menu,sidebar-search,editor-context-menu Object
+(anonymous) @ _app-21d6f4fcc26e6357.js:13
+_app-21d6f4fcc26e6357.js:13 Command: javascript-root-command has unrecognized contributions: commandbar. Valid contributions are commandbar,filetree-context-menu,sidebar-search,editor-context-menu Object
+(anonymous) @ _app-21d6f4fcc26e6357.js:13
+workspace_iframe.html:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html:32 Unrecognized feature: 'battery'.
+workspace_iframe.html:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html:32 Unrecognized feature: 'web-share'.
+workspace_iframe.html:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/:1 
+            
+            
+           Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+GroqSearch:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/:1 
+            
+            
+           Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/:1 
+            
+            
+           Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+79ed66f0-3a72-4b30-a31c-8ea8f7f4e5bf-00-p3dhu7ylfh9b.worf.replit.dev/api/search?q=What%27s%20in%20the%20news%20today%3F:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+Console.js:61 Error in performSearch: Error: Error fetching search results: 500 {"message":"Tavily API error: 401 Unauthorized"}
+    at performSearch (api.ts:15:13)
+Mt.forEach.n.<computed> @ Console.js:61
+
+                
+          
+          
+          
+         Chrome is moving towards a new experience that allows users to choose to browse without third-party cookies.

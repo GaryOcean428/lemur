@@ -3,9 +3,44 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import fetch from "node-fetch";
 
+// Define Tavily API response interface
+interface TavilySearchResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+}
+
+interface TavilySearchResponse {
+  results: TavilySearchResult[];
+  query: string;
+  search_depth: string;
+}
+
+// Groq API response interface
+interface GroqChoice {
+  message: {
+    content: string;
+    role: string;
+  };
+  index: number;
+  finish_reason: string;
+}
+
+interface GroqResponse {
+  id: string;
+  choices: GroqChoice[];
+  model: string;
+}
+
 // Tavily API for search results
-async function tavilySearch(query: string, apiKey: string) {
+async function tavilySearch(query: string, apiKey: string): Promise<TavilySearchResponse> {
   try {
+    // Validate API key format (basic check)
+    if (!apiKey || apiKey.trim() === '') {
+      throw new Error('Missing Tavily API key');
+    }
+
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: {
@@ -22,10 +57,18 @@ async function tavilySearch(query: string, apiKey: string) {
     });
 
     if (!response.ok) {
-      throw new Error(`Tavily API error: ${response.status} ${response.statusText}`);
+      let errorMessage = `Tavily API error: ${response.status} ${response.statusText}`;
+      
+      if (response.status === 401) {
+        errorMessage = 'Tavily API error: Invalid or expired API key. Please update your API key.';
+      } else if (response.status === 429) {
+        errorMessage = 'Tavily API error: Rate limit exceeded. Please try again later.';
+      }
+      
+      throw new Error(errorMessage);
     }
 
-    return await response.json();
+    return await response.json() as TavilySearchResponse;
   } catch (error) {
     console.error("Error calling Tavily API:", error);
     throw error;
@@ -33,8 +76,13 @@ async function tavilySearch(query: string, apiKey: string) {
 }
 
 // Groq API for AI responses
-async function groqSearch(query: string, sources: any[], apiKey: string) {
+async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string): Promise<{answer: string; model: string}> {
   try {
+    // Validate API key
+    if (!apiKey || apiKey.trim() === '') {
+      throw new Error('Missing Groq API key');
+    }
+
     // Format sources for inclusion in prompt
     const formattedSources = sources.map((source, i) => 
       `Source ${i + 1}: ${source.title}\n${source.content.substring(0, 300)}...\nURL: ${source.url}`
@@ -57,8 +105,7 @@ Your answer should:
 Return your answer in plain text with inline citations like [Source X].`;
 
     // Choose model based on query complexity
-    // For simplicity, we're using compound-beta for everything here
-    // In a real app, we'd have logic to determine which model to use
+    // For simplicity, we're using llama3-70b-8192 for everything here
     const model = "llama3-70b-8192";
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -84,10 +131,20 @@ Return your answer in plain text with inline citations like [Source X].`;
     });
 
     if (!response.ok) {
-      throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
+      let errorMessage = `Groq API error: ${response.status} ${response.statusText}`;
+      
+      if (response.status === 401) {
+        errorMessage = 'Groq API error: Invalid or expired API key. Please update your API key.';
+      } else if (response.status === 429) {
+        errorMessage = 'Groq API error: Rate limit exceeded. Please try again later.';
+      } else if (response.status === 404) {
+        errorMessage = `Groq API error: Model '${model}' not found or unavailable.`;
+      }
+      
+      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
+    const data = await response.json() as GroqResponse;
     return {
       answer: data.choices[0].message.content,
       model
@@ -120,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tavilyResults = await tavilySearch(query, tavilyApiKey);
       
       // Convert to our format
-      const traditional = tavilyResults.results.map((result: any) => ({
+      const traditional = tavilyResults.results.map((result) => ({
         title: result.title,
         url: result.url,
         snippet: result.content.substring(0, 200) + "...",
@@ -131,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { answer, model } = await groqSearch(query, tavilyResults.results, groqApiKey);
 
       // Format sources for the AI answer
-      const sources = tavilyResults.results.slice(0, 5).map((result: any) => ({
+      const sources = tavilyResults.results.slice(0, 5).map((result) => ({
         title: result.title,
         url: result.url,
         domain: new URL(result.url).hostname.replace("www.", "")

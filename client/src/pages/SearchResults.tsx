@@ -33,16 +33,44 @@ export default function SearchResults() {
   });
 
   if (error) {
+    let errorMessage = "An error occurred while fetching search results. Please try again."; 
+    let errorDetail = "";
+    
+    if (error instanceof Error) {
+      if (error.message.includes("401 Unauthorized")) {
+        errorMessage = "API authorization error"; 
+        errorDetail = "The search service is currently unavailable due to API key issues. Please try again later or contact support.";
+      } else if (error.message.includes("500")) {
+        errorMessage = "Search service error";
+        errorDetail = "Our search service is experiencing technical difficulties. Please try again later.";
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto mb-8">
           <SearchForm initialQuery={query} />
         </div>
-        <div className="text-center py-10">
-          <h2 className="text-2xl font-semibold text-red-600 mb-4">Error</h2>
-          <p className="text-[hsl(var(--neutral-muted))]">
-            {error instanceof Error ? error.message : "An error occurred while fetching search results. Please try again."}
+        <div className="max-w-3xl mx-auto text-center py-10 bg-white rounded-xl shadow-md p-8">
+          <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-red-50 rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h2 className="text-2xl font-semibold text-neutral mb-4">{errorMessage}</h2>
+          <p className="text-[hsl(var(--neutral-muted))] mb-6">
+            {errorDetail}
           </p>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="px-5 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-dark transition-colors"
+          >
+            Return to Home
+          </button>
         </div>
       </div>
     );
