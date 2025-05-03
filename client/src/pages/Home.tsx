@@ -8,7 +8,7 @@ export default function Home() {
         {/* Large centered logo with glow effect */}
         <div className="mb-6 flex flex-col items-center">
           <div className="w-32 h-32 mb-2 relative group">
-            <div className="absolute inset-0 bg-primary/20 rounded-full blur-md group-hover:blur-xl opacity-70 group-hover:opacity-100 transition-all duration-300 -z-10 dark:bg-primary/30"></div>
+            <div className="absolute inset-0 bg-[hsl(var(--glow-neon))] rounded-full blur-md group-hover:blur-xl opacity-70 group-hover:opacity-100 transition-all duration-300 -z-10"></div>
             <img src={lemurLogo} alt="Lemur logo" className="w-full h-full" />
           </div>
           <h1 className="text-4xl font-bold text-[hsl(var(--primary))] mb-2 glow-text dark:text-white/90">Lemur</h1>
