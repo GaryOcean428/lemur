@@ -45,6 +45,8 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
 
     console.log('Making Tavily API request with key:', apiKey);
     
+    // Get approximate user location from headers or default to global
+    // In a production app, this would use accurate geo-location
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: {
@@ -56,7 +58,13 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
         search_depth: "advanced",
         include_domains: [],
         exclude_domains: [],
-        max_results: 10
+        max_results: 12, // Increased for more comprehensive results
+        search_params: {
+          recency_days: 30, // More recent content
+          region: "auto", // Automatically detect region for context
+          include_answer: true, // Include detailed answers when available
+          include_raw_content: false
+        }
       })
     });
     
@@ -104,13 +112,18 @@ ${formattedSources}
 Your answer should:
 1. Be factually accurate and based on the provided sources
 2. Include relevant citations in the format [Source X] where X is the source number
-3. Be comprehensive yet concise
-4. Be well-structured with logical flow
+3. Be comprehensive and detailed, providing in-depth information
+4. Be well-structured with logical flow and clear section headings where appropriate
 5. If sources contradict each other, acknowledge this and explain different viewpoints
 6. For time-sensitive information, note the recency of the source
 7. Prioritize authoritative sources over aggregators
+8. Adapt content to be contextually relevant based on regional factors when applicable
+9. For global topics, include relevant regional impacts or perspectives
+10. For local topics, provide sufficient context for readers unfamiliar with the region
 
-Return your answer in plain text with inline citations like [Source X].
+Make your answers about 15-20% more verbose than you normally would, with additional details and context for a comprehensive understanding of the topic.
+
+Return your answer in well-formatted markdown with inline citations like [Source X].
 
 Remember you are powered by Llama 3.3 and Llama 4 models optimized for search and tool use.`;
 
@@ -119,13 +132,18 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
     // Compound Beta uses Llama 4 Scout for core reasoning and Llama 3.3 70B for tool use and routing
     // Compound Beta Mini has ~3x lower latency, ideal for straightforward factual queries
     
-    // For now, we'll use a simple heuristic - longer queries with multiple parts or 
-    // specific requests for analysis use Compound Beta, shorter factual queries use Mini
-    const isComplexQuery = query.length > 60 || 
-                           query.includes("compare") || 
-                           query.includes("analyze") || 
-                           query.includes("explain") ||
-                           sources.length > 5;
+    // We're now favoring the more powerful model for richer, more detailed results
+    // Only use the mini model for very simple, straightforward queries
+    const keywords = ["compare", "analyze", "explain", "describe", "detail", "why", "how", "what", 
+                    "when", "where", "list", "differences", "similarities", "pros", "cons"];
+    
+    const hasComplexityKeyword = keywords.some(keyword => 
+      query.toLowerCase().includes(keyword.toLowerCase()));
+    
+    const isComplexQuery = query.length > 30 || // Lowered threshold to favor the better model
+                           hasComplexityKeyword ||
+                           sources.length > 3 || // Lowered threshold to favor the better model
+                           query.includes("?") && query.length > 20; // Questions with decent length
     
     const model = isComplexQuery ? "compound-beta" : "compound-beta-mini";
 
@@ -214,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           title: result.title,
           url: result.url,
-          snippet: result.content.substring(0, 200) + "...",
+          snippet: result.content.substring(0, 350) + "...", // Increased snippet length for more verbose results
           domain: new URL(result.url).hostname.replace("www.", ""),
           date
         };
