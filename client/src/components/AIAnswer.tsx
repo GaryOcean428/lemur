@@ -7,9 +7,47 @@ interface AIAnswerProps {
 }
 
 export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
-  // Process answer to replace citation markers with proper links
-  const processedAnswer = answer.replace(/\[Source \d+\]/g, (match) => {
-    const sourceIndex = parseInt(match.match(/\d+/)![0]) - 1;
+  // Helper function to convert Markdown-like syntax to HTML
+  function simpleMarkdownToHtml(text: string): string {
+    let html = text;
+    
+    // Handle headings (# Heading 1, ## Heading 2, etc.)
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    
+    // Handle lists (bulleted and numbered)
+    html = html.replace(/^\* (.+)$/gm, '<li>$1</li>').replace(/(<\/li>\s*<li>)/g, '$1');
+    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>').replace(/(<\/li>\s*<li>)/g, '$1');
+    
+    // Handle consecutive list items
+    html = html.replace(/(<li>.+<\/li>\s*){1,}/g, '<ul>$&</ul>');
+    
+    // Handle bold text
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // Handle italic text
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    
+    // Handle code blocks
+    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    
+    // Handle inline code
+    html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+    
+    // Handle paragraphs (add breaks at newlines)
+    html = html.replace(/\n\n/g, '<br /><br />');
+    
+    return html;
+  }
+  
+  // Convert markdown to HTML and add citation links
+  const htmlContent = simpleMarkdownToHtml(answer);
+  
+  // Process to replace citation markers with proper links
+  const processedAnswer = htmlContent.replace(/\[Source \d+\]/g, (match: string) => {
+    const sourceNumber = match.match(/\d+/)?.[0] || "1";
+    const sourceIndex = parseInt(sourceNumber) - 1;
     return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
   });
 
@@ -23,7 +61,7 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
       <h3 className="text-xl font-semibold mb-4">AI-Generated Answer</h3>
       
       <div 
-        className="prose max-w-none"
+        className="prose prose-headings:font-semibold prose-headings:text-primary prose-a:text-citation prose-a:no-underline hover:prose-a:underline prose-strong:font-semibold prose-strong:text-primary-dark prose-code:text-primary-dark prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none max-w-none"
         dangerouslySetInnerHTML={{ __html: processedAnswer }}
       />
       
