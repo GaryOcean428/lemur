@@ -15,6 +15,15 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
       return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
     });
 
+    // Also handle other common citation formats like [1], [2], etc.
+    text = text.replace(/\[(\d+)\]/g, (match, sourceNumber) => {
+      const sourceIndex = parseInt(sourceNumber) - 1;
+      if (sourceIndex >= 0 && sourceIndex < sources.length) {
+        return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
+      }
+      return match; // If it's not a valid source index, leave it as is
+    });
+
     // Split text into paragraphs (empty lines as separators)
     const paragraphs = text.split(/\n{2,}/);
     const processedParagraphs = paragraphs.map(processParagraph);
@@ -96,25 +105,55 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
 
   // Process inline formatting (bold, italic, code)
   function processInlineFormats(text: string): string {
-    let processed = escapeHtml(text);
+    // First, preprocess any HTML-like content that should be preserved
+    const placeholders: Record<string, string> = {};
+    let counter = 0;
+    let processedText = text;
     
-    // Handle citation links that were pre-processed
-    processed = processed.replace(/&lt;a href=&quot;#source-\d+&quot; class=&quot;citation-link&quot;&gt;\[Source \d+\]&lt;\/a&gt;/g, 
-      match => match.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"'));
+    // Extract existing HTML-like tags and replace with placeholders
+    // Handle both Source tags and numeric citation tags
+    processedText = processedText.replace(/<a[^>]*>\[(?:Source\s*)?\d+\]<\/a>/g, (match) => {
+      const placeholder = `__CITATION_PLACEHOLDER_${counter}__`;
+      placeholders[placeholder] = match;
+      counter++;
+      return placeholder;
+    });
+    
+    // Also capture any citation numeric-only references [1], [2], etc. that still need to be linked
+    processedText = processedText.replace(/\[(\d+)\]/g, (match, sourceNumber) => {
+      const sourceIndex = parseInt(sourceNumber) - 1;
+      if (sourceIndex >= 0 && sourceIndex < sources.length) {
+        const placeholder = `__CITATION_PLACEHOLDER_${counter}__`;
+        placeholders[placeholder] = `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
+        counter++;
+        return placeholder;
+      }
+      return match; // If it's not a valid source index, leave it as is
+    });
+    
+    // Now escape HTML
+    processedText = escapeHtml(processedText);
+    
+    // Process markdown formatting
     
     // Handle inline code (between backticks)
-    processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>');
+    processedText = processedText.replace(/`([^`]+)`/g, '<code>$1</code>');
     
-    // Handle bold text
-    processed = processed.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+    // Handle bold text - need to be greedy to handle multiple bold sections
+    processedText = processedText.replace(/\*\*([^\*]+?)\*\*/g, '<strong>$1</strong>');
     
-    // Handle italic text
-    processed = processed.replace(/\*([^*]+?)\*/g, '<em>$1</em>');
+    // Handle italic text - need to be greedy to handle multiple italic sections 
+    processedText = processedText.replace(/\*([^\*]+?)\*/g, '<em>$1</em>');
     
     // Handle line breaks
-    processed = processed.replace(/\n/g, '<br>');
+    processedText = processedText.replace(/\n/g, '<br>');
     
-    return processed;
+    // Restore placeholders
+    Object.keys(placeholders).forEach(placeholder => {
+      processedText = processedText.replace(placeholder, placeholders[placeholder]);
+    });
+    
+    return processedText;
   }
 
   // Helper to escape HTML
