@@ -47,6 +47,34 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
     
     // Get approximate user location from headers or default to global
     // In a production app, this would use accurate geo-location
+    
+    // Identify if this is a region-specific query that might benefit from explicit region setting
+    const isNewsQuery = query.toLowerCase().includes('news') || 
+                        query.toLowerCase().includes('current events') ||
+                        query.toLowerCase().includes('today');
+    
+    // Australian news domains to ensure proper regional coverage
+    const australianDomains = [
+      'abc.net.au',
+      'smh.com.au', 
+      'theaustralian.com.au',
+      'news.com.au',
+      'theage.com.au',
+      '9news.com.au',
+      '7news.com.au',
+      'sbs.com.au',
+      'theguardian.com/au',
+      'watoday.com.au',
+      'perthnow.com.au',
+      'brisbanetimes.com.au',
+      'canberratimes.com.au'
+    ];
+    
+    // Modify query for Australian context if it seems to be a news query
+    const enhancedQuery = isNewsQuery 
+      ? `${query} including Australian federal election news 2025`
+      : query;
+
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: {
@@ -54,16 +82,18 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        query,
+        query: enhancedQuery,
         search_depth: "advanced",
-        include_domains: [],
+        include_domains: isNewsQuery ? australianDomains : [], // Prioritize Australian sources for news
         exclude_domains: [],
         max_results: 12, // Increased for more comprehensive results
         search_params: {
-          recency_days: 30, // More recent content
-          region: "auto", // Automatically detect region for context
+          recency_days: 7, // More recent content - reduced to focus on very current news
+          region: "au", // Explicitly set to Australia since user mentioned they're in Western Australia
           include_answer: true, // Include detailed answers when available
-          include_raw_content: false
+          include_raw_content: false,
+          snippet_count: 6, // Increase snippet count for more context
+          snippet_length: 350 // Longer snippets for more detail
         }
       })
     });

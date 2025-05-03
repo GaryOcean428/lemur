@@ -1,4 +1,5 @@
 import { Source } from "@/lib/types";
+import { marked } from 'marked';
 
 interface AIAnswerProps {
   answer: string;
@@ -7,204 +8,36 @@ interface AIAnswerProps {
 }
 
 export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
-  // Convert Markdown to HTML
-  function renderMarkdown(text: string): string {
-    // First pass - handle markdown headers (##) directly in the text
-    text = text.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
-    text = text.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
-    
-    // Pre-process Source links to properly link them
-    text = text.replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
+  // Configure marked options
+  marked.setOptions({
+    breaks: true,           // Add <br> on single line breaks
+    gfm: true,              // GitHub Flavored Markdown
+  });
+
+  // Pre-process the answer to handle citation links before markdown processing
+  const processedText = answer
+    // Handle [Source X] pattern citation links
+    .replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
       const sourceIndex = parseInt(sourceNumber) - 1;
       if (sourceIndex >= 0 && sourceIndex < sources.length) {
         return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
       }
-      return match; // No matching source available
-    });
-
-    // Handle other citation formats like [1], [2], etc.
-    text = text.replace(/\[(\d+)\]/g, (match, sourceNumber) => {
+      return match;
+    })
+    // Handle simple [X] pattern citation links
+    .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
       const sourceIndex = parseInt(sourceNumber) - 1;
       if (sourceIndex >= 0 && sourceIndex < sources.length) {
         return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
       }
-      return match; // If it's not a valid source index, leave it as is
-    });
-    
-    // Handle the special case of [Source X] references without proper links
-    text = text.replace(/\[Source\s+(\d+)\]/g, (match, sourceNumber) => {
-      const sourceIndex = parseInt(sourceNumber) - 1;
-      if (sourceIndex >= 0 && sourceIndex < sources.length) {
-        return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
-      }
-      return match; // No matching source available
+      return match;
     });
 
-    // Split text into paragraphs (empty lines as separators)
-    const paragraphs = text.split(/\n{2,}/);
-    const processedParagraphs = paragraphs.map(processParagraph);
-    return processedParagraphs.join('');
-  }
+  // Parse markdown into HTML
+  const html = marked.parse(processedText);
 
-  // Process a single paragraph based on its type
-  function processParagraph(paragraph: string): string {
-    paragraph = paragraph.trim();
-    if (!paragraph) return '';
-
-    // Special handling for lines that start with ## (markdown headers)
-    // This needs to come first because it's a common markdown pattern that
-    // might span multiple lines in the section
-    if (paragraph.match(/^#+\s/m)) {
-      return processHeading(paragraph);
-    }
-
-    // Code block
-    if (paragraph.startsWith('```')) {
-      return processCodeBlock(paragraph);
-    }
-    
-    // Unordered list (starts with * or -)
-    if (paragraph.match(/^[\s]*[\*\-]\s/m)) {
-      return processUnorderedList(paragraph);
-    }
-    
-    // Ordered list (starts with 1. 2. etc)
-    if (paragraph.match(/^[\s]*\d+\.\s/m)) {
-      return processOrderedList(paragraph);
-    }
-    
-    // Regular paragraph
-    return `<p>${processInlineFormats(paragraph)}</p>`;
-  }
-
-  // Process code blocks
-  function processCodeBlock(block: string): string {
-    const match = block.match(/```(?:[a-zA-Z]+)?\n?([\s\S]*?)```/);
-    if (!match) return `<pre><code>${escapeHtml(block)}</code></pre>`;
-    
-    const code = match[1];
-    return `<pre><code>${escapeHtml(code)}</code></pre>`;
-  }
-
-  // Process unordered lists with better handling for nested content and spacing
-  function processUnorderedList(listText: string): string {
-    const items = listText.split('\n')
-      .filter(line => line.trim())
-      .map(line => {
-        // Extract content after the list marker (* or -) 
-        const content = line.replace(/^[\s]*[\*\-]\s+/, '');
-        
-        // Handle nested lists or complex content in list items
-        const processedContent = processInlineFormats(content);
-        
-        return `<li>${processedContent}</li>`;
-      });
-    
-    // Join with newlines for better readability in the HTML source
-    return `<ul>\n  ${items.join('\n  ')}\n</ul>`;
-  }
-
-  // Process ordered lists with better handling for nested content and spacing
-  function processOrderedList(listText: string): string {
-    const items = listText.split('\n')
-      .filter(line => line.trim())
-      .map(line => {
-        // Extract content after the list marker (1., 2., etc)
-        const content = line.replace(/^[\s]*\d+\.\s+/, '');
-        
-        // Handle nested lists or complex content in list items
-        const processedContent = processInlineFormats(content);
-        
-        return `<li>${processedContent}</li>`;
-      });
-    
-    // Join with newlines for better readability in the HTML source
-    return `<ol>\n  ${items.join('\n  ')}\n</ol>`;
-  }
-
-  // Process headings
-  function processHeading(headingText: string): string {
-    const match = headingText.match(/^(#+)\s+(.+)$/);
-    if (!match) return `<p>${processInlineFormats(headingText)}</p>`;
-    
-    const level = Math.min(match[1].length, 6); // h1-h6 only
-    const content = match[2];
-    
-    return `<h${level}>${processInlineFormats(content)}</h${level}>`;
-  }
-
-  // Process inline formatting (bold, italic, code)
-  function processInlineFormats(text: string): string {
-    // First, preprocess any HTML-like content that should be preserved
-    const placeholders: Record<string, string> = {};
-    let counter = 0;
-    let processedText = text;
-    
-    // Extract existing HTML-like tags and replace with placeholders
-    // Handle both Source tags and numeric citation tags
-    processedText = processedText.replace(/<a[^>]*>\[(?:Source\s*)?\d+\]<\/a>/g, (match) => {
-      const placeholder = `__CITATION_PLACEHOLDER_${counter}__`;
-      placeholders[placeholder] = match;
-      counter++;
-      return placeholder;
-    });
-    
-    // Also capture any citation numeric-only references [1], [2], etc. that still need to be linked
-    processedText = processedText.replace(/\[(\d+)\]/g, (match, sourceNumber) => {
-      const sourceIndex = parseInt(sourceNumber) - 1;
-      if (sourceIndex >= 0 && sourceIndex < sources.length) {
-        const placeholder = `__CITATION_PLACEHOLDER_${counter}__`;
-        placeholders[placeholder] = `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
-        counter++;
-        return placeholder;
-      }
-      return match; // If it's not a valid source index, leave it as is
-    });
-    
-    // Now escape HTML
-    processedText = escapeHtml(processedText);
-    
-    // Process markdown formatting
-    
-    // Handle inline code (between backticks)
-    processedText = processedText.replace(/`([^`]+)`/g, '<code>$1</code>');
-    
-    // Handle bold text - globally to catch all instances
-    processedText = processedText.replace(/\*\*([^\*]+?)\*\*/g, '<strong>$1</strong>');
-    
-    // Handle italic text - globally to catch all instances
-    processedText = processedText.replace(/\*([^\*]+?)\*/g, '<em>$1</em>');
-    
-    // Also handle underscores for both bold and italic (common alternative syntax)
-    processedText = processedText.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
-    processedText = processedText.replace(/_([^_]+?)_/g, '<em>$1</em>');
-    
-    // Handle line breaks
-    processedText = processedText.replace(/\n/g, '<br>');
-    
-    // Restore placeholders
-    Object.keys(placeholders).forEach(placeholder => {
-      processedText = processedText.replace(placeholder, placeholders[placeholder]);
-    });
-    
-    return processedText;
-  }
-
-  // Helper to escape HTML
-  function escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  // Process the answer with our markdown renderer
-  const processedAnswer = renderMarkdown(answer);
-
+  // Handle feedback events
   const handleFeedback = (type: 'like' | 'dislike' | 'share') => {
-    // In a real app, this would send feedback to the backend
     console.log(`User ${type}d the answer`);
   };
 
@@ -214,7 +47,7 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
       
       <div 
         className="prose dark:prose-invert prose-headings:font-semibold prose-headings:text-primary dark:prose-headings:text-primary-light prose-a:text-citation prose-a:no-underline hover:prose-a:underline prose-strong:font-semibold prose-strong:text-primary-dark dark:prose-strong:text-primary-light prose-code:text-primary-dark dark:prose-code:text-primary-light prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800 prose-pre:rounded-md prose-pre:p-4 prose-pre:overflow-x-auto prose-li:marker:text-primary dark:prose-li:marker:text-primary-light max-w-none"
-        dangerouslySetInnerHTML={{ __html: processedAnswer }}
+        dangerouslySetInnerHTML={{ __html: html }}
       />
       
       <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
