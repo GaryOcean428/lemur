@@ -45,57 +45,19 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
 
     console.log('Making Tavily API request with key:', apiKey);
     
-    // Get approximate user location from headers or default to global
-    // In a production app, this would use accurate geo-location
+    // Create a very minimal request
+    const requestBody = {
+      query: query,
+      search_depth: "basic"
+    };
     
-    // Identify if this is a region-specific query that might benefit from explicit region setting
-    const isNewsQuery = query.toLowerCase().includes('news') || 
-                        query.toLowerCase().includes('current events') ||
-                        query.toLowerCase().includes('today');
-    
-    // Australian news domains to ensure proper regional coverage
-    const australianDomains = [
-      'abc.net.au',
-      'smh.com.au', 
-      'theaustralian.com.au',
-      'news.com.au',
-      'theage.com.au',
-      '9news.com.au',
-      '7news.com.au',
-      'sbs.com.au',
-      'theguardian.com/au',
-      'watoday.com.au',
-      'perthnow.com.au',
-      'brisbanetimes.com.au',
-      'canberratimes.com.au'
-    ];
-    
-    // Modify query for Australian context if it seems to be a news query
-    const enhancedQuery = isNewsQuery 
-      ? `${query} including Australian federal election news 2025`
-      : query;
-
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({
-        query: enhancedQuery,
-        search_depth: "advanced",
-        include_domains: isNewsQuery ? australianDomains : [], // Prioritize Australian sources for news
-        exclude_domains: [],
-        max_results: 12, // Increased for more comprehensive results
-        search_params: {
-          recency_days: 7, // More recent content - reduced to focus on very current news
-          region: "au", // Explicitly set to Australia since user mentioned they're in Western Australia
-          include_answer: true, // Include detailed answers when available
-          include_raw_content: false,
-          snippet_count: 6, // Increase snippet count for more context
-          snippet_length: 350 // Longer snippets for more detail
-        }
-      })
+      body: JSON.stringify(requestBody)
     });
     
     console.log('Tavily API response status:', response.status);
@@ -107,6 +69,8 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
         errorMessage = 'Tavily API error: Invalid or expired API key. Please update your API key.';
       } else if (response.status === 429) {
         errorMessage = 'Tavily API error: Rate limit exceeded. Please try again later.';
+      } else if (response.status === 400) {
+        errorMessage = 'Tavily API error: Bad request. The query parameters may be invalid.';
       }
       
       throw new Error(errorMessage);
