@@ -11,6 +11,10 @@ interface TavilySearchResult {
   content: string;
   score: number;
   published_date?: string; // Publication date when available
+  image?: {
+    url: string;
+    alt?: string; // Description of the image if available
+  };
 }
 
 interface TavilySearchResponse {
@@ -51,13 +55,16 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
     
     const requestBody = {
       query: truncatedQuery,
-      search_depth: "advanced",
+      search_depth: "advanced", // Options: "basic" or "advanced"
+      max_results: 15, // Up to 20 allowed
+      include_answer: "basic", // Options: false, "basic", or "advanced"
       include_domains: [],
       exclude_domains: [],
-      include_answer: false,
-      max_results: 10,
       include_raw_content: false,
-      include_images: false
+      include_images: true,
+      include_image_descriptions: false,
+      // Add regional awareness for Australia/local content
+      geo_location: "AU" // Australia
     };
     
     if (truncatedQuery !== query) {
@@ -253,7 +260,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           url: result.url,
           snippet: result.content.substring(0, 350) + "...", // Increased snippet length for more verbose results
           domain: new URL(result.url).hostname.replace("www.", ""),
-          date
+          date,
+          // Include image data if available from Tavily
+          image: result.image || undefined
         };
       });
 

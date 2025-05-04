@@ -23,19 +23,35 @@ export default function TraditionalResults({ results }: TraditionalResultsProps)
               <div className="text-xs text-[hsl(var(--neutral-muted))]">{result.date}</div>
             )}
           </div>
-          <h3 className="text-lg font-medium">
-            <a 
-              href={result.url} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-[hsl(var(--primary))] hover:underline"
-            >
-              {result.title}
-            </a>
-          </h3>
-          <p className="text-sm text-[hsl(var(--neutral-muted))] mt-1">
-            {result.snippet}
-          </p>
+          {/* Flex container for content and image */}
+          <div className={`${result.image ? 'flex gap-4' : ''}`}>
+            <div className="flex-grow">
+              <h3 className="text-lg font-medium">
+                <a 
+                  href={result.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-[hsl(var(--primary))] hover:underline"
+                >
+                  {result.title}
+                </a>
+              </h3>
+              <p className="text-sm text-[hsl(var(--neutral-muted))] mt-1">
+                {result.snippet}
+              </p>
+            </div>
+            
+            {/* Image if available */}
+            {result.image && (
+              <div className="flex-shrink-0">
+                <img 
+                  src={result.image.url} 
+                  alt={result.image.alt || result.title}
+                  className="w-24 h-24 object-cover rounded-lg" 
+                />
+              </div>
+            )}
+          </div>
         </div>
       ))}
     </div>

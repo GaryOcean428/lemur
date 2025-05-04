@@ -16,6 +16,10 @@ export interface TraditionalResult {
   snippet: string;
   domain: string;
   date?: string; // Publication date of the result
+  image?: {
+    url: string;
+    alt?: string; // Image description for accessibility
+  };
 }
 
 export interface SearchResults {
