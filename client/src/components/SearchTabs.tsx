@@ -3,6 +3,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import AIAnswer from "./AIAnswer";
 import { SearchResults } from "@/lib/types";
 import { useSearchStore } from "@/store/searchStore";
+import { type SearchTabType } from "@/store/searchStore";
 import { performSearch } from "@/lib/api";
 
 interface SearchTabsProps {
@@ -38,18 +39,7 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
     }
   }, [data, isLoading, setResults, setSearchedTab]);
 
-  // Import type from searchStore
-  type SearchTabType = 
-    | "all"      // AI + Web (default, side-by-side on large screens)
-    | "ai"       // AI only
-    | "web"      // Web results only
-    | "images"   // Image search results
-    | "videos"   // Video search results
-    | "news"     // News results
-    | "shopping" // Shopping results
-    | "social"   // Forums/Social results
-    | "maps"     // Map results
-    | "academic"; // Academic/peer-reviewed research
+  // Using SearchTabType imported from store
   
   // Function to handle tab change
   const handleTabChange = (tab: string) => {

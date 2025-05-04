@@ -45,10 +45,16 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
 
     console.log('Making Tavily API request with key:', apiKey);
     
-    // Create a very minimal request
+    // Create request with required parameters
     const requestBody = {
       query: query,
-      search_depth: "basic"
+      search_depth: "advanced",
+      include_domains: [],
+      exclude_domains: [],
+      include_answer: false,
+      max_results: 10,
+      include_raw_content: false,
+      include_images: false
     };
     
     const response = await fetch('https://api.tavily.com/search', {
@@ -70,7 +76,9 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
       } else if (response.status === 429) {
         errorMessage = 'Tavily API error: Rate limit exceeded. Please try again later.';
       } else if (response.status === 400) {
-        errorMessage = 'Tavily API error: Bad request. The query parameters may be invalid.';
+        const errorBody = await response.text();
+        console.error('Tavily API error details:', errorBody);
+        errorMessage = `Tavily API error: Bad request. Details: ${errorBody}`;
       }
       
       throw new Error(errorMessage);
@@ -172,6 +180,10 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
         errorMessage = 'Groq API error: Rate limit exceeded. Please try again later.';
       } else if (response.status === 404) {
         errorMessage = `Groq API error: Model '${model}' not found or unavailable.`;
+      } else {
+        const errorBody = await response.text();
+        console.error('Groq API error details:', errorBody);
+        errorMessage = `Groq API error: ${response.status}. Details: ${errorBody}`;
       }
       
       throw new Error(errorMessage);

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { SearchResults, TraditionalResult } from '@/lib/types';
 
-type SearchTabType = 
+export type SearchTabType = 
   | "all"      // AI + Web (default, side-by-side on large screens)
   | "ai"       // AI only
   | "web"      // Web results only
