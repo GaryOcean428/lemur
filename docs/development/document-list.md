@@ -1,8 +1,8 @@
-# Find: Technical Documentation Roadmap
+# Lemur: Technical Documentation Roadmap
 
 ## Core Documentation Requirements
 
-The following documents are essential for the technical implementation of the Find engine:
+The following documents are essential for the technical implementation of the Lemur search engine:
 
 ### 1. Technical Architecture Document
 - System architecture overview

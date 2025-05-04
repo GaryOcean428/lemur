@@ -1,4 +1,4 @@
-# Find: Color Scheme and Logo Specifications
+# Lemur: Color Scheme and Logo Specifications
 
 ## Color Scheme
 
@@ -29,9 +29,9 @@
 
 ## Logo Description
 
-"Create a modern logo for a search engine called 'Find' with the following specifications:
+"Create a modern logo for a search engine called 'Lemur' with the following specifications:
 
-The logo features a stylized, minimalist magnifying glass as its core element. The handle of the magnifying glass is sleek and transforms into an abstract 'F' shape, creating a subtle nod to the name 'Find'. The circular lens portion contains a geometric pattern of connected nodes or circuits, suggesting AI intelligence and data connections.
+The logo features a stylized, minimalist magnifying glass as its core element. The handle of the magnifying glass is sleek and transforms into an abstract 'L' shape, creating a subtle nod to the name 'Lemur'. The circular lens portion contains a geometric pattern of connected nodes or circuits, suggesting AI intelligence and data connections.
 
 The primary color is a rich deep purple (#5E17EB) with electric teal accents (#00D4C8), creating a vibrant contrast. The logo includes a subtle gradient from deep purple to lighter purple (#8556FF) giving it dimension and modern appeal.
 
@@ -47,4 +47,4 @@ The logo should work well on both light and dark backgrounds and maintain its re
 - **Secondary Font**: Inter or Open Sans for body text and search results
 - **Monospace Font**: Fira Code for code snippets and technical information
 
-This comprehensive color scheme and logo design creates a distinct brand identity for Find that differentiates it from competitors while conveying the intelligence, technology, and clarity that define the search engine's dual-format experience.
+This comprehensive color scheme and logo design creates a distinct brand identity for Lemur that differentiates it from competitors while conveying the intelligence, technology, and clarity that define the search engine's dual-format experience.
