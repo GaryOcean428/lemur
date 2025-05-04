@@ -6,6 +6,7 @@ This is the official documentation for the Lemur search engine project.
 
 ### Development
 - [Product Requirements Document](development/product-requirements.md) - Detailed requirements and specifications
+- [Developer Guide](development/developer-guide.md) - Guide for developers contributing to the project
 - [Document List](development/document-list.md) - List of key project documents
 
 ### Architecture
@@ -20,7 +21,8 @@ This is the official documentation for the Lemur search engine project.
 - [Wireframes](design/wireframe.tsx) - UI wireframe code
 
 ### API
-- API documentation is available in the [API Reference](api/reference.md) section
+- [API Reference](api/reference.md) - Comprehensive API documentation
+- [API Examples](api/examples.md) - Code examples for using the API
 
 ## Getting Started
 
