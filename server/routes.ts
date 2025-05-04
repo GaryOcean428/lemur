@@ -154,10 +154,10 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
                            sources.length > 3 || // Lowered threshold to favor the better model
                            query.includes("?") && query.length > 20; // Questions with decent length
     
-    // Based on Groq documentation:
-    // - llama-3.3-70b-groq-tools is part of Compound Beta (more powerful)
-    // - llama-3.1-8b-groq-tools is part of Compound Beta Mini (faster, lighter)
-    const model = isComplexQuery ? "llama-3.3-70b-groq-tools" : "llama-3.1-8b-groq-tools";
+    // Based on updated Groq documentation:
+    // - llama-4-scout-17b-16e-instruct is a newer Llama 4 model for powerful reasoning
+    // - llama-3.3-70b-versatile is a more comprehensive language model with great overall performance
+    const model = isComplexQuery ? "llama-3.3-70b-versatile" : "llama-4-scout-17b-16e-instruct";
     
     // Log which model was selected
     console.log(`Selected Groq model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
@@ -173,7 +173,7 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
         messages: [
           {
             role: "system",
-            content: "You are Lemur, an advanced search assistant powered by Llama 3.3 and Llama 4 models through Groq's Compound Beta systems. You provide comprehensive answers based on web sources with proper citations. For technical or complex topics, you break down information into understandable explanations. For time-sensitive queries, you note source recency. Always maintain a helpful, informative tone while prioritizing accuracy and source attribution."
+            content: "You are Lemur, an advanced search assistant powered by Llama 3.3 and Llama 4 models. You provide comprehensive answers based on web sources with proper citations. For technical or complex topics, you break down information into understandable explanations. For time-sensitive queries, you note source recency. Always maintain a helpful, informative tone while prioritizing accuracy and source attribution. Use markdown formatting appropriately to structure your responses with headings, lists, and emphasis where it improves readability."
           },
           {
             role: "user",
