@@ -110,12 +110,36 @@ export default function APIPage() {
               </ul>
 
               <h3 className="text-lg font-semibold mb-2 dark:text-white">Available Tools</h3>
-              <ul className="list-disc pl-6 space-y-1 text-gray-600 dark:text-gray-400">
+              <ul className="list-disc pl-6 space-y-1 text-gray-600 dark:text-gray-400 mb-6">
                 <li><strong>search</strong>: Core search functionality</li>
                 <li><strong>voice_to_text</strong>: Convert audio queries to text</li>
                 <li><strong>image_analysis</strong>: Analyze image content for search</li>
                 <li><strong>result_formatter</strong>: Format search results</li>
               </ul>
+
+              <h3 className="text-lg font-semibold mb-2 dark:text-white">Configuration Example</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Add this to your <code>mcp_config.json</code> file to connect to Lemur's MCP server:
+              </p>
+              <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded mb-4 overflow-x-auto">
+                <pre className="text-sm">
+{`{
+  "mcpServers": {
+    "lemur": {
+      "url": "https://api.lemur-search.com",
+      "auth": {
+        "type": "bearer",
+        "token": "YOUR_API_KEY"
+      },
+      "tools": ["search", "voice_to_text", "image_analysis", "result_formatter"]
+    }
+  }
+}`}
+                </pre>
+              </div>
+              <p className="text-gray-600 dark:text-gray-400 mb-2">
+                <strong>Note:</strong> Replace <code>YOUR_API_KEY</code> with your actual Lemur API key.
+              </p>
             </CardContent>
           </Card>
 
@@ -176,10 +200,35 @@ export default function APIPage() {
               </div>
 
               <h3 className="text-lg font-semibold mb-2 dark:text-white">Capabilities</h3>
-              <ul className="list-disc pl-6 space-y-1 text-gray-600 dark:text-gray-400">
+              <ul className="list-disc pl-6 space-y-1 text-gray-600 dark:text-gray-400 mb-6">
                 <li><strong>search</strong>: Search the web and synthesize results</li>
                 <li><strong>multimodal_input</strong>: Process voice and image inputs</li>
               </ul>
+
+              <h3 className="text-lg font-semibold mb-2 dark:text-white">Configuration Example</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Add this to your configuration file to connect to Lemur's A2A server:
+              </p>
+              <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded mb-4 overflow-x-auto">
+                <pre className="text-sm">
+{`{
+  "agents": {
+    "lemur": {
+      "url": "https://api.lemur-search.com",
+      "auth": {
+        "type": "bearer",
+        "token": "YOUR_API_KEY"
+      },
+      "capabilities": ["search", "multimodal_input"],
+      "discoveryPath": "/.well-known/agent.json"
+    }
+  }
+}`}
+                </pre>
+              </div>
+              <p className="text-gray-600 dark:text-gray-400 mb-2">
+                <strong>Note:</strong> Replace <code>YOUR_API_KEY</code> with your actual Lemur API key.
+              </p>
             </CardContent>
           </Card>
 
