@@ -114,8 +114,53 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
           {/* All Results Tab - Side by side on larger screens */}
           <TabsContent value="all" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* AI Answer Section */}
-              <div className="lg:col-span-2">
+              {/* Web Results Section - Now takes up 2/3 of the space */}
+              <div className="lg:col-span-2 order-2 lg:order-1">
+                <h2 className="text-xl font-semibold dark:text-white mb-4">Web Results</h2>
+                {activeTabData?.traditional?.map((result, index) => (
+                  <div key={index} className="p-4 mb-4 bg-white dark:bg-gray-800 shadow-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div className="flex justify-between items-center mb-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{result.domain}</div>
+                      {result.date && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{result.date}</div>
+                      )}
+                    </div>
+                    {/* Flex container for content and image */}
+                    <div className={`${result.image ? 'flex gap-4' : ''}`}>
+                      <div className="flex-grow">
+                        <h3 className="text-lg font-medium">
+                          <a 
+                            href={result.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-[hsl(var(--primary))] hover:underline"
+                          >
+                            {result.title}
+                          </a>
+                        </h3>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                          {result.snippet}
+                        </p>
+                      </div>
+                      
+                      {/* Image if available */}
+                      {result.image && (
+                        <div className="flex-shrink-0">
+                          <img 
+                            src={result.image.url} 
+                            alt={result.image.alt || result.title}
+                            className="w-24 h-24 object-cover rounded-lg" 
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* AI Answer Section - Now takes up 1/3 of the space */}
+              <div className="order-1 lg:order-2">
+                <h2 className="text-xl font-semibold dark:text-white mb-4">AI Answer</h2>
                 {activeTabData?.ai && (
                   <AIAnswer
                     answer={activeTabData.ai.answer}
@@ -123,22 +168,6 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
                     model={activeTabData.ai.model}
                   />
                 )}
-              </div>
-              
-              {/* Web Results Section */}
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Web Results</h2>
-                {activeTabData?.traditional?.map((result, index) => (
-                  <div key={index} className="p-3 bg-white shadow-sm rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="text-xs text-gray-500 mb-1">{result.domain}</div>
-                    <h3 className="text-[hsl(var(--primary))] hover:underline font-medium mb-1">
-                      <a href={result.url} target="_blank" rel="noopener noreferrer">
-                        {result.title}
-                      </a>
-                    </h3>
-                    <p className="text-sm text-gray-700">{result.snippet}</p>
-                  </div>
-                ))}
               </div>
             </div>
           </TabsContent>
@@ -157,16 +186,44 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
           {/* Web Only Tab */}
           <TabsContent value="web" className="mt-0">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Web Results</h2>
+              <h2 className="text-xl font-semibold dark:text-white mb-4">Web Results</h2>
               {activeTabData?.traditional?.map((result, index) => (
-                <div key={index} className="p-4 bg-white shadow-sm rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="text-xs text-gray-500 mb-1">{result.domain}</div>
-                  <h3 className="text-[hsl(var(--primary))] hover:underline font-medium mb-1">
-                    <a href={result.url} target="_blank" rel="noopener noreferrer">
-                      {result.title}
-                    </a>
-                  </h3>
-                  <p className="text-sm text-gray-700">{result.snippet}</p>
+                <div key={index} className="p-4 mb-4 bg-white dark:bg-gray-800 shadow-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{result.domain}</div>
+                    {result.date && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{result.date}</div>
+                    )}
+                  </div>
+                  {/* Flex container for content and image */}
+                  <div className={`${result.image ? 'flex gap-4' : ''}`}>
+                    <div className="flex-grow">
+                      <h3 className="text-lg font-medium">
+                        <a 
+                          href={result.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-[hsl(var(--primary))] hover:underline"
+                        >
+                          {result.title}
+                        </a>
+                      </h3>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                        {result.snippet}
+                      </p>
+                    </div>
+                    
+                    {/* Image if available */}
+                    {result.image && (
+                      <div className="flex-shrink-0">
+                        <img 
+                          src={result.image.url} 
+                          alt={result.image.alt || result.title}
+                          className="w-24 h-24 object-cover rounded-lg" 
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -175,9 +232,9 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
           {/* Placeholder tabs for other search types */}
           {['images', 'videos', 'news', 'shopping', 'social', 'maps', 'academic'].map((tab) => (
             <TabsContent key={tab} value={tab} className="mt-0">
-              <div className="bg-white rounded-xl shadow-md p-10 text-center">
-                <h2 className="text-xl font-semibold mb-4 capitalize">{tab} Search</h2>
-                <p className="text-gray-500 mb-6">This search type will be implemented in a future update.</p>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-10 text-center">
+                <h2 className="text-xl font-semibold mb-4 capitalize dark:text-white">{tab} Search</h2>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">This search type will be implemented in a future update.</p>
               </div>
             </TabsContent>
           ))}

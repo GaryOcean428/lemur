@@ -7,7 +7,7 @@ interface TraditionalResultsProps {
 export default function TraditionalResults({ results }: TraditionalResultsProps) {
   if (results.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-6 text-center">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 text-center">
         <p className="text-[hsl(var(--neutral-muted))]">No traditional results found.</p>
       </div>
     );
@@ -16,7 +16,7 @@ export default function TraditionalResults({ results }: TraditionalResultsProps)
   return (
     <div className="space-y-4">
       {results.map((result, index) => (
-        <div key={index} className="bg-white rounded-xl shadow-md p-4">
+        <div key={index} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 transition-colors">
           <div className="flex justify-between items-center mb-1">
             <div className="text-xs text-[hsl(var(--neutral-muted))]">{result.domain}</div>
             {result.date && (
@@ -26,7 +26,7 @@ export default function TraditionalResults({ results }: TraditionalResultsProps)
           {/* Flex container for content and image */}
           <div className={`${result.image ? 'flex gap-4' : ''}`}>
             <div className="flex-grow">
-              <h3 className="text-lg font-medium">
+              <h3 className="text-lg font-medium dark:text-gray-200">
                 <a 
                   href={result.url} 
                   target="_blank" 

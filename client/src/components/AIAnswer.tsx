@@ -105,8 +105,8 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
       
       <div className="mt-6 flex justify-between">
         <div className="text-xs text-[hsl(var(--neutral-muted))]">
-          Powered by {model === 'compound-beta' ? 'Groq Compound Beta (Llama 4 Scout & Llama 3.3 70B)' : 
-                      model === 'compound-beta-mini' ? 'Groq Compound Beta Mini (Llama 3.3)' : 
+          Powered by {model === 'llama-3.3-70b-versatile' ? 'Groq Llama 3.3 70B Versatile' : 
+                      model === 'llama-4-scout-17b-16e-instruct' ? 'Groq Llama 4 Scout 17B Instruct' : 
                       `Groq ${model}`}
         </div>
         <div className="flex space-x-2">
