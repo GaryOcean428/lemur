@@ -46,8 +46,11 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
     console.log('Making Tavily API request with key:', apiKey);
     
     // Create request with required parameters
+    // Truncate query to 400 characters (Tavily API limit)
+    const truncatedQuery = query.length > 400 ? query.substring(0, 397) + '...' : query;
+    
     const requestBody = {
-      query: query,
+      query: truncatedQuery,
       search_depth: "advanced",
       include_domains: [],
       exclude_domains: [],
@@ -56,6 +59,10 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
       include_raw_content: false,
       include_images: false
     };
+    
+    if (truncatedQuery !== query) {
+      console.log(`Query was truncated from ${query.length} to ${truncatedQuery.length} characters for Tavily API request`);
+    }
     
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
@@ -147,7 +154,13 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
                            sources.length > 3 || // Lowered threshold to favor the better model
                            query.includes("?") && query.length > 20; // Questions with decent length
     
-    const model = isComplexQuery ? "compound-beta" : "compound-beta-mini";
+    // Based on Groq documentation:
+    // - llama-3.3-70b-groq-tools is part of Compound Beta (more powerful)
+    // - llama-3.1-8b-groq-tools is part of Compound Beta Mini (faster, lighter)
+    const model = isComplexQuery ? "llama-3.3-70b-groq-tools" : "llama-3.1-8b-groq-tools";
+    
+    // Log which model was selected
+    console.log(`Selected Groq model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
