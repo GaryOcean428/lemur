@@ -126,7 +126,7 @@ export default function APIPage() {
 {`{
   "mcpServers": {
     "lemur": {
-      "url": "https://api.lemur-search.com",
+      "url": "YOUR_LEMUR_DEPLOYMENT_URL",
       "auth": {
         "type": "bearer",
         "token": "YOUR_API_KEY"
@@ -138,7 +138,7 @@ export default function APIPage() {
                 </pre>
               </div>
               <p className="text-gray-600 dark:text-gray-400 mb-2">
-                <strong>Note:</strong> Replace <code>YOUR_API_KEY</code> with your actual Lemur API key.
+                <strong>Note:</strong> Replace <code>YOUR_LEMUR_DEPLOYMENT_URL</code> with the actual URL where Lemur is deployed, and <code>YOUR_API_KEY</code> with your actual Lemur API key.
               </p>
             </CardContent>
           </Card>
@@ -196,7 +196,7 @@ export default function APIPage() {
                 Lemur's AgentCard is available at:
               </p>
               <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded mb-4">
-                <code>https://api.lemur-search.com/.well-known/agent.json</code>
+                <code>YOUR_LEMUR_DEPLOYMENT_URL/.well-known/agent.json</code>
               </div>
 
               <h3 className="text-lg font-semibold mb-2 dark:text-white">Capabilities</h3>
@@ -214,7 +214,7 @@ export default function APIPage() {
 {`{
   "agents": {
     "lemur": {
-      "url": "https://api.lemur-search.com",
+      "url": "YOUR_LEMUR_DEPLOYMENT_URL",
       "auth": {
         "type": "bearer",
         "token": "YOUR_API_KEY"
@@ -227,7 +227,7 @@ export default function APIPage() {
                 </pre>
               </div>
               <p className="text-gray-600 dark:text-gray-400 mb-2">
-                <strong>Note:</strong> Replace <code>YOUR_API_KEY</code> with your actual Lemur API key.
+                <strong>Note:</strong> Replace <code>YOUR_LEMUR_DEPLOYMENT_URL</code> with the actual URL where Lemur is deployed, and <code>YOUR_API_KEY</code> with your actual Lemur API key.
               </p>
             </CardContent>
           </Card>
