@@ -1,5 +1,5 @@
 import { Source } from "@/lib/types";
-import * as DOMPurify from 'dompurify';
+import DOMPurify from 'dompurify';
 
 interface AIAnswerProps {
   answer: string;
