@@ -5,9 +5,12 @@ import SearchForm from "@/components/SearchForm";
 import SearchTabs from "@/components/SearchTabs";
 import { performSearch } from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
+import { useSearchStore } from "@/store/searchStore";
+import { useEffect } from "react";
 
 export default function SearchResults() {
   const [, setLocation] = useLocation();
+  const { setIsLoading } = useSearchStore();
 
   // Get the search query from URL
   const params = new URLSearchParams(window.location.search);
@@ -24,6 +27,11 @@ export default function SearchResults() {
     queryKey: ['/api/search', query],
     queryFn: () => performSearch(query),
   });
+  
+  // Update global loading state
+  useEffect(() => {
+    setIsLoading(isLoading);
+  }, [isLoading, setIsLoading]);
 
   if (error) {
     let errorMessage = "An error occurred while fetching search results. Please try again."; 

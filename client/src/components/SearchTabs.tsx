@@ -1,19 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import AIAnswer from "./AIAnswer";
 import { SearchResults } from "@/lib/types";
-
-type SearchTabType = 
-  | "all"      // AI + Web (default, side-by-side on large screens)
-  | "ai"       // AI only
-  | "web"      // Web results only
-  | "images"   // Image search results
-  | "videos"   // Video search results
-  | "news"     // News results
-  | "shopping" // Shopping results
-  | "social"   // Forums/Social results
-  | "maps"     // Map results
-  | "academic"; // Academic/peer-reviewed research
+import { useSearchStore } from "@/store/searchStore";
+import { performSearch } from "@/lib/api";
 
 interface SearchTabsProps {
   data: SearchResults | undefined;
@@ -22,41 +12,73 @@ interface SearchTabsProps {
 }
 
 export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) {
-  const [activeTab, setActiveTab] = useState<SearchTabType>("all");
-  const [searchesByType, setSearchesByType] = useState<Record<SearchTabType, boolean>>({
-    all: true,
-    ai: false,
-    web: false,
-    images: false,
-    videos: false,
-    news: false,
-    shopping: false,
-    social: false,
-    maps: false,
-    academic: false
-  });
+  // Access the search store
+  const { 
+    activeTab, 
+    setActiveTab, 
+    searchedTabs,
+    setSearchedTab,
+    setCurrentQuery,
+    setResults,
+    results
+  } = useSearchStore();
+  
+  // Set the current query in the store when it changes
+  useEffect(() => {
+    if (query) {
+      setCurrentQuery(query);
+    }
+  }, [query, setCurrentQuery]);
+  
+  // Store results from the 'all' tab when they arrive
+  useEffect(() => {
+    if (data && !isLoading) {
+      setResults('all', data);
+      setSearchedTab('all', true);
+    }
+  }, [data, isLoading, setResults, setSearchedTab]);
 
+  // Import type from searchStore
+  type SearchTabType = 
+    | "all"      // AI + Web (default, side-by-side on large screens)
+    | "ai"       // AI only
+    | "web"      // Web results only
+    | "images"   // Image search results
+    | "videos"   // Video search results
+    | "news"     // News results
+    | "shopping" // Shopping results
+    | "social"   // Forums/Social results
+    | "maps"     // Map results
+    | "academic"; // Academic/peer-reviewed research
+  
   // Function to handle tab change
   const handleTabChange = (tab: string) => {
     const newTab = tab as SearchTabType;
     setActiveTab(newTab);
     
-    // Mark this tab type as searched
-    if (!searchesByType[newTab]) {
-      setSearchesByType(prev => ({
-        ...prev,
-        [newTab]: true
-      }));
-      
-      // Here we would trigger a new search with the appropriate type
-      // But we're keeping it simple for now - the real implementation 
-      // would call a function like `performSearch(query, newTab)`
+    // If this tab hasn't been searched yet, we would make a new search request
+    if (!searchedTabs[newTab]) {
       console.log(`New search needed for tab type: ${newTab}`);
+      
+      // In a real implementation, we would make different API calls based on tab type
+      // For example: performSearchByType(query, newTab)
+      // But for now, we'll just use the same data for all tabs
+      
+      // Mark this tab as searched
+      setSearchedTab(newTab, true);
+      
+      // For demonstration, we'll use the same results for all tabs
+      if (data) {
+        setResults(newTab, data);
+      }
     }
   };
+  
+  // Use the result for the active tab
+  const activeTabData = results[activeTab] || data;
 
   return (
-    <Tabs defaultValue="all" onValueChange={handleTabChange} className="w-full">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
       <div className="relative">
         <TabsList className="mb-6 w-full overflow-x-auto flex whitespace-nowrap bg-gray-100 p-1 dark:bg-gray-800 justify-start">
           <TabsTrigger value="all" className="data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-white">
@@ -104,11 +126,11 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* AI Answer Section */}
               <div className="lg:col-span-2">
-                {data?.ai && (
+                {activeTabData?.ai && (
                   <AIAnswer
-                    answer={data.ai.answer}
-                    sources={data.ai.sources}
-                    model={data.ai.model}
+                    answer={activeTabData.ai.answer}
+                    sources={activeTabData.ai.sources}
+                    model={activeTabData.ai.model}
                   />
                 )}
               </div>
@@ -116,7 +138,7 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
               {/* Web Results Section */}
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold">Web Results</h2>
-                {data?.traditional?.map((result, index) => (
+                {activeTabData?.traditional?.map((result, index) => (
                   <div key={index} className="p-3 bg-white shadow-sm rounded-lg hover:bg-gray-50 transition-colors">
                     <div className="text-xs text-gray-500 mb-1">{result.domain}</div>
                     <h3 className="text-[hsl(var(--primary))] hover:underline font-medium mb-1">
@@ -133,11 +155,11 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
           
           {/* AI Only Tab */}
           <TabsContent value="ai" className="mt-0">
-            {data?.ai && (
+            {activeTabData?.ai && (
               <AIAnswer
-                answer={data.ai.answer}
-                sources={data.ai.sources}
-                model={data.ai.model}
+                answer={activeTabData.ai.answer}
+                sources={activeTabData.ai.sources}
+                model={activeTabData.ai.model}
               />
             )}
           </TabsContent>
@@ -146,7 +168,7 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
           <TabsContent value="web" className="mt-0">
             <div className="space-y-4">
               <h2 className="text-xl font-semibold">Web Results</h2>
-              {data?.traditional?.map((result, index) => (
+              {activeTabData?.traditional?.map((result, index) => (
                 <div key={index} className="p-4 bg-white shadow-sm rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="text-xs text-gray-500 mb-1">{result.domain}</div>
                   <h3 className="text-[hsl(var(--primary))] hover:underline font-medium mb-1">
