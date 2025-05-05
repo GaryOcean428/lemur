@@ -35,17 +35,30 @@ export default function ImageResults({ query, loading: initialLoading = false }:
         const results = await performSearch(query, "images", filters);
         
         // Extract images from results
-        if (results && results.traditional) {
-          const imageResults: ImageResult[] = results.traditional
-            .filter(result => result.image && result.image.url) // Only include results with images
-            .map(result => ({
+        if (results && results.traditional && results.traditional.length > 0) {
+          // First, check if any results have images
+          const withImages = results.traditional.filter(result => result.image && result.image.url);
+          
+          if (withImages.length > 0) {
+            const imageResults: ImageResult[] = withImages.map(result => ({
               title: result.title,
               url: result.url,
               imageUrl: result.image!.url,
               domain: result.domain
             }));
-          
-          setImages(imageResults);
+            
+            setImages(imageResults);
+          } else {
+            // If no results have images, use the results anyway but use domain as identifier
+            const fallbackResults: ImageResult[] = results.traditional.map(result => ({
+              title: result.title,
+              url: result.url,
+              imageUrl: '', // No image URL available
+              domain: result.domain
+            }));
+            
+            setImages(fallbackResults);
+          }
         } else {
           setImages([]);
           setError("No image results found");
@@ -118,12 +131,18 @@ export default function ImageResults({ query, loading: initialLoading = false }:
               className="group rounded-lg overflow-hidden flex flex-col hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-700"
             >
               <div className="aspect-square bg-gray-50 dark:bg-gray-900 overflow-hidden relative">
-                <img 
-                  src={image.imageUrl} 
-                  alt={image.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                  loading="lazy"
-                />
+                {image.imageUrl ? (
+                  <img 
+                    src={image.imageUrl} 
+                    alt={image.title} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="w-12 h-12 text-gray-300 dark:text-gray-600" />
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                   <ExternalLink className="w-6 h-6 text-white" />
                 </div>

@@ -37,16 +37,24 @@ export default function VideoResults({ query, loading: initialLoading = false }:
         
         // Process traditional results as video results
         if (results && results.traditional && results.traditional.length > 0) {
-          const videoResults: VideoResult[] = results.traditional.map(result => ({
-            title: result.title,
-            url: result.url,
-            snippet: result.snippet,
-            domain: result.domain,
-            date: result.date,
-            thumbnailUrl: result.image?.url
-          }));
+          // We still show video results even if they don't have thumbnails
+          const videoResults: VideoResult[] = results.traditional.map(result => {
+            // Extract video information
+            return {
+              title: result.title,
+              url: result.url,
+              snippet: result.snippet,
+              domain: result.domain,
+              date: result.date,
+              thumbnailUrl: result.image?.url || '' // Default to empty string if no thumbnail
+            };
+          });
           
           setVideos(videoResults);
+          
+          // Log for debugging
+          console.log("Processed video results:", videoResults.length, 
+                     "with thumbnails:", videoResults.filter(v => v.thumbnailUrl).length);
         } else {
           setVideos([]);
           setError("No video results found");

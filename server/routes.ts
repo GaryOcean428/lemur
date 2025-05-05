@@ -358,15 +358,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Configuration for different search types
       const searchTypeConfig: Record<string, any> = {
-        all: { search_depth: 'advanced' },
-        web: { search_depth: 'advanced' },
-        news: { search_depth: 'advanced', search_type: 'news' },
+        all: { search_depth: 'advanced', include_images: true, max_results: 15 },
+        web: { search_depth: 'advanced', include_images: true, max_results: 15 },
+        news: { search_depth: 'advanced', search_type: 'news', include_images: true, max_results: 10 },
         images: { search_depth: 'basic', include_images: true, include_answer: false, max_results: 16 },
-        videos: { search_depth: 'basic', search_type: 'video', max_results: 8 },
-        academic: { search_depth: 'advanced', search_type: 'scholarly_articles', max_results: 10 },
-        shopping: { search_depth: 'basic', search_type: 'shopping', max_results: 12 },
-        social: { search_depth: 'basic', search_type: 'social_media', max_results: 8 },
-        maps: { search_depth: 'basic', search_type: 'location', max_results: 5 }
+        videos: { search_depth: 'basic', search_type: 'video', include_images: true, max_results: 8 },
+        academic: { search_depth: 'advanced', search_type: 'scholarly_articles', include_images: true, max_results: 10 },
+        shopping: { search_depth: 'basic', search_type: 'shopping', include_images: true, max_results: 12 },
+        social: { search_depth: 'basic', search_type: 'social_media', include_images: true, max_results: 8 },
+        maps: { search_depth: 'basic', search_type: 'location', include_images: true, max_results: 5 }
       };
 
       const searchConfig = searchTypeConfig[searchType] || searchTypeConfig['all'];
