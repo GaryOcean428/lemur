@@ -29,7 +29,7 @@ export default function SearchResults() {
   // Fetch search results with filters
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/search', query, filters],
-    queryFn: () => performSearch(query, filters),
+    queryFn: () => performSearch(query, 'all', filters),
   });
   
   // Update global loading state
