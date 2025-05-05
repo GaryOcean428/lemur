@@ -19,7 +19,12 @@ if (!stripeKey || stripeKey.trim() === '') {
   stripeKey = 'pk_test_51R6Te4AYIAu3GrrMWLxZrkDcmVnExBmO0Upr1b9MtAMM4qNZZxKUdXyWXj0r7jJJMPSITeDmDDHvCpTUzvtw6rXk00QMmxUeGw';
 }
 
-console.log('Using Stripe key:', stripeKey ? (stripeKey.startsWith('pk_') ? stripeKey.substring(0, 8) + '...' : 'invalid-key') : 'none');
+// Only log if we have a key and it's in the right format
+if (stripeKey && stripeKey.startsWith('pk_')) {
+  console.log('Using Stripe key:', stripeKey.substring(0, 8) + '...');
+} else {
+  console.log('Stripe publishable key missing or invalid. Environment variable VITE_STRIPE_PUBLIC_KEY needs to be set.');
+}
 
 const stripePromise = loadStripe(stripeKey);
 
