@@ -119,7 +119,7 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
 }
 
 // Groq API for AI responses
-async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string): Promise<{answer: string; model: string}> {
+async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string, modelPreference: string = 'auto'): Promise<{answer: string; model: string}> {
   try {
     // Validate API key
     if (!apiKey || apiKey.trim() === '') {
@@ -174,13 +174,18 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
                            sources.length > 3 || // Lowered threshold to favor the better model
                            query.includes("?") && query.length > 20; // Questions with decent length
     
-    // Based on updated Groq documentation:
-    // - llama-4-scout-17b-16e-instruct is a newer Llama 4 model for powerful reasoning
-    // - llama-3.3-70b-versatile is a more comprehensive language model with great overall performance
-    const model = isComplexQuery ? "llama-3.3-70b-versatile" : "llama-4-scout-17b-16e-instruct";
+    // Map model preferences to actual API model names
+    const modelMap = {
+      "auto": isComplexQuery ? "llama-3.3-70b-versatile" : "llama-4-scout-17b-16e-instruct",
+      "fast": "llama-4-scout-17b-16e-instruct", // Fast (Llama-4-Scout)
+      "comprehensive": "llama-3.3-70b-versatile"  // Comprehensive (Llama-3.3-70B)
+    };
     
-    // Log which model was selected
-    console.log(`Selected Groq model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
+    // Get model based on user preference or fallback to auto selection
+    const model = modelMap[modelPreference.toLowerCase()] || modelMap["auto"];
+    
+    // Log which model was selected based on preference
+    console.log(`Selected Groq model: ${model} (preference: ${modelPreference}) for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -433,8 +438,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only get AI answer for certain search types
       let aiAnswer = null;
       if (['all', 'ai', 'web', 'news', 'academic'].includes(searchType)) {
+        // Get model preference from query parameters if available
+        const modelPreference = req.query.model as string || 'auto';
+        
         // Get AI answer from Groq using the sources
-        const { answer, model } = await groqSearch(query, tavilyResults.results, groqApiKey);
+        const { answer, model } = await groqSearch(query, tavilyResults.results, groqApiKey, modelPreference);
 
         // Format sources for the AI answer
         const sources = tavilyResults.results.slice(0, 5).map((result) => ({

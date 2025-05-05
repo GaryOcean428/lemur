@@ -76,9 +76,9 @@ export async function performSearch(query: string, searchType: string = 'all', f
         }
       }
       
-      // AI preferences
+      // AI preferences - use 'model' parameter to match server-side implementation
       if (filters.aiPreferences.model !== 'auto') {
-        url += `&aiModel=${encodeURIComponent(filters.aiPreferences.model)}`;
+        url += `&model=${encodeURIComponent(filters.aiPreferences.model)}`;
       }
       
       if (filters.aiPreferences.detailLevel !== 'detailed') {
