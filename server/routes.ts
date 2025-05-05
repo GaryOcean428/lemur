@@ -823,8 +823,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: finalPriceId
         }],
         payment_behavior: 'default_incomplete',
-        expand: ['latest_invoice.payment_intent'],
       });
+      
+      // Retrieve the invoice separately to get payment intent info
+      const invoice = typeof subscription.latest_invoice === 'string' ?
+        await stripe.invoices.retrieve(subscription.latest_invoice) :
+        subscription.latest_invoice;
       
       // Update user with Stripe info
       await storage.updateStripeInfo(req.user.id, customerId || '', subscription.id);
@@ -846,19 +850,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If we couldn't get the client secret directly, try to retrieve it
       if (!clientSecret && typeof subscription.latest_invoice === 'string') {
         try {
-          const invoiceData = await stripe.invoices.retrieve(
-            subscription.latest_invoice,
-            { expand: ['payment_intent'] }
-          );
+          // First get the invoice
+          const invoiceData = await stripe.invoices.retrieve(subscription.latest_invoice);
           
-          if (invoiceData && 
-              invoiceData.payment_intent && 
-              typeof invoiceData.payment_intent === 'object' && 
-              'client_secret' in invoiceData.payment_intent) {
-            clientSecret = invoiceData.payment_intent.client_secret;
+          // Then retrieve the payment intent from the invoice
+          if (invoiceData && invoiceData.payment_intent) {
+            if (typeof invoiceData.payment_intent === 'string') {
+              // Retrieve the payment intent to get the client secret
+              const paymentIntentData = await stripe.paymentIntents.retrieve(invoiceData.payment_intent);
+              clientSecret = paymentIntentData.client_secret;
+            } else if (typeof invoiceData.payment_intent === 'object' && 'client_secret' in invoiceData.payment_intent) {
+              clientSecret = invoiceData.payment_intent.client_secret;
+            }
           }
         } catch (retrievalError) {
-          console.error('Error retrieving invoice details:', retrievalError);
+          console.error('Error retrieving payment details:', retrievalError);
         }
       }
       

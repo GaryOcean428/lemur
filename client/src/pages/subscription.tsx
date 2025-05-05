@@ -245,7 +245,15 @@ export default function SubscriptionPage() {
         return;
       }
       
-      setClientSecret(data.clientSecret);
+      if (data.clientSecret) {
+        setClientSecret(data.clientSecret);
+      } else {
+        toast({
+          title: "Payment Setup Error",
+          description: "Could not initialize payment. Please try again or contact support.",
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error",
