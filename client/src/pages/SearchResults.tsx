@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import SearchForm from "@/components/SearchForm";
 import SearchTabs from "@/components/SearchTabs";
 import SearchFiltersPanel from "@/components/SearchFilters";
-import { performSearch } from "@/lib/api";
+import { performSearch, performDirectSearch } from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 import { useSearchStore } from "@/store/searchStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function SearchResults() {
   const [, setLocation] = useLocation();

@@ -33,6 +33,74 @@ export async function fetchSearchSuggestions(query: string): Promise<string[]> {
 // Debounced version of the search suggestions function to prevent excessive API calls
 export const debouncedFetchSearchSuggestions = debounce(fetchSearchSuggestions, 300);
 
+// Function to perform search using direct Groq Compound Beta integration
+export async function performDirectSearch(query: string, isFollowUp: boolean = false, filters?: SearchFilters | null): Promise<SearchResults> {
+  try {
+    // Build URL with query parameter
+    let url = `/api/direct-search?q=${encodeURIComponent(query)}`;
+    
+    // Add follow-up parameter if applicable
+    if (isFollowUp) {
+      url += `&followUp=true`;
+    }
+    
+    // Add filter parameters if provided
+    if (filters) {
+      // Region filter
+      if (filters.region !== 'global') {
+        url += `&region=${encodeURIComponent(filters.region)}`;
+      }
+      
+      // AI preferences - use 'model' parameter to match server-side implementation
+      if (filters.aiPreferences.model !== 'auto') {
+        url += `&model=${encodeURIComponent(filters.aiPreferences.model)}`;
+      }
+    }
+    
+    // Make the API request
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      // Clone the response before trying to read it
+      const responseClone = response.clone();
+      
+      // Try to parse the response as JSON first
+      let errorMessage = '';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || 'Unknown error';
+        
+        // Special handling for subscription limit errors
+        if (response.status === 403 && errorData.limitReached) {
+          throw new Error(`403 Subscription limit reached: ${errorMessage}`);
+        }
+      } catch (parseError) {
+        // If parsing fails, fall back to text from the cloned response
+        try {
+          const text = await responseClone.text();
+          errorMessage = text;
+        } catch (textError) {
+          errorMessage = `${response.status} ${response.statusText}`;
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data as SearchResults;
+  } catch (error) {
+    console.error("Error in performDirectSearch:", error);
+    throw error;
+  }
+}
+
 export async function performSearch(query: string, searchType: string = 'all', filters?: SearchFilters | null): Promise<SearchResults> {
   try {
     // Build URL with query parameter and search type

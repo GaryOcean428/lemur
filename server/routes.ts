@@ -6,6 +6,7 @@ import { setupAuth } from "./auth";
 import Stripe from "stripe";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
+import { directGroqCompoundSearch } from "./directCompound";
 
 // Define Tavily API response interface
 interface TavilySearchResult {
@@ -674,6 +675,249 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching search history:", error);
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "An error occurred while fetching search history" 
+      });
+    }
+  });
+  
+  // Endpoint for direct Groq Compound Beta integration (optimized search path)
+  app.get("/api/direct-search", async (req, res) => {
+    try {
+      let query = req.query.q as string;
+      const isFollowUp = req.query.followUp === 'true';
+      const geoLocation = req.query.region as string || 'AU'; // Default to Australia
+      
+      // Track conversation context for follow-up queries
+      if (!req.session.conversationContext) {
+        req.session.conversationContext = [];
+      }
+      
+      if (!query) {
+        return res.status(400).json({ message: "Query parameter 'q' is required" });
+      }
+
+      // Get API keys from environment variables
+      const groqApiKey = process.env.GROQ_API_KEY;
+      
+      // Log API key status (first few characters only for security)
+      console.log('API Key status - Groq:', groqApiKey ? 'Present (starts with: ' + groqApiKey.substring(0, 5) + '...)' : 'Not found');
+      console.log(`Performing direct compound search for: "${query}"`);
+      
+      if (!groqApiKey) {
+        return res.status(500).json({ message: "API keys not configured" });
+      }
+      
+      // Handle subscription tier restrictions
+      let userTier = 'anonymous'; // Default for non-authenticated users
+      let userSearchCount = 0;
+      let userId = null;
+      let useLimitedAIResponse = true; // Default to limited response for anonymous users
+      let preferredModel = req.query.model as string || 'auto';
+      
+      // Check if user is authenticated
+      if (req.isAuthenticated()) {
+        userId = req.user.id;
+        userTier = req.user.subscriptionTier;
+        userSearchCount = req.user.searchCount;
+        
+        // Pro users get unlimited access to all features
+        if (userTier === 'pro') {
+          useLimitedAIResponse = false;
+        }
+        // Free users get limited searches and limited responses
+        else if (userTier === 'free' && userSearchCount >= 5) {
+          return res.status(403).json({ 
+            message: "You've reached your search limit. Please upgrade to continue searching.",
+            limitReached: true
+          });
+        }
+        // Update search count for authenticated non-pro users
+        if (userTier !== 'pro') {
+          await storage.incrementUserSearchCount(userId);
+        }
+      } else {
+        // Anonymous users get 1 search before being asked to sign in
+        // Initialize or retrieve session search count
+        req.session.anonymousSearchCount = req.session.anonymousSearchCount || 0;
+        
+        if (req.session.anonymousSearchCount >= 1) {
+          return res.status(403).json({
+            message: "Please sign in to continue searching",
+            limitReached: true
+          });
+        }
+        
+        // Increment the anonymous search count for this session
+        req.session.anonymousSearchCount++;
+        // Save session to make sure count is updated immediately
+        await new Promise<void>((resolve, reject) => {
+          req.session.save(err => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        
+        console.log(`Anonymous search count: ${req.session.anonymousSearchCount} (session ${req.sessionID})`);
+      }
+
+      // Determine model based on user tier
+      // Default to compound-beta-mini for anonymous and free users
+      let modelPreference = 'fast'; // compound-beta-mini
+      
+      // Pro users get access to compound-beta and can choose their model
+      if (userTier === 'pro') {
+        modelPreference = req.query.model as string || 'auto';
+        console.log(`Pro user - using preferred model: ${modelPreference}`);
+      } else if (userTier === 'basic') {
+        // Basic users get default model selection but still limited response
+        modelPreference = 'auto';
+        console.log(`Basic user - using auto model selection`);
+      } else {
+        console.log(`Free/anonymous user - restricting to compound-beta-mini`);
+      }
+      
+      // Process contextual follow-up queries if needed
+      let enhancedQuery = query;
+      let contextualSearch = false;
+      
+      // Check if this might be a follow-up query
+      const possibleFollowUpIndicators = [
+        /^(who|what|when|where|why|how|which|is|are|can|could|would|will|did)/i,  // Question starters
+        /^(tell me more about|explain|elaborate on|describe|list)/i,              // Command starters
+        /^(and|but|so|also|however)/i,                                             // Conjunctions
+        /^(the|those|these|this|that|them|their|its|it)/i                         // Pronouns/determiners
+      ];
+      
+      const isLikelyFollowUp = possibleFollowUpIndicators.some(pattern => pattern.test(query.trim()));
+      
+      // Handle contextual follow-up if we have conversation context
+      if (isLikelyFollowUp && req.session.conversationContext && req.session.conversationContext.length > 0) {
+        // Get the most recent conversation context
+        const recentContext = req.session.conversationContext.slice(-2); // Last 2 interactions
+        
+        // Use previous queries as context for this query
+        const previousQueries = recentContext.map(ctx => ctx.query).join("\n");
+        
+        // Create an enhanced query with context
+        enhancedQuery = `I previously asked: "${previousQueries}"\n\nNow I'm asking: "${query}"\n\nTreat this as a follow-up question related to our previous conversation.`;
+        
+        console.log('Enhanced query with conversation context:', enhancedQuery);
+        contextualSearch = true;
+      }
+
+      // Call the direct Groq Compound Beta integration
+      const { answer, model, search_tools_used } = await directGroqCompoundSearch(
+        enhancedQuery, // Use the enhanced query with context if applicable
+        groqApiKey,
+        modelPreference,
+        geoLocation
+      );
+
+      // Format traditional search results from the direct search tools
+      // Compound Beta will provide search results through its tools
+      let traditional = [];
+      
+      if (search_tools_used && search_tools_used.length > 0) {
+        // Process the search tool results if they're available
+        const searchTools = search_tools_used.filter(tool => 
+          tool.type === 'search' || tool.type.includes('search'));
+        
+        if (searchTools.length > 0) {
+          // Extract results from the first search tool's output
+          // This assumes the tool output has a structure we can parse
+          try {
+            const searchResults = searchTools[0].output;
+            if (Array.isArray(searchResults)) {
+              traditional = searchResults.map(result => ({
+                title: result.title || 'Untitled',
+                url: result.url,
+                snippet: result.snippet || result.content?.substring(0, 350) + '...' || 'No description available',
+                domain: new URL(result.url).hostname.replace('www.', ''),
+                date: result.date || '',
+                image: result.image ? {
+                  url: result.image.url,
+                  alt: result.image.alt || result.title || 'Image'
+                } : undefined
+              }));
+            }
+          } catch (error) {
+            console.error('Error processing search tool results:', error);
+            // Continue without traditional results if parsing fails
+          }
+        }
+      }
+      
+      // Process/truncate answer for non-pro users if needed
+      let processedAnswer = answer;
+      if (useLimitedAIResponse && answer.length > 1500) {
+        // Truncate answer for free/anonymous users
+        processedAnswer = answer.substring(0, 1500) + 
+          '\n\n*This answer has been truncated. Upgrade to a paid plan for complete answers.*';
+        console.log('Answer truncated for free/anonymous user');
+      }
+
+      // Prepare sources from the search tools
+      // For the AI answer display, create a list of sources
+      const sources = traditional.slice(0, 5).map(result => ({
+        title: result.title,
+        url: result.url,
+        domain: new URL(result.url).hostname.replace('www.', '')
+      }));
+
+      // Create AI answer object
+      const aiAnswer = {
+        answer: processedAnswer,
+        sources,
+        model,
+        contextual: contextualSearch // Flag to indicate this was a contextual search
+      };
+      
+      // Add current search to conversation context (limit to 5 entries for memory efficiency)
+      if (req.session.conversationContext && req.session.conversationContext.length >= 5) {
+        // Remove oldest entry if we have 5 already
+        req.session.conversationContext.shift();
+      }
+      
+      // Add new entry to conversation context
+      req.session.conversationContext.push({
+        query: query, // Store original query
+        answer: processedAnswer.substring(0, 200), // Store truncated answer for context
+        timestamp: Date.now()
+      });
+      
+      // Save session to persist conversation context
+      await new Promise<void>((resolve, reject) => {
+        req.session.save(err => {
+          if (err) {
+            console.error('Error saving conversation context:', err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      // Log search in database (without userId for anonymous searches)
+      try {
+        await storage.createSearchHistory({
+          query,
+          userId, // Will be null for anonymous searches
+        });
+        console.log(`Direct search logged: "${query}" (model: ${model})`);
+      } catch (dbError) {
+        // Log error but don't fail the search request
+        console.error("Failed to log search to database:", dbError);
+      }
+
+      // Return combined results
+      res.json({
+        ai: aiAnswer,
+        traditional,
+        searchType: 'direct' // Mark this as a direct search
+      });
+    } catch (error) {
+      console.error("Direct Search API error:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "An error occurred while processing your search" 
       });
     }
   });
