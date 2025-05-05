@@ -755,7 +755,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customerId = customer.id;
       }
       
-      // Create subscription
+      // Create a subscription with proper price ID validation
+      if (!SUBSCRIPTION_PRICES[planType as 'basic' | 'pro']) {
+        throw new Error(`Invalid price ID for ${planType} plan`);
+      }
+
+      // Ensure priceId is a valid Stripe price ID (starts with 'price_')
+      // This safeguards against using literal price values instead of price IDs
+      if (!priceId.startsWith('price_')) {
+        console.error(`Invalid Stripe price ID format: ${priceId}`);
+        throw new Error('Invalid price ID format. Price IDs must start with "price_"');
+      }
+
+      // Create subscription with the validated price ID
       const subscription = await stripe.subscriptions.create({
         customer: customerId,
         items: [{

@@ -15,40 +15,106 @@ function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
+  // Check payment intent status on mount or when URL params change
+  useEffect(() => {
+    if (!stripe) {
+      return;
+    }
+
+    const clientSecret = new URLSearchParams(window.location.search).get("payment_intent_client_secret");
+
+    if (clientSecret) {
+      stripe.retrievePaymentIntent(clientSecret)
+        .then(({ paymentIntent }) => {
+          if (paymentIntent) {
+            switch (paymentIntent.status) {
+              case "succeeded":
+                toast({
+                  title: "Payment Successful",
+                  description: "Thank you for your subscription!"
+                });
+                // Redirect to success page after a short delay
+                setTimeout(() => setLocation('/subscription-success'), 2000);
+                break;
+              case "processing":
+                toast({
+                  title: "Payment Processing",
+                  description: "Your payment is being processed."
+                });
+                break;
+              case "requires_payment_method":
+                setErrorMessage("Your payment was not successful. Please try again.");
+                toast({
+                  title: "Payment Failed",
+                  description: "Your payment was not successful. Please try again.",
+                  variant: "destructive"
+                });
+                break;
+              default:
+                setErrorMessage("Something went wrong.");
+                toast({
+                  title: "Payment Error",
+                  description: "Something went wrong with your payment.",
+                  variant: "destructive"
+                });
+                break;
+            }
+          }
+        })
+        .catch(err => {
+          console.error("Error checking payment intent:", err);
+        });
+    }
+  }, [stripe, toast, setLocation]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
 
     if (!stripe || !elements) {
+      // Stripe.js hasn't loaded yet. Make sure to disable form submission until loaded.
       return;
     }
 
     setIsProcessing(true);
 
     try {
+      // Use correct return URL that matches your routes
       const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/subscription/success`
+          return_url: `${window.location.origin}/subscription-success`
         },
+        redirect: 'if_required',
       });
 
       if (error) {
+        setErrorMessage(error.message || "An unexpected error occurred");
         toast({
           title: "Payment Failed",
-          description: error.message,
+          description: error.message || "An unexpected error occurred",
           variant: "destructive",
+        });
+        setIsProcessing(false);
+      } else {
+        // Payment succeeded or requires further actions handled by Stripe
+        toast({
+          title: "Processing Payment",
+          description: "Your payment is being processed. Please wait."
         });
       }
     } catch (err: any) {
+      console.error("Payment error:", err);
+      setErrorMessage(err.message || "Something went wrong");
       toast({
         title: "Payment Error",
         description: err.message || "Something went wrong",
         variant: "destructive",
       });
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -56,6 +122,9 @@ function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <PaymentElement className="mb-6" />
+      {errorMessage && (
+        <div className="text-red-500 mb-4 text-sm">{errorMessage}</div>
+      )}
       <Button 
         type="submit" 
         className="w-full" 
@@ -81,6 +150,19 @@ export default function SubscriptionPage() {
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  
+  // Debugging to check proper environment variable loading and formatting
+  useEffect(() => {
+    // Check if we have a publishable key and it's formatted correctly
+    const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+    if (!stripeKey) {
+      console.error('VITE_STRIPE_PUBLIC_KEY is not defined in environment');
+    } else if (!stripeKey.startsWith('pk_')) {
+      console.error('VITE_STRIPE_PUBLIC_KEY should start with pk_, check your environment variables');
+    } else {
+      console.log('Stripe publishable key is properly configured');
+    }
+  }, []);
   
   useEffect(() => {
     // Redirect if not logged in
