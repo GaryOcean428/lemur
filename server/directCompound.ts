@@ -115,7 +115,7 @@ Remember: You MUST use the search tool for all queries, even if you think you kn
             }
           }
         ],
-        tool_choice: { type: "web_search" }
+        tool_choice: "auto"
       })
     });
 
