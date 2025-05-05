@@ -8,6 +8,7 @@ export interface AIAnswer {
   answer: string;
   sources: Source[];
   model: string;
+  contextual?: boolean; // Indicates if this is a contextual follow-up answer
 }
 
 export interface TraditionalResult {

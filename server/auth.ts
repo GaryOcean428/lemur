@@ -18,6 +18,11 @@ declare global {
 declare module 'express-session' {
   interface SessionData {
     anonymousSearchCount?: number;
+    conversationContext?: Array<{
+      query: string;
+      answer?: string;
+      timestamp: number;
+    }>;
   }
 }
 

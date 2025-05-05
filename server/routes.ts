@@ -381,8 +381,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Main Search API endpoint that supports different search types
   app.get("/api/search", async (req, res) => {
     try {
-      const query = req.query.q as string;
+      let query = req.query.q as string;
       const searchType = req.query.type as string || 'all'; // Default to 'all' if not specified
+      const isFollowUp = req.query.followUp === 'true';
+      
+      // Track conversation context for follow-up queries
+      if (!req.session.conversationContext) {
+        req.session.conversationContext = [];
+      }
       
       if (!query) {
         return res.status(400).json({ message: "Query parameter 'q' is required" });
@@ -546,8 +552,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Free/anonymous user - restricting to compound-beta-mini`);
         }
         
+        // Process contextual follow-up queries if needed
+        let enhancedQuery = query;
+        let contextualSearch = false;
+        
+        // Check if this might be a follow-up query
+        const possibleFollowUpIndicators = [
+          /^(who|what|when|where|why|how|which|is|are|can|could|would|will|did)/i,  // Question starters
+          /^(tell me more about|explain|elaborate on|describe|list)/i,              // Command starters
+          /^(and|but|so|also|however)/i,                                             // Conjunctions
+          /^(the|those|these|this|that|them|their|its|it)/i                         // Pronouns/determiners
+        ];
+        
+        const isLikelyFollowUp = possibleFollowUpIndicators.some(pattern => pattern.test(query.trim()));
+        
+        // Handle contextual follow-up if we have conversation context
+        if (isLikelyFollowUp && req.session.conversationContext && req.session.conversationContext.length > 0) {
+          // Get the most recent conversation context
+          const recentContext = req.session.conversationContext.slice(-2); // Last 2 interactions
+          
+          // Use previous queries as context for this query
+          const previousQueries = recentContext.map(ctx => ctx.query).join("\n");
+          
+          // Create an enhanced query with context
+          enhancedQuery = `I previously asked: "${previousQueries}"\n\nNow I'm asking: "${query}"\n\nTreat this as a follow-up question related to our previous conversation.`;
+          
+          console.log('Enhanced query with conversation context:', enhancedQuery);
+          contextualSearch = true;
+        }
+        
         // Get AI answer from Groq using the sources
-        const { answer, model } = await groqSearch(query, tavilyResults.results, groqApiKey, modelPreference);
+        const { answer, model } = await groqSearch(
+          enhancedQuery, // Use enhanced query for AI
+          tavilyResults.results, // But keep original Tavily results
+          groqApiKey, 
+          modelPreference
+        );
         
         // Format sources for the AI answer
         const sources = tavilyResults.results.slice(0, 5).map((result) => ({
@@ -568,8 +608,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiAnswer = {
           answer: processedAnswer,
           sources,
-          model
+          model,
+          contextual: contextualSearch // Flag to indicate this was a contextual search
         };
+        
+        // Add current search to conversation context (limit to 5 entries for memory efficiency)
+        if (req.session.conversationContext && req.session.conversationContext.length >= 5) {
+          // Remove oldest entry if we have 5 already
+          req.session.conversationContext.shift();
+        }
+        
+        // Add new entry to conversation context
+        req.session.conversationContext.push({
+          query: query, // Store original query
+          answer: processedAnswer.substring(0, 200), // Store truncated answer for context
+          timestamp: Date.now()
+        });
+        
+        // Save session to persist conversation context
+        await new Promise<void>((resolve, reject) => {
+          req.session.save(err => {
+            if (err) {
+              console.error('Error saving conversation context:', err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
       }
 
       // Log search in database (without userId for anonymous searches)

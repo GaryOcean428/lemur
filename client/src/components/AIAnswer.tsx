@@ -5,9 +5,10 @@ interface AIAnswerProps {
   answer: string;
   sources: Source[];
   model: string;
+  contextual?: boolean; // Indicates if this is a contextual follow-up answer
 }
 
-export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
+export default function AIAnswer({ answer, sources, model, contextual = false }: AIAnswerProps) {
   // Basic markdown rendering function for improved readability
   function renderMarkdown(text: string): string {
     // Step 1: Process citations to make them clickable
@@ -77,7 +78,14 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl shadow-md dark:shadow-gray-800/30 p-6 mb-6 border border-gray-100 dark:border-gray-800">
-      <h3 className="text-xl font-semibold mb-4 text-[hsl(var(--neutral))] dark:text-white/90">AI-Generated Answer</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-semibold text-[hsl(var(--neutral))] dark:text-white/90">AI-Generated Answer</h3>
+        {contextual && (
+          <span className="text-xs px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200 font-medium">
+            Contextual Follow-up
+          </span>
+        )}
+      </div>
       
       <div 
         className="prose dark:prose-invert prose-headings:font-semibold prose-headings:text-primary dark:prose-headings:text-primary-light prose-a:text-citation prose-a:no-underline hover:prose-a:underline prose-strong:font-semibold prose-strong:text-primary-dark dark:prose-strong:text-primary-light prose-code:text-primary-dark dark:prose-code:text-primary-light prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800 prose-pre:rounded-md prose-pre:p-4 prose-pre:overflow-x-auto prose-li:marker:text-primary dark:prose-li:marker:text-primary-light max-w-none"
