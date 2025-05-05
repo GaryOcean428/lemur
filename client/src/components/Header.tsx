@@ -25,11 +25,7 @@ export default function Header() {
         <div className="flex items-center">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <div className="w-6 h-6 mr-2 relative group">
-              <div className="absolute -inset-1.5 bg-[hsl(var(--glow-neon))] rounded-full blur-md group-hover:blur-lg opacity-70 group-hover:opacity-100 transition-all duration-300 -z-10"></div>
-              <img src={lemurLogo} alt="Lemur logo" className="w-full h-full relative z-10 object-contain" />
-            </div>
-            <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500">Lemur</span>
+            <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500">Lemure</span>
           </Link>
         </div>
         
