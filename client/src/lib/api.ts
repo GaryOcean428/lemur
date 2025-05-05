@@ -100,6 +100,9 @@ export async function performSearch(query: string, searchType: string = 'all', f
     });
 
     if (!response.ok) {
+      // Clone the response before trying to read it
+      const responseClone = response.clone();
+      
       // Try to parse the response as JSON first
       let errorMessage = '';
       try {
@@ -111,9 +114,13 @@ export async function performSearch(query: string, searchType: string = 'all', f
           throw new Error(`403 Subscription limit reached: ${errorMessage}`);
         }
       } catch (parseError) {
-        // If parsing fails, fall back to text
-        const text = await response.text();
-        errorMessage = text;
+        // If parsing fails, fall back to text from the cloned response
+        try {
+          const text = await responseClone.text();
+          errorMessage = text;
+        } catch (textError) {
+          errorMessage = 'Could not read error response';
+        }
       }
       
       throw new Error(`Error fetching search results: ${response.status} ${errorMessage}`);
