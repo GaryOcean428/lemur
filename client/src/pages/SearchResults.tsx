@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import SearchForm from "@/components/SearchForm";
 import SearchTabs from "@/components/SearchTabs";
+import SearchFiltersPanel from "@/components/SearchFilters";
 import { performSearch } from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 import { useSearchStore } from "@/store/searchStore";
@@ -22,10 +23,13 @@ export default function SearchResults() {
     return null;
   }
 
-  // Fetch search results
+  // Get filters from search store
+  const { filters } = useSearchStore();
+  
+  // Fetch search results with filters
   const { data, isLoading, error } = useQuery({
-    queryKey: ['/api/search', query],
-    queryFn: () => performSearch(query),
+    queryKey: ['/api/search', query, filters],
+    queryFn: () => performSearch(query, filters),
   });
   
   // Update global loading state
@@ -74,9 +78,16 @@ export default function SearchResults() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto">
-        {/* Search Form */}
+        {/* Search Form and Filters */}
         <div className="mb-8">
-          <SearchForm initialQuery={query} />
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex-grow">
+              <SearchForm initialQuery={query} />
+            </div>
+            <div>
+              <SearchFiltersPanel />
+            </div>
+          </div>
         </div>
         
         {/* Search Tabs with All Results */}

@@ -50,17 +50,22 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
     if (!searchedTabs[newTab]) {
       console.log(`New search needed for tab type: ${newTab}`);
       
-      // In a real implementation, we would make different API calls based on tab type
-      // For example: performSearchByType(query, newTab)
-      // But for now, we'll just use the same data for all tabs
+      // Get the current filters
+      const { filters } = useSearchStore.getState();
       
       // Mark this tab as searched
       setSearchedTab(newTab, true);
       
-      // For demonstration, we'll use the same results for all tabs
+      // For most tabs, use the existing data
       if (data) {
         setResults(newTab, data);
       }
+      
+      // In the future, we could make specialized searches here
+      // For example, for specific tab types like images or news
+      // performSearch(query, { ...filters, specializedFor: newTab })
+      //   .then(results => setResults(newTab, results))
+      //   .catch(error => console.error(`Error searching ${newTab}:`, error));
     }
   };
   
