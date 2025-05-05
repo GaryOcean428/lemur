@@ -11,6 +11,9 @@ import createMemoryStore from "memorystore";
 declare global {
   namespace Express {
     interface User extends SelectUser {}
+    interface Session {
+      anonymousSearchCount?: number;
+    }
   }
 }
 
@@ -35,12 +38,12 @@ export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "find-search-secret-key",
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Changed to true to save anonymous sessions
     store: new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
     }),
     cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+      maxAge: 30 * 24 * 60 * 60 * 1000, // Extended to 30 days for better persistence
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax"

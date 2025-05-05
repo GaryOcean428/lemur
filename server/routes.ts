@@ -429,14 +429,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.incrementUserSearchCount(userId);
         }
       } else {
-        // Anonymous users get only 1 search
-        const anonymousSearches = await storage.getSearchHistoryByUserId(null);
-        if (anonymousSearches.length >= 1) {
+        // Anonymous users get 1 search before being asked to sign in
+        // Initialize or retrieve session search count
+        req.session.anonymousSearchCount = req.session.anonymousSearchCount || 0;
+        
+        if (req.session.anonymousSearchCount >= 1) {
           return res.status(403).json({
             message: "Please sign in to continue searching",
             limitReached: true
           });
         }
+        
+        // Increment the anonymous search count for this session
+        req.session.anonymousSearchCount++;
+        // Save session to make sure count is updated immediately
+        await new Promise<void>((resolve, reject) => {
+          req.session.save(err => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        
+        console.log(`Anonymous search count: ${req.session.anonymousSearchCount} (session ${req.sessionID})`);
       }
 
       // Configuration for different search types
