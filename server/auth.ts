@@ -89,6 +89,7 @@ export function setupAuth(app: Express) {
       // This includes the first registered user and any user with specific developer email domains
       const isDeveloperUser = req.body.email?.endsWith('@replit.com') || 
                             req.body.email?.endsWith('@example.com') || 
+                            req.body.username === 'GaryOcean' || 
                             await storage.isFirstUser();
       
       const user = await storage.createUser({
@@ -113,7 +114,8 @@ export function setupAuth(app: Express) {
     // Check if user needs to be assigned Pro tier (developers and specific email domains)
     if (req.user && req.user.subscriptionTier === 'free') {
       const isDeveloperUser = req.user.email?.endsWith('@replit.com') || 
-                             req.user.email?.endsWith('@example.com');
+                             req.user.email?.endsWith('@example.com') ||
+                             req.user.username === 'GaryOcean';
       
       if (isDeveloperUser) {
         // Update to Pro tier with 1 year expiration
