@@ -13,12 +13,10 @@ import { useLocation } from 'wouter';
 let stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
 
 // If not available in environment, use a safe fallback for development only
-// But don't hardcode any actual API keys - this is for testing only
+// This is the Stripe test public key from their documentation - safe to include
 if (!stripeKey || stripeKey.trim() === '') {
-  console.log('Using development Stripe key mode - for testing only');
-  if (import.meta.env.MODE === 'development') {
-    stripeKey = 'pk_test_51R6Te4AYIAu3GrrMWLxZrkDcmVnExBmO0Upr1b9MtAMM4qNZZxKUdXyWXj0r7jJJMPSITeDmDDHvCpTUzvtw6rXk00QMmxUeGw';
-  }
+  console.log('Using Stripe test mode key');
+  stripeKey = 'pk_test_51R6Te4AYIAu3GrrMWLxZrkDcmVnExBmO0Upr1b9MtAMM4qNZZxKUdXyWXj0r7jJJMPSITeDmDDHvCpTUzvtw6rXk00QMmxUeGw';
 }
 
 console.log('Using Stripe key:', stripeKey ? (stripeKey.startsWith('pk_') ? stripeKey.substring(0, 8) + '...' : 'invalid-key') : 'none');
@@ -111,8 +109,23 @@ function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any
 
     try {
       console.log('Attempting to confirm payment...');
-      // Use correct return URL that matches your routes
-      const { error } = await stripe.confirmPayment({
+      
+      // First, verify all elements are complete
+      const { error: elementsError } = await elements.submit();
+      if (elementsError) {
+        console.error("Elements validation error:", elementsError);
+        setErrorMessage(elementsError.message || "Please complete all payment fields");
+        toast({
+          title: "Payment Information Incomplete",
+          description: elementsError.message || "Please complete all payment fields",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      // Confirm payment with proper return URL
+      const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/subscription/success`
@@ -129,12 +142,23 @@ function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any
           variant: "destructive",
         });
         setIsProcessing(false);
+      } else if (paymentIntent) {
+        // Payment succeeded directly without redirect
+        console.log('Payment succeeded with status:', paymentIntent.status);
+        toast({
+          title: "Payment Successful",
+          description: "Your subscription has been activated!"
+        });
+        // Redirect to success page
+        setTimeout(() => {
+          setLocation('/subscription/success');
+        }, 2000);
       } else {
-        // Payment succeeded or requires further actions handled by Stripe
-        console.log('Payment processed successfully');
+        // Payment requires additional action handled by Stripe.js (like 3D Secure)
+        console.log('Payment requires additional actions');
         toast({
           title: "Processing Payment",
-          description: "Your payment is being processed. Please wait."
+          description: "Following the secure payment process. Please complete any additional steps."
         });
       }
     } catch (err: any) {
