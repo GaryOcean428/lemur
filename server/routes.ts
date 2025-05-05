@@ -769,14 +769,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateStripeInfo(req.user.id, customerId || '', subscription.id);
       
       // Return client secret for frontend to complete payment
-      const invoice = typeof subscription.latest_invoice === 'string' 
-        ? await stripe.invoices.retrieve(subscription.latest_invoice, { expand: ['payment_intent'] })
-        : subscription.latest_invoice;
+      // Get the payment intent directly from subscription creation response
+      let clientSecret = null;
       
-      const paymentIntent = invoice?.payment_intent;
-      const clientSecret = typeof paymentIntent === 'string' 
-        ? (await stripe.paymentIntents.retrieve(paymentIntent)).client_secret
-        : paymentIntent?.client_secret;
+      // Handle the response structure - first safely extract latest_invoice
+      const latestInvoice = subscription.latest_invoice;
+      if (latestInvoice && typeof latestInvoice === 'object' && 'payment_intent' in latestInvoice) {
+        // If payment_intent is available directly 
+        const paymentIntent = latestInvoice.payment_intent;
+        if (paymentIntent && typeof paymentIntent === 'object' && 'client_secret' in paymentIntent) {
+          clientSecret = paymentIntent.client_secret;
+        }
+      }
+      
+      // If we couldn't get the client secret directly, try to retrieve it
+      if (!clientSecret && typeof subscription.latest_invoice === 'string') {
+        try {
+          const invoiceData = await stripe.invoices.retrieve(
+            subscription.latest_invoice,
+            { expand: ['payment_intent'] }
+          );
+          
+          if (invoiceData && 
+              invoiceData.payment_intent && 
+              typeof invoiceData.payment_intent === 'object' && 
+              'client_secret' in invoiceData.payment_intent) {
+            clientSecret = invoiceData.payment_intent.client_secret;
+          }
+        } catch (retrievalError) {
+          console.error('Error retrieving invoice details:', retrievalError);
+        }
+      }
       
       res.json({
         subscriptionId: subscription.id,
@@ -808,10 +831,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verify webhook signature and extract the event
       let event;
       try {
+        if (!sig) {
+          throw new Error('No signature provided in webhook request');
+        }
         event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
       } catch (err: any) {
         return res.status(400).send(`Webhook Error: ${err.message || 'Unknown error'}`);
-
       }
       
       // Handle specific event types
