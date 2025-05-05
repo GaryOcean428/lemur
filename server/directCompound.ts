@@ -110,30 +110,33 @@ Remember: You MUST use the search function for all queries, even if you think yo
         model,
         messages: [systemMessage, userMessage],
         temperature: 0.3,
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "search",
-              description: "Search the web for relevant information based on user query",
-              parameters: {
-                type: "object",
-                properties: {
-                  query: {
-                    type: "string",
-                    description: "The search query to use for finding information"
+        // Only add tools for models that support them (compound-beta but not compound-beta-mini)
+        ...(model === 'compound-beta' ? {
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "search",
+                description: "Search the web for relevant information based on user query",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    query: {
+                      type: "string",
+                      description: "The search query to use for finding information"
+                    },
+                    region: {
+                      type: "string",
+                      description: "The region to focus search results on, e.g., AU for Australia"
+                    }
                   },
-                  region: {
-                    type: "string",
-                    description: "The region to focus search results on, e.g., AU for Australia"
-                  }
-                },
-                required: ["query"]
+                  required: ["query"]
+                }
               }
             }
-          }
-        ],
-        tool_choice: "auto"
+          ],
+          tool_choice: "auto"
+        } : {})
       })
     });
 
