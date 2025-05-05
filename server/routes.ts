@@ -819,14 +819,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (search_tools_used && search_tools_used.length > 0) {
         // Process the search tool results if they're available
         const searchTools = search_tools_used.filter(tool => 
-          tool.type === 'search' || tool.type.includes('search'));
+          tool.type === 'web_search' || tool.type === 'search' || 
+          tool.type.includes('search'));
         
         if (searchTools.length > 0) {
           // Extract results from the first search tool's output
-          // This assumes the tool output has a structure we can parse
           try {
+            console.log('Search tool found:', searchTools[0].type);
             const searchResults = searchTools[0].output;
+            
+            // Handle different output formats based on the tool type
             if (Array.isArray(searchResults)) {
+              console.log('Found array of search results:', searchResults.length);
               traditional = searchResults.map(result => ({
                 title: result.title || 'Untitled',
                 url: result.url,
@@ -838,12 +842,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   alt: result.image.alt || result.title || 'Image'
                 } : undefined
               }));
+            } else if (searchResults && typeof searchResults === 'object' && searchResults.results) {
+              // Handle Groq web_search tool format
+              console.log('Found web_search results format with', searchResults.results.length, 'items');
+              traditional = searchResults.results.map(result => ({
+                title: result.title || 'Untitled',
+                url: result.url || result.link,
+                snippet: result.snippet || result.content || 'No description available',
+                domain: new URL(result.url || result.link).hostname.replace('www.', ''),
+                date: result.published_date || result.date || '',
+                image: result.thumbnail ? {
+                  url: result.thumbnail,
+                  alt: result.title || 'Image'
+                } : undefined
+              }));
+            } else {
+              console.log('Unexpected search results format:', typeof searchResults, 
+                searchResults ? Object.keys(searchResults).join(',') : 'null');
             }
           } catch (error) {
             console.error('Error processing search tool results:', error);
             // Continue without traditional results if parsing fails
           }
+        } else {
+          console.log('No search tools found in executed tools');
         }
+      } else {
+        console.log('No tools were executed by the model');
       }
       
       // Process/truncate answer for non-pro users if needed

@@ -69,20 +69,25 @@ export async function directGroqCompoundSearch(
       role: "system",
       content: `You are Lemur, an advanced search assistant powered by Groq's Compound Beta models.
 
+Important: Use the search tool for EVERY query to find current, authoritative information before responding. 
+
 When responding to search queries, follow these guidelines:
-1. Be comprehensive and detailed in your answers
-2. Include proper citations for all factual information
-3. Use markdown formatting for structure (headings, lists, etc.)
-4. Break down complex information into understandable parts
-5. For time-sensitive information, note the recency of sources
-6. Adapt content to be contextually relevant for users in ${geo_location}
+1. Always use the web_search tool to find information before answering
+2. Be comprehensive and detailed in your answers
+3. Include proper citations for all factual information
+4. Use markdown formatting for structure (headings, lists, etc.)
+5. Break down complex information into understandable parts
+6. For time-sensitive information, note the recency of sources
+7. Adapt content to be contextually relevant for users in ${geo_location}
 
 When using the search tool, prefer sources that are:
 - Recent and up-to-date
 - Authoritative and reliable
 - Directly relevant to the query
 
-Format your response with clear section headings and a logical structure.`
+Format your response with clear section headings and a logical structure.
+
+Remember: You MUST use the search tool for all queries, even if you think you know the answer.`
     };
 
     // Prepare the user message
@@ -101,7 +106,16 @@ Format your response with clear section headings and a logical structure.`
       body: JSON.stringify({
         model,
         messages: [systemMessage, userMessage],
-        temperature: 0.3
+        temperature: 0.3,
+        tools: [
+          {
+            type: "web_search",
+            web_search: {
+              enable: true,
+            }
+          }
+        ],
+        tool_choice: { type: "web_search" }
       })
     });
 
@@ -127,6 +141,15 @@ Format your response with clear section headings and a logical structure.`
     
     // Extract executed tools information (if available)
     const executedTools = data.choices[0].message.executed_tools || [];
+    
+    // Debug logging for tools - this helps diagnose what's being returned
+    console.log('Executed tools count:', executedTools.length);
+    if (executedTools.length > 0) {
+      console.log('First tool type:', executedTools[0].type);
+      console.log('First tool input:', JSON.stringify(executedTools[0].input).substring(0, 100) + '...');
+      console.log('First tool output structure:', typeof executedTools[0].output, 
+        Array.isArray(executedTools[0].output) ? executedTools[0].output.length + ' items' : 'not an array');
+    }
     
     return {
       answer: data.choices[0].message.content,
