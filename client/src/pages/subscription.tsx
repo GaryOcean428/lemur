@@ -13,23 +13,32 @@ import { useLocation } from 'wouter';
 let stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
 
 // If not available in environment, use a safe fallback for development only
-// But don't hardcode any actual API keys
-if (!stripeKey || !stripeKey.startsWith('pk_')) {
+// But don't hardcode any actual API keys - this is for testing only
+if (!stripeKey || stripeKey.trim() === '') {
   console.log('Using development Stripe key mode - for testing only');
-  stripeKey = 'pk_test_placeholder';
+  if (import.meta.env.MODE === 'development') {
+    stripeKey = 'pk_test_51R6Te4AYIAu3GrrMWLxZrkDcmVnExBmO0Upr1b9MtAMM4qNZZxKUdXyWXj0r7jJJMPSITeDmDDHvCpTUzvtw6rXk00QMmxUeGw';
+  }
 }
 
-console.log('Using Stripe key:', stripeKey.startsWith('pk_') ? stripeKey.substring(0, 8) + '...' : 'placeholder');
+console.log('Using Stripe key:', stripeKey ? (stripeKey.startsWith('pk_') ? stripeKey.substring(0, 8) + '...' : 'invalid-key') : 'none');
 
 const stripePromise = loadStripe(stripeKey);
 
-function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
+function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [isElementReady, setIsElementReady] = useState(false);
+
+  // Log element mounting for debugging
+  useEffect(() => {
+    console.log('Stripe available:', !!stripe);
+    console.log('Elements available:', !!elements);
+  }, [stripe, elements]);
 
   // Check payment intent status on mount or when URL params change
   useEffect(() => {
@@ -89,12 +98,19 @@ function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
 
     if (!stripe || !elements) {
       // Stripe.js hasn't loaded yet. Make sure to disable form submission until loaded.
+      console.error("Stripe or Elements not available");
+      toast({
+        title: "Payment Error",
+        description: "Payment processor is not ready. Please try again in a moment.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsProcessing(true);
 
     try {
+      console.log('Attempting to confirm payment...');
       // Use correct return URL that matches your routes
       const { error } = await stripe.confirmPayment({
         elements,
@@ -105,6 +121,7 @@ function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
       });
 
       if (error) {
+        console.error("Payment confirmation error:", error);
         setErrorMessage(error.message || "An unexpected error occurred");
         toast({
           title: "Payment Failed",
@@ -114,6 +131,7 @@ function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
         setIsProcessing(false);
       } else {
         // Payment succeeded or requires further actions handled by Stripe
+        console.log('Payment processed successfully');
         toast({
           title: "Processing Payment",
           description: "Your payment is being processed. Please wait."
@@ -131,16 +149,41 @@ function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
     }
   };
 
+  // Track when the payment element is ready
+  const handleReady = () => {
+    console.log('Payment element is ready');
+    setIsElementReady(true);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <PaymentElement className="mb-6" />
+      <div className="mb-6 min-h-[200px]">
+        <PaymentElement 
+          onReady={handleReady}
+          options={{
+            layout: 'tabs',
+            defaultValues: {
+              billingDetails: {
+                name: user?.username || '',
+                email: user?.email || '',
+              }
+            },
+            fields: {
+              billingDetails: {
+                name: 'auto',
+                email: 'auto',
+              }
+            }
+          }}
+        />
+      </div>
       {errorMessage && (
         <div className="text-red-500 mb-4 text-sm">{errorMessage}</div>
       )}
       <Button 
         type="submit" 
         className="w-full" 
-        disabled={!stripe || isProcessing}
+        disabled={!stripe || !elements || !isElementReady || isProcessing}
       >
         {isProcessing ? (
           <>
@@ -337,8 +380,16 @@ export default function SubscriptionPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Elements stripe={stripePromise} options={{ clientSecret }}>
-              <CheckoutForm planType={planType} />
+            <Elements 
+              stripe={stripePromise} 
+              options={{ 
+                clientSecret,
+                appearance: { theme: 'stripe' },
+                // Customize options to make sure the element appears and is activated
+                loader: 'always',
+              }}
+            >
+              <CheckoutForm planType={planType} user={user} />
             </Elements>
           </CardContent>
         </Card>
