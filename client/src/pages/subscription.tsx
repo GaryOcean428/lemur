@@ -1,0 +1,232 @@
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+import { useLocation } from 'wouter';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
+
+function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/subscription/success`
+        },
+      });
+
+      if (error) {
+        toast({
+          title: "Payment Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Payment Error",
+        description: err.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full">
+      <PaymentElement className="mb-6" />
+      <Button 
+        type="submit" 
+        className="w-full" 
+        disabled={!stripe || isProcessing}
+      >
+        {isProcessing ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          `Subscribe to ${planType === 'pro' ? 'Pro' : 'Basic'} Plan`
+        )}
+      </Button>
+    </form>
+  );
+}
+
+export default function SubscriptionPage() {
+  const { user, isLoading } = useAuth();
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [planType, setPlanType] = useState<'basic' | 'pro'>('pro');
+  const [isLoadingPayment, setIsLoadingPayment] = useState(false);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  
+  useEffect(() => {
+    // Redirect if not logged in
+    if (!isLoading && !user) {
+      setLocation('/auth');
+    }
+  }, [user, isLoading, setLocation]);
+
+  // Already subscribed
+  if (user?.subscriptionTier === 'pro') {
+    return (
+      <div className="container max-w-5xl mx-auto py-12">
+        <Card>
+          <CardHeader>
+            <CardTitle>You're already a Pro member!</CardTitle>
+            <CardDescription>
+              You're already enjoying all the benefits of the Pro tier.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Your subscription is active until {user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt).toLocaleDateString() : 'forever'}.</p>
+          </CardContent>
+          <CardFooter>
+            <Button variant="outline" onClick={() => setLocation('/')}>Return to Home</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleSelectPlan = async (type: 'basic' | 'pro') => {
+    setPlanType(type);
+    
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to subscribe",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoadingPayment(true);
+    
+    try {
+      const response = await apiRequest('POST', '/api/create-subscription', { planType: type });
+      const data = await response.json();
+      setClientSecret(data.clientSecret);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Could not initialize payment",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPayment(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="container max-w-5xl mx-auto py-12">
+      <h1 className="text-3xl font-bold mb-8">Upgrade Your Lemur Experience</h1>
+      
+      <div className="grid md:grid-cols-2 gap-8 mb-12">
+        <Card className={`border-2 ${planType === 'basic' ? 'border-primary' : 'border-transparent'}`}>
+          <CardHeader>
+            <CardTitle>Basic Plan</CardTitle>
+            <CardDescription>$9.99/month</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <ul className="space-y-2">
+              <li className="flex items-center">✓ 100 Searches per month</li>
+              <li className="flex items-center">✓ Access to compound-beta-mini model</li>
+              <li className="flex items-center">✓ Standard search capabilities</li>
+              <li className="flex items-center">✓ Basic filters</li>
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              onClick={() => handleSelectPlan('basic')} 
+              variant={planType === 'basic' ? "default" : "outline"}
+              className="w-full"
+              disabled={isLoadingPayment}
+            >
+              {planType === 'basic' ? 'Selected' : 'Select Basic'}
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <Card className={`border-2 ${planType === 'pro' ? 'border-primary' : 'border-transparent'}`}>
+          <CardHeader>
+            <CardTitle>Pro Plan</CardTitle>
+            <CardDescription>$29.99/month</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              <li className="flex items-center">✓ Unlimited searches</li>
+              <li className="flex items-center">✓ Access to full compound-beta model</li>
+              <li className="flex items-center">✓ Deep Research capability</li>
+              <li className="flex items-center">✓ Advanced filters and personalization</li>
+              <li className="flex items-center">✓ Priority support</li>
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              onClick={() => handleSelectPlan('pro')} 
+              variant={planType === 'pro' ? "default" : "outline"}
+              className="w-full"
+              disabled={isLoadingPayment}
+            >
+              {planType === 'pro' ? 'Selected' : 'Select Pro'}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+      
+      {isLoadingPayment ? (
+        <Card>
+          <CardContent className="flex justify-center items-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="ml-3">Preparing payment form...</p>
+          </CardContent>
+        </Card>
+      ) : clientSecret ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Complete Your Subscription</CardTitle>
+            <CardDescription>
+              You're subscribing to our {planType === 'pro' ? 'Pro' : 'Basic'} plan
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Elements stripe={stripePromise} options={{ clientSecret }}>
+              <CheckoutForm planType={planType} />
+            </Elements>
+          </CardContent>
+        </Card>
+      ) : null}
+    </div>
+  );
+}

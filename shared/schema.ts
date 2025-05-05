@@ -50,6 +50,11 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   email: true,
+  subscriptionTier: true,
+  searchCount: true,
+  stripeCustomerId: true,
+  stripeSubscriptionId: true,
+  subscriptionExpiresAt: true
 });
 
 export const insertSearchHistorySchema = createInsertSchema(searchHistory).pick({

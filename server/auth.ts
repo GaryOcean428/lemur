@@ -109,7 +109,24 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
+  app.post("/api/login", passport.authenticate("local"), async (req, res) => {
+    // Check if user needs to be assigned Pro tier (developers and specific email domains)
+    if (req.user.subscriptionTier === 'free') {
+      const isDeveloperUser = req.user.email?.endsWith('@replit.com') || 
+                             req.user.email?.endsWith('@example.com');
+      
+      if (isDeveloperUser) {
+        // Update to Pro tier with 1 year expiration
+        const updatedUser = await storage.updateUserSubscription(
+          req.user.id, 
+          'pro',
+          new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year
+        );
+        req.user = updatedUser;
+        console.log(`User ${req.user.username} automatically upgraded to Pro tier (developer account)`); 
+      }
+    }
+    
     res.status(200).json(req.user);
   });
 

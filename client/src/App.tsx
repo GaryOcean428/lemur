@@ -24,6 +24,8 @@ import DataProcessingPage from "@/pages/data-processing";
 import ContactPage from "@/pages/contact";
 import HelpPage from "@/pages/help";
 import APIPage from "@/pages/api";
+import SubscriptionPage from "@/pages/subscription";
+import SubscriptionSuccessPage from "@/pages/subscription-success";
 
 function Router() {
   return (
