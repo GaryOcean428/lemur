@@ -38,7 +38,7 @@ function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
                   description: "Thank you for your subscription!"
                 });
                 // Redirect to success page after a short delay
-                setTimeout(() => setLocation('/subscription-success'), 2000);
+                setTimeout(() => setLocation('/subscription/success'), 2000);
                 break;
               case "processing":
                 toast({
@@ -87,7 +87,7 @@ function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
       const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/subscription-success`
+          return_url: `${window.location.origin}/subscription/success`
         },
         redirect: 'if_required',
       });

@@ -5,6 +5,7 @@ import { CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLocation } from 'wouter';
 
+// This component handles displaying a success message after subscribing
 export default function SubscriptionSuccessPage() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
