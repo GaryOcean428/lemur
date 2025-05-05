@@ -443,7 +443,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (req.session.anonymousSearchCount >= 1) {
           return res.status(403).json({
             message: "Please sign in to continue searching",
-            limitReached: true
+            limitReached: true,
+            authRequired: true
           });
         }
         
@@ -742,7 +743,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (req.session.anonymousSearchCount >= 1) {
           return res.status(403).json({
             message: "Please sign in to continue searching",
-            limitReached: true
+            limitReached: true,
+            authRequired: true
           });
         }
         
