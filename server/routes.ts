@@ -175,14 +175,22 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
                            query.includes("?") && query.length > 20; // Questions with decent length
     
     // Map model preferences to actual API model names
-    const modelMap = {
+    const modelMap: Record<string, string> = {
       "auto": isComplexQuery ? "llama-3.3-70b-versatile" : "llama-4-scout-17b-16e-instruct",
       "fast": "llama-4-scout-17b-16e-instruct", // Fast (Llama-4-Scout)
       "comprehensive": "llama-3.3-70b-versatile"  // Comprehensive (Llama-3.3-70B)
     };
     
+    // Normalize the model preference string and ensure it's a valid option
+    const normalizedPref = modelPreference.toLowerCase();
+    
     // Get model based on user preference or fallback to auto selection
-    const model = modelMap[modelPreference.toLowerCase()] || modelMap["auto"];
+    let model: string;
+    if (normalizedPref in modelMap) {
+      model = modelMap[normalizedPref];
+    } else {
+      model = modelMap["auto"];
+    }
     
     // Log which model was selected based on preference
     console.log(`Selected Groq model: ${model} (preference: ${modelPreference}) for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
