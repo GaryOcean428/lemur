@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { Mic, Camera, Search, X } from "lucide-react";
 import { fetchSearchSuggestions } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import SubscriptionPrompt from "./SubscriptionPrompt";
 
 interface SearchFormProps {
   initialQuery?: string;
@@ -12,7 +14,10 @@ export default function SearchForm({ initialQuery = "" }: SearchFormProps) {
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showSubscriptionPrompt, setShowSubscriptionPrompt] = useState(false);
+  const [subscriptionPromptMessage, setSubscriptionPromptMessage] = useState("");
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -61,12 +66,52 @@ export default function SearchForm({ initialQuery = "" }: SearchFormProps) {
     if (!trimmedQuery) return;
     
     setShowSuggestions(false);
+    
+    // Check search limits for non-authenticated users
+    if (!user) {
+      // For anonymous users, we'll check if they've already performed a search
+      // This is a client-side check; the server will also enforce this limit
+      const anonymousSearchCount = localStorage.getItem('anonymousSearchCount');
+      if (anonymousSearchCount && parseInt(anonymousSearchCount) >= 1) {
+        setSubscriptionPromptMessage("You've reached the limit for anonymous searches. Create a free account to continue.");
+        setShowSubscriptionPrompt(true);
+        return;
+      } else {
+        // Increment local storage counter (server will also track this)
+        localStorage.setItem('anonymousSearchCount', '1');
+      }
+    } else if (user.subscriptionTier === 'free' && user.searchCount >= 5) {
+      // For free tier users, we'll check their search count
+      setSubscriptionPromptMessage("You've reached your limit of free searches. Upgrade to continue searching with Lemur.");
+      setShowSubscriptionPrompt(true);
+      return;
+    }
+    
+    // Proceed with search
     setLocation(`/search?q=${encodeURIComponent(trimmedQuery)}`);
   };
   
   const handleSuggestionClick = (suggestion: string) => {
     setSearchQuery(suggestion);
     setShowSuggestions(false);
+    
+    // We'll reuse the same limit checking logic from handleSubmit
+    if (!user) {
+      const anonymousSearchCount = localStorage.getItem('anonymousSearchCount');
+      if (anonymousSearchCount && parseInt(anonymousSearchCount) >= 1) {
+        setSubscriptionPromptMessage("You've reached the limit for anonymous searches. Create a free account to continue.");
+        setShowSubscriptionPrompt(true);
+        return;
+      } else {
+        localStorage.setItem('anonymousSearchCount', '1');
+      }
+    } else if (user.subscriptionTier === 'free' && user.searchCount >= 5) {
+      setSubscriptionPromptMessage("You've reached your limit of free searches. Upgrade to continue searching with Lemur.");
+      setShowSubscriptionPrompt(true);
+      return;
+    }
+    
+    // Proceed with search
     setLocation(`/search?q=${encodeURIComponent(suggestion)}`);
   };
   
@@ -80,76 +125,86 @@ export default function SearchForm({ initialQuery = "" }: SearchFormProps) {
   };
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="w-full relative">
-      <div className="relative flex items-center rounded-full border shadow-sm overflow-hidden bg-white dark:bg-gray-800 dark:border-gray-700">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10"></div>
-        <input 
-          ref={inputRef}
-          type="text" 
-          placeholder="Search for anything..." 
-          className="flex-grow px-5 py-4 outline-none text-base w-full bg-transparent relative z-10 dark:text-white dark:placeholder-gray-400"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onFocus={() => searchQuery.length >= 2 && suggestions.length > 0 && setShowSuggestions(true)}
-        />
-        <div className="flex items-center px-2 absolute right-0 z-10">
-          {searchQuery ? (
+    <>
+      <form ref={formRef} onSubmit={handleSubmit} className="w-full relative">
+        <div className="relative flex items-center rounded-full border shadow-sm overflow-hidden bg-white dark:bg-gray-800 dark:border-gray-700">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10"></div>
+          <input 
+            ref={inputRef}
+            type="text" 
+            placeholder="Search for anything..." 
+            className="flex-grow px-5 py-4 outline-none text-base w-full bg-transparent relative z-10 dark:text-white dark:placeholder-gray-400"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => searchQuery.length >= 2 && suggestions.length > 0 && setShowSuggestions(true)}
+          />
+          <div className="flex items-center px-2 absolute right-0 z-10">
+            {searchQuery ? (
+              <button 
+                type="button" 
+                onClick={clearSearch}
+                className="p-2 text-gray-400 hover:text-[hsl(var(--primary))] dark:hover:text-primary-light transition-colors" 
+                aria-label="Clear Search" 
+              >
+                <X className="h-5 w-5" />
+              </button>
+            ) : null}
             <button 
               type="button" 
-              onClick={clearSearch}
               className="p-2 text-gray-400 hover:text-[hsl(var(--primary))] dark:hover:text-primary-light transition-colors" 
-              aria-label="Clear Search" 
+              aria-label="Voice Search" 
             >
-              <X className="h-5 w-5" />
+              <Mic className="h-5 w-5" />
             </button>
-          ) : null}
-          <button 
-            type="button" 
-            className="p-2 text-gray-400 hover:text-[hsl(var(--primary))] dark:hover:text-primary-light transition-colors" 
-            aria-label="Voice Search" 
-          >
-            <Mic className="h-5 w-5" />
-          </button>
-          <button 
-            type="button" 
-            className="p-2 text-gray-400 hover:text-[hsl(var(--primary))] dark:hover:text-primary-light transition-colors" 
-            aria-label="Image Search" 
-          >
-            <Camera className="h-5 w-5" />
-          </button>
-          <button 
-            type="submit" 
-            className="ml-1 bg-[hsl(var(--primary))] text-white font-medium px-6 py-2 rounded-full relative overflow-hidden group"
-            aria-label="Search"
-          >
-            <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
-            <span className="flex items-center">
-              <Search className="h-4 w-4 mr-1" />
-              Search
-            </span>
-          </button>
+            <button 
+              type="button" 
+              className="p-2 text-gray-400 hover:text-[hsl(var(--primary))] dark:hover:text-primary-light transition-colors" 
+              aria-label="Image Search" 
+            >
+              <Camera className="h-5 w-5" />
+            </button>
+            <button 
+              type="submit" 
+              className="ml-1 bg-[hsl(var(--primary))] text-white font-medium px-6 py-2 rounded-full relative overflow-hidden group"
+              aria-label="Search"
+            >
+              <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
+              <span className="flex items-center">
+                <Search className="h-4 w-4 mr-1" />
+                Search
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
+        
+        {/* Search suggestions dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute w-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden z-50 border dark:border-gray-700">
+            <ul className="py-1">
+              {suggestions.map((suggestion, index) => (
+                <li key={index}>
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                  >
+                    <Search className="h-4 w-4 mr-3 text-gray-400" />
+                    <span className="text-gray-800 dark:text-gray-200">{suggestion}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </form>
       
-      {/* Search suggestions dropdown */}
-      {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute w-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden z-50 border dark:border-gray-700">
-          <ul className="py-1">
-            {suggestions.map((suggestion, index) => (
-              <li key={index}>
-                <button
-                  type="button"
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                  onClick={() => handleSuggestionClick(suggestion)}
-                >
-                  <Search className="h-4 w-4 mr-3 text-gray-400" />
-                  <span className="text-gray-800 dark:text-gray-200">{suggestion}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </form>
+      {/* Subscription prompt dialog */}
+      <SubscriptionPrompt 
+        open={showSubscriptionPrompt} 
+        onOpenChange={setShowSubscriptionPrompt} 
+        message={subscriptionPromptMessage}
+        showSignInOption={!user}
+      />
+    </>
   );
 }

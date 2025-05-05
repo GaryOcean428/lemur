@@ -100,8 +100,23 @@ export async function performSearch(query: string, searchType: string = 'all', f
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Error fetching search results: ${response.status} ${text}`);
+      // Try to parse the response as JSON first
+      let errorMessage = '';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || 'Unknown error';
+        
+        // Special handling for subscription limit errors
+        if (response.status === 403 && errorData.limitReached) {
+          throw new Error(`403 Subscription limit reached: ${errorMessage}`);
+        }
+      } catch (parseError) {
+        // If parsing fails, fall back to text
+        const text = await response.text();
+        errorMessage = text;
+      }
+      
+      throw new Error(`Error fetching search results: ${response.status} ${errorMessage}`);
     }
 
     return await response.json();
