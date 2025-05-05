@@ -431,9 +431,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.incrementUserSearchCount(userId);
         }
       } else {
-        // Anonymous users get only 1 search
+        // Anonymous users get up to 3 searches before requiring sign in
         const anonymousSearches = await storage.getSearchHistoryByUserId(null);
-        if (anonymousSearches.length >= 1) {
+        if (anonymousSearches.length >= 3) {
           return res.status(403).json({
             message: "Please sign in to continue searching",
             limitReached: true
@@ -560,11 +560,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
 
-      // Log search in database (without userId for anonymous searches)
+      // Log search in database (with userId for authenticated users only)
       try {
         await storage.createSearchHistory({
           query,
-          userId: null, // For anonymous searches
+          userId, // This will be null for anonymous searches
         });
         console.log(`Search logged: "${query}" (type: ${searchType})`);
       } catch (dbError) {

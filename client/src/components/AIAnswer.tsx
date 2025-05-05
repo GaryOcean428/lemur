@@ -1,5 +1,11 @@
 import { Source } from "@/lib/types";
 import DOMPurify from 'dompurify';
+import { useState } from 'react';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Send } from "lucide-react";
+import { useSearchStore } from "@/store/searchStore";
+import { useLocation } from "wouter";
 
 interface AIAnswerProps {
   answer: string;
@@ -8,6 +14,22 @@ interface AIAnswerProps {
 }
 
 export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
+  const [followUpQuestion, setFollowUpQuestion] = useState('');
+  const [, setLocation] = useLocation();
+  const { setCurrentQuery } = useSearchStore();
+  
+  const handleFollowUpSearch = () => {
+    if (followUpQuestion.trim()) {
+      setCurrentQuery(followUpQuestion);
+      setLocation(`/search?q=${encodeURIComponent(followUpQuestion)}`);
+    }
+  };
+  
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleFollowUpSearch();
+    }
+  };
   // Basic markdown rendering function for improved readability
   function renderMarkdown(text: string): string {
     // Step 1: Process citations to make them clickable
@@ -103,6 +125,27 @@ export default function AIAnswer({ answer, sources, model }: AIAnswerProps) {
         </ol>
       </div>
       
+      {/* Follow-up question input */}
+      <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
+        <h4 className="text-sm font-semibold text-[hsl(var(--neutral-muted))] mb-2">Ask a follow-up question:</h4>
+        <div className="flex space-x-2">
+          <Input
+            type="text"
+            placeholder="Ask a follow-up question..."
+            value={followUpQuestion}
+            onChange={(e) => setFollowUpQuestion(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="flex-grow"
+          />
+          <Button 
+            onClick={handleFollowUpSearch} 
+            disabled={!followUpQuestion.trim()}
+            className="bg-[hsl(var(--primary))] text-white hover:bg-[hsl(var(--primary))]">
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+        
       <div className="mt-6 flex justify-between">
         <div className="text-xs text-[hsl(var(--neutral-muted))]">
           Powered by {model === 'llama-3.3-70b-versatile' ? 'Groq Llama 3.3 70B Versatile' : 
