@@ -59,6 +59,12 @@ export default function SearchResults() {
       } else if (error.message.includes("401 Unauthorized")) {
         errorMessage = "API authorization error"; 
         errorDetail = "The search service is currently unavailable due to API key issues. Please try again later or contact support.";
+      } else if (error.message.includes("AI service is temporarily unavailable")) {
+        errorMessage = "AI service unavailable";
+        errorDetail = "We're currently experiencing issues with our AI service. Search results are still available.";
+      } else if (error.message.includes("search service is temporarily unavailable")) {
+        errorMessage = "Search service error";
+        errorDetail = "Our search service is temporarily unavailable. Please try again in a few minutes.";
       } else if (error.message.includes("500") || error.message.includes("400")) {
         errorMessage = "Search service error";
         errorDetail = "Our search service is experiencing technical difficulties. Please try again later.";

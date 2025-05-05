@@ -118,6 +118,18 @@ export async function performSearch(query: string, searchType: string = 'all', f
         try {
           const text = await responseClone.text();
           errorMessage = text;
+          
+          // Handle specific API errors for better user experience
+          if (response.status === 500) {
+            // Detect Groq API errors
+            if (text.includes('Groq API error') || text.includes('Bad Gateway')) {
+              throw new Error('Our AI service is temporarily unavailable. Traditional search results may still be available.');
+            }
+            // Detect Tavily API errors
+            if (text.includes('Tavily API error')) {
+              throw new Error('Our search service is temporarily unavailable. Please try again later.');
+            }
+          }
         } catch (textError) {
           errorMessage = 'Could not read error response';
         }
