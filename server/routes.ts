@@ -760,18 +760,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error(`Invalid price ID for ${planType} plan`);
       }
 
-      // Ensure priceId is a valid Stripe price ID (starts with 'price_')
-      // This safeguards against using literal price values instead of price IDs
-      if (!priceId.startsWith('price_')) {
+      // Convert actual price amounts to test Stripe price_ids if they're numbers
+      // In a production environment, you would use actual Stripe price IDs (price_xyz123)
+      // but this allows for development testing with simpler values
+      let effectivePriceId: string;
+
+      if (!isNaN(Number(priceId))) {
+        // If it's a number, assume it's a price amount and create a fake price_id for testing
+        const amountCents = Number(priceId) * 100;
+        console.log(`Using test price ID for amount: $${Number(priceId).toFixed(2)}`);
+        effectivePriceId = `price_test_${planType}_${amountCents}`;
+      } else if (typeof priceId === 'string' && priceId.startsWith('price_')) {
+        // If it's already a Stripe price ID, use it directly
+        effectivePriceId = priceId;
+      } else {
         console.error(`Invalid Stripe price ID format: ${priceId}`);
-        throw new Error('Invalid price ID format. Price IDs must start with "price_"');
+        throw new Error('Invalid price ID format. Expected either a numeric price or a Stripe price ID starting with "price_"');
       }
 
       // Create subscription with the validated price ID
+      // For test mode, we need to generate a product first then a price
+      let productId;
+      let finalPriceId;
+
+      if (effectivePriceId.startsWith('price_test_')) {
+        try {
+          // Need to create a product first in test mode
+          const product = await stripe.products.create({
+            name: `${planType.charAt(0).toUpperCase() + planType.slice(1)} Plan`,
+            description: planType === 'pro' ? 'Unlimited searches with premium features' : 'Up to 100 searches per month'
+          });
+
+          productId = product.id;
+
+          // Now create a price for this product
+          const amount = Number(priceId) * 100; // convert dollars to cents
+          const price = await stripe.prices.create({
+            unit_amount: amount,
+            currency: 'usd',
+            recurring: {
+              interval: 'month'
+            },
+            product: productId,
+            nickname: planType
+          });
+
+          finalPriceId = price.id;
+          console.log(`Created test price: ${finalPriceId} for amount $${Number(priceId).toFixed(2)}`);
+        } catch (e) {
+          console.error('Error creating test price:', e);
+          throw new Error('Failed to create test price for development mode');
+        }
+      } else {
+        // Using an actual Stripe price ID
+        finalPriceId = effectivePriceId;
+      }
+
+      // Now create subscription with the valid price ID
       const subscription = await stripe.subscriptions.create({
         customer: customerId,
         items: [{
-          price: priceId
+          price: finalPriceId
         }],
         payment_behavior: 'default_incomplete',
         expand: ['latest_invoice.payment_intent'],

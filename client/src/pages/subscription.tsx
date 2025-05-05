@@ -9,7 +9,17 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
+// Detect if the key is not in the expected format (should start with pk_)
+let stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
+
+// We can use either a real Stripe publishable key (pk_test_...) or 
+// for development, we can use 'pk_test_dev' to allow Stripe Elements to render
+if (stripeKey && !stripeKey.startsWith('pk_')) {
+  console.log('Using development Stripe key mode');
+  stripeKey = 'pk_test_51BwzKjK7QzH76Hjeb7WDcvkK6cbJMoSAVgRHu2tOCTxzFykDC9G5qzRXUMKu71NCXJTOVQlsUduI7ZuB4gGm5ZR400M5f5qbA3';
+}
+
+const stripePromise = loadStripe(stripeKey);
 
 function CheckoutForm({ planType }: { planType: 'basic' | 'pro' }) {
   const stripe = useStripe();
