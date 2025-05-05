@@ -197,6 +197,10 @@ const VoiceSearch = ({ onSearchComplete }: VoiceSearchProps) => {
       
       mediaRecorderRef.current = mediaRecorder;
       
+      // Initialize transcript accumulation
+      let accumulatedTranscript = "";
+      let lastSentTime = Date.now();
+      
       // Handle audio data
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0 && socketRef.current) {
@@ -210,13 +214,28 @@ const VoiceSearch = ({ onSearchComplete }: VoiceSearchProps) => {
               type: 'audio',
               buffer: base64data
             }));
+            
+            // Periodically send the accumulated transcript for searching while user is speaking
+            // This enables real-time search as the user talks
+            const now = Date.now();
+            if (transcript && transcript !== accumulatedTranscript && now - lastSentTime > 2000) {
+              accumulatedTranscript = transcript;
+              lastSentTime = now;
+              
+              // Send the current transcript for real-time search
+              socketRef.current.send(JSON.stringify({
+                type: 'search',
+                query: transcript,
+                isPartial: true // Indicate this is a partial query while user is still speaking
+              }));
+            }
           };
           reader.readAsDataURL(event.data);
         }
       };
       
       // Start recording
-      mediaRecorder.start(500); // Capture data every 500ms
+      mediaRecorder.start(250); // Capture data more frequently (250ms) for a more real-time feel
       
     } catch (error) {
       console.error("Error starting microphone:", error);
@@ -234,11 +253,12 @@ const VoiceSearch = ({ onSearchComplete }: VoiceSearchProps) => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       
-      // For the mock implementation, send a query based on the transcript
+      // When the user stops speaking, send the final transcript for a complete search
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.send(JSON.stringify({
           type: 'search',
-          query: transcript || "example search query" // Fallback for testing
+          query: transcript || "example search query", // Fallback for testing
+          isPartial: false // Indicate this is the final query
         }));
       }
     }
