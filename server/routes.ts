@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import fetch from "node-fetch";
 import { setupAuth } from "./auth";
 import Stripe from "stripe";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
 
 // Define Tavily API response interface
 interface TavilySearchResult {
@@ -348,7 +350,32 @@ async function getSearchSuggestions(partialQuery: string): Promise<string[]> {
   return uniqueSuggestions;
 }
 
+// Hash a password with scrypt for test user creation
+async function hashPassword(password: string) {
+  const scryptAsync = promisify(scrypt);
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Create TestUser if it doesn't exist
+  try {
+    const testUser = await storage.getUserByUsername('TestUser');
+    if (!testUser) {
+      console.log('Creating TestUser account for development testing');
+      await storage.createUser({
+        username: 'TestUser',
+        password: await hashPassword('password123'),
+        email: 'test@example.com',
+        subscriptionTier: 'free',
+        searchCount: 0
+      });
+      console.log('TestUser created successfully');
+    }
+  } catch (err) {
+    console.error('Error checking/creating TestUser:', err);
+  }
   // Set up authentication routes and middleware
   setupAuth(app);
   // Main Search API endpoint that supports different search types
