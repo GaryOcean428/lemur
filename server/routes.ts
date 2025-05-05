@@ -488,21 +488,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only get AI answer for certain search types
       let aiAnswer = null;
       if (['all', 'ai', 'web', 'news', 'academic'].includes(searchType)) {
-        // Get model preference from query parameters if available
-        const modelPreference = req.query.model as string || 'auto';
+        // Determine model based on user tier
+        // Default to compound-beta-mini for anonymous and free users
+        let modelPreference = 'fast'; // compound-beta-mini
+        
+        // Pro users get access to compound-beta and can choose their model
+        if (userTier === 'pro') {
+          modelPreference = req.query.model as string || 'auto';
+          console.log(`Pro user - using preferred model: ${modelPreference}`);
+        } else if (userTier === 'basic') {
+          // Basic users get default model selection but still limited response
+          modelPreference = 'auto';
+          console.log(`Basic user - using auto model selection`);
+        } else {
+          console.log(`Free/anonymous user - restricting to compound-beta-mini`);
+        }
         
         // Get AI answer from Groq using the sources
         const { answer, model } = await groqSearch(query, tavilyResults.results, groqApiKey, modelPreference);
-
+        
         // Format sources for the AI answer
         const sources = tavilyResults.results.slice(0, 5).map((result) => ({
           title: result.title,
           url: result.url,
           domain: new URL(result.url).hostname.replace("www.", "")
         }));
+        
+        // For non-pro users, limit the length of AI answers
+        let processedAnswer = answer;
+        if (useLimitedAIResponse && answer.length > 1500) {
+          // Truncate answer for free/anonymous users
+          processedAnswer = answer.substring(0, 1500) + 
+            '\n\n*This answer has been truncated. Upgrade to a paid plan for complete answers.*';
+          console.log('Answer truncated for free/anonymous user');
+        }
 
         aiAnswer = {
-          answer,
+          answer: processedAnswer,
           sources,
           model
         };
@@ -638,6 +660,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Subscription endpoints for handling user upgrades
+  app.post("/api/create-subscription", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({
+          message: "You must be logged in to subscribe"
+        });
+      }
+      
+      const { planType } = req.body;
+      
+      if (!planType || !['basic', 'pro'].includes(planType)) {
+        return res.status(400).json({
+          message: "Valid plan type (basic or pro) is required"
+        });
+      }
+
+      // Check for Stripe API key
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeKey) {
+        return res.status(500).json({ message: "Stripe API key not configured" });
+      }
+      
+      // Initialize Stripe
+      const stripe = new (require('stripe'))(stripeKey);
+      
+      // Determine price based on plan type
+      const priceId = planType === 'pro' ? 
+        process.env.STRIPE_PRO_PRICE_ID : 
+        process.env.STRIPE_BASIC_PRICE_ID;
+      
+      if (!priceId) {
+        return res.status(500).json({ message: `Price ID for ${planType} plan not configured` });
+      }
+      
+      // Get or create customer
+      let customerId = req.user.stripeCustomerId;
+      
+      if (!customerId) {
+        // Create a new customer in Stripe
+        const customer = await stripe.customers.create({
+          email: req.user.email,
+          name: req.user.username,
+          metadata: {
+            userId: req.user.id.toString()
+          }
+        });
+        
+        customerId = customer.id;
+      }
+      
+      // Create subscription
+      const subscription = await stripe.subscriptions.create({
+        customer: customerId,
+        items: [{
+          price: priceId
+        }],
+        payment_behavior: 'default_incomplete',
+        expand: ['latest_invoice.payment_intent'],
+      });
+      
+      // Update user with Stripe info
+      await storage.updateStripeInfo(req.user.id, customerId || '', subscription.id);
+      
+      // Return client secret for frontend to complete payment
+      res.json({
+        subscriptionId: subscription.id,
+        clientSecret: subscription.latest_invoice.payment_intent.client_secret,
+        planType
+      });
+      
+    } catch (error) {
+      console.error("Subscription creation error:", error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "An error occurred during subscription creation"
+      });
+    }
+  });
+  
+  // Webhook for handling subscription events from Stripe
+  app.post("/api/webhook/stripe", async (req, res) => {
+    try {
+      const sig = req.headers['stripe-signature'];
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+      
+      if (!stripeKey || !webhookSecret) {
+        return res.status(500).json({ message: "Stripe API keys not configured" });
+      }
+      
+      const stripe = new (require('stripe'))(stripeKey);
+      
+      // Verify webhook signature and extract the event
+      let event;
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } catch (err) {
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+      }
+      
+      // Handle specific event types
+      switch (event.type) {
+        case 'invoice.payment_succeeded':
+          // Update subscription status to active
+          const invoice = event.data.object;
+          const subscriptionId = invoice.subscription;
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          
+          // Find user by subscription ID
+          const customerId = subscription.customer;
+          const customer = await stripe.customers.retrieve(customerId);
+          const userId = customer.metadata.userId;
+          
+          if (userId) {
+            // Update user subscription to active
+            const plan = subscription.items.data[0].plan.nickname?.toLowerCase().includes('pro') ? 'pro' : 'basic';
+            const expiresAt = new Date(subscription.current_period_end * 1000); // Convert to milliseconds
+            
+            await storage.updateUserSubscription(parseInt(userId), plan, expiresAt);
+            console.log(`User ${userId} subscription activated: ${plan}`);
+          }
+          break;
+          
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted':
+          const updatedSubscription = event.data.object;
+          const updatedCustomerId = updatedSubscription.customer;
+          const updatedCustomer = await stripe.customers.retrieve(updatedCustomerId);
+          const updatedUserId = updatedCustomer.metadata.userId;
+          
+          if (updatedUserId) {
+            if (updatedSubscription.status === 'active') {
+              // Update subscription with new expiration date
+              const updatedPlan = updatedSubscription.items.data[0].plan.nickname?.toLowerCase().includes('pro') ? 'pro' : 'basic';
+              const updatedExpiresAt = new Date(updatedSubscription.current_period_end * 1000);
+              
+              await storage.updateUserSubscription(parseInt(updatedUserId), updatedPlan, updatedExpiresAt);
+              console.log(`User ${updatedUserId} subscription updated: ${updatedPlan}`);
+            } else if (['canceled', 'unpaid', 'past_due'].includes(updatedSubscription.status)) {
+              // Downgrade to free plan if subscription is canceled or payment fails
+              await storage.updateUserSubscription(parseInt(updatedUserId), 'free');
+              console.log(`User ${updatedUserId} subscription downgraded to free plan`);
+            }
+          }
+          break;
+      }
+      
+      // Return success response
+      res.json({ received: true });
+      
+    } catch (error) {
+      console.error("Stripe webhook error:", error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "An error processing webhook"
+      });
+    }
+  });
+
   // Submit search feedback
   app.post("/api/search-feedback", async (req, res) => {
     try {
@@ -659,6 +840,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error submitting feedback:", error);
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "An error occurred while submitting feedback" 
+      });
+    }
+  });
+
+  // Deep Research API endpoint for Pro users
+  app.post("/api/deep-research", async (req, res) => {
+    try {
+      // Check if user is authenticated and has Pro subscription
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({
+          message: "You must be logged in to use deep research"
+        });
+      }
+      
+      // Verify user has Pro subscription
+      if (req.user.subscriptionTier !== 'pro') {
+        return res.status(403).json({
+          message: "Deep research is only available with a Pro subscription"
+        });
+      }
+      
+      const { query, sources = [] } = req.body;
+      
+      if (!query) {
+        return res.status(400).json({
+          message: "Query is required"
+        });
+      }
+      
+      // Get API keys
+      const tavilyApiKey = process.env.VITE_TAVILY_API_KEY || process.env.TAVILY_API_KEY || "";
+      const groqApiKey = process.env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY || "";
+      
+      if (!tavilyApiKey || !groqApiKey) {
+        return res.status(500).json({ message: "API keys not configured" });
+      }
+      
+      console.log(`Starting deep research for: "${query}"`);
+      
+      // Step 1: Initial search to get search results
+      const initialSearchResults = await tavilySearch(query, tavilyApiKey, {
+        search_depth: 'advanced',
+        max_results: 10
+      });
+      
+      // Step 2: Use Groq to analyze the results and identify research paths
+      const researchPrompt = `You are conducting deep research on the following topic: "${query}". 
+
+Based on these initial search results, identify 3-5 key research directions or sub-topics to explore further. For each research direction, provide a specific search query that would help gather more targeted information.
+
+Initial search results:
+${initialSearchResults.results.map(r => `- ${r.title}: ${r.content.substring(0, 150)}...`).join('\n')}\n`;
+      
+      // Call Groq API for research planning
+      const planningResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqApiKey}`
+        },
+        body: JSON.stringify({
+          model: "compound-beta",
+          messages: [
+            {
+              role: "system",
+              content: "You are a research planning assistant that identifies key research directions and creates focused search queries for deep investigation."
+            },
+            {
+              role: "user",
+              content: researchPrompt
+            }
+          ],
+          temperature: 0.3
+        })
+      });
+      
+      if (!planningResponse.ok) {
+        throw new Error(`Groq API error: ${planningResponse.status} ${planningResponse.statusText}`);
+      }
+      
+      const planningData = await planningResponse.json() as { choices: Array<{ message: { content: string } }> };
+      const researchPlan = planningData.choices[0].message.content;
+      
+      // Step 3: Extract research queries from the plan
+      const researchDirRegex = /(?:"([^"]+)"|'([^']+)'|`([^`]+)`|([^\s.,;:"'`]+))/g;
+      let matches;
+      let researchQueries = [];
+      let tempString = researchPlan;
+      
+      // Look for quoted text which likely represents search queries
+      const queryRegex = /"([^"]+)"|'([^']+)'|`([^`]+)`/g;
+      while ((matches = queryRegex.exec(tempString)) !== null) {
+        const extractedQuery = matches[1] || matches[2] || matches[3];
+        if (extractedQuery && extractedQuery.length > 10) {
+          researchQueries.push(extractedQuery);
+        }
+      }
+      
+      // If we didn't find enough queries with quotes, use pattern matching to find likely search queries
+      if (researchQueries.length < 3) {
+        const lines = researchPlan.split('\n');
+        for (const line of lines) {
+          if (line.includes(':') && !researchQueries.some(q => line.includes(q))) {
+            const parts = line.split(':');
+            if (parts.length > 1 && parts[1].trim().length > 10) {
+              researchQueries.push(parts[1].trim());
+            }
+          }
+        }
+      }
+      
+      // Limit to 5 queries
+      researchQueries = researchQueries.slice(0, 5);
+      console.log(`Extracted ${researchQueries.length} research queries:`, researchQueries);
+      
+      // Step 4: Execute parallel searches for each research direction
+      const researchResults = [];
+      for (const researchQuery of researchQueries) {
+        try {
+          const searchResult = await tavilySearch(researchQuery, tavilyApiKey, {
+            search_depth: 'advanced',
+            max_results: 5
+          });
+          
+          researchResults.push({
+            query: researchQuery,
+            results: searchResult.results
+          });
+        } catch (error) {
+          console.error(`Error searching for "${researchQuery}":`, error);
+        }
+      }
+      
+      // Step 5: Compile all the search results
+      const allResults = [
+        ...initialSearchResults.results,
+        ...researchResults.flatMap(r => r.results)
+      ];
+      
+      // Remove duplicates by URL
+      const uniqueResults = Array.from(
+        new Map(allResults.map(item => [item.url, item])).values()
+      );
+      
+      // Step 6: Generate a comprehensive report using Groq's Compound Beta
+      const researchContext = `Deep research on: "${query}"
+
+Compiling information from ${uniqueResults.length} sources across ${researchQueries.length + 1} research directions.
+
+Sources:
+${uniqueResults.map((r, i) => `[${i+1}] ${r.title} (${r.url}): ${r.content.substring(0, 200)}...`).join('\n\n')}\n`;
+      
+      const reportResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqApiKey}`
+        },
+        body: JSON.stringify({
+          model: "compound-beta",
+          messages: [
+            {
+              role: "system",
+              content: "You are a research synthesis expert. Create a detailed, comprehensive research report based on the provided sources. Include sections covering each key aspect of the topic with proper citations to sources using [X] notation. Format your response with markdown for readability."
+            },
+            {
+              role: "user",
+              content: researchContext
+            }
+          ],
+          temperature: 0.3
+        })
+      });
+      
+      if (!reportResponse.ok) {
+        throw new Error(`Groq API error: ${reportResponse.status} ${reportResponse.statusText}`);
+      }
+      
+      const reportData = await reportResponse.json() as { choices: Array<{ message: { content: string } }> };
+      const finalReport = reportData.choices[0].message.content;
+      
+      // Format all sources for citation
+      const sourcesFormatted = uniqueResults.map((result, index) => ({
+        title: result.title,
+        url: result.url,
+        domain: new URL(result.url).hostname.replace("www.", ""),
+        index: index + 1
+      }));
+      
+      // Return the complete research package
+      res.json({
+        query,
+        researchPlan,
+        researchDirections: researchQueries,
+        report: finalReport,
+        sources: sourcesFormatted
+      });
+      
+    } catch (error) {
+      console.error("Deep research error:", error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "An error occurred during deep research"
       });
     }
   });
