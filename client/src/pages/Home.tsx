@@ -1,6 +1,6 @@
 import SearchForm from "@/components/SearchForm";
-import lemurLogo from "../assets/images/find5.png";
-import lemurTextLogo from "../assets/images/Lemur2.png";
+import lemurLogo from "../assets/images/Lemur6.png";
+import lemurTextLogo from "../assets/images/Lemur6.png";
 
 export default function Home() {
   return (

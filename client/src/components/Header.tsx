@@ -3,8 +3,8 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard } from "lucide-react";
-import lemurLogo from "../assets/images/find5.png";
-import lemurTextLogo from "../assets/images/Lemur2.png";
+import lemurLogo from "../assets/images/Lemur6.png";
+import lemurTextLogo from "../assets/images/Lemur6.png";
 import { ThemeToggle } from "./theme-toggle";
 import SubscriptionBadge from "./SubscriptionBadge";
 
