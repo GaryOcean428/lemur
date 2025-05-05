@@ -5,6 +5,7 @@ import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import OpenAI from "openai";
 import { storage } from "./storage";
+import { TavilySearchResult } from "./routes";
 
 // Initialize OpenAI API client
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -191,7 +192,7 @@ export async function getImageSearchResults(req: Request, res: Response) {
 async function processImageSearch(searchId: string, imagePath: string, user: any) {
   try {
     // 1. Analyze the image with OpenAI Vision API to generate a text description
-    const imageB64 = fs.readFileSync(imagePath, { encoding: 'base64' });
+    const imageB64 = fs.readFileSync(imagePath).toString('base64');
     
     const imageAnalysis = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -220,35 +221,59 @@ async function processImageSearch(searchId: string, imagePath: string, user: any
     // Update the search record with the generated query
     const searchResult = imageSearchResults.get(searchId);
     if (searchResult) {
-      searchResult.query = generatedQuery;
+      searchResult.query = generatedQuery || 'Image analysis';
       imageSearchResults.set(searchId, searchResult);
     }
     
-    // 2. Perform a search with the generated query
-    // This part would call your existing search logic - likely tavilySearch
-    // For now, we'll just simulate search results
-    const searchResults = [
-      {
-        title: "Generated Image Search Result",
-        url: "https://example.com/result",
-        content: "This is a simulated search result based on the image analysis: " + generatedQuery,
-        score: 0.95
-      }
-    ];
+    // 2. Import tavilySearch and groqSearch
+    // These are imported at runtime to avoid circular dependencies
+    const { tavilySearch, groqSearch } = await import('./routes');
     
-    // 3. Update the search results
+    // 3. Perform a search using Tavily API for web results
+    if (!process.env.TAVILY_API_KEY) {
+      throw new Error("Missing Tavily API key for image search");
+    }
+    
+    const tavilyResponse = await tavilySearch(
+      generatedQuery || 'Image analysis', 
+      process.env.TAVILY_API_KEY,
+      { search_depth: "advanced", max_results: 15, include_images: true }
+    );
+    
+    // 4. Process the results with Groq
+    let aiAnswer = "";
+    let modelUsed = "";
+    
+    if (process.env.GROQ_API_KEY) {
+      const groqResponse = await groqSearch(
+        generatedQuery || 'Image analysis',
+        tavilyResponse.results,
+        process.env.GROQ_API_KEY,
+        "comprehensive" // Always use the comprehensive model for image searches
+      );
+      
+      aiAnswer = groqResponse.answer;
+      modelUsed = groqResponse.model;
+    } else {
+      aiAnswer = `Based on the image, I searched for "${generatedQuery || 'the image content'}". Here are the results...
+
+Note: AI answer is limited because Groq API key is missing.`;
+      modelUsed = "unavailable";
+    }
+    
+    // 5. Update the search results
     if (searchResult) {
       searchResult.status = 'completed';
       searchResult.results = {
-        traditional: searchResults,
+        traditional: tavilyResponse.results,
         ai: {
-          answer: `Based on the image, I searched for "${generatedQuery}". Here are the results...`,
-          sources: searchResults.map((result, index) => ({
+          answer: aiAnswer,
+          sources: tavilyResponse.results.map((result: TavilySearchResult, index: number) => ({
             title: result.title,
             url: result.url,
             domain: new URL(result.url).hostname
           })),
-          model: "simulation"
+          model: modelUsed
         }
       };
       imageSearchResults.set(searchId, searchResult);
@@ -258,7 +283,7 @@ async function processImageSearch(searchId: string, imagePath: string, user: any
     if (user && user.id) {
       try {
         await storage.createSearchHistory({
-          query: generatedQuery,
+          query: generatedQuery || 'Image analysis',
           userId: user.id
         });
       } catch (historyError) {

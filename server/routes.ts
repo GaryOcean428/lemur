@@ -9,7 +9,7 @@ import { promisify } from "util";
 import { upload, handleVoiceTranscription, handleImageSearch, getImageSearchResults } from "./multimodal";
 
 // Define Tavily API response interface
-interface TavilySearchResult {
+export interface TavilySearchResult {
   title: string;
   url: string;
   content: string;
@@ -21,7 +21,7 @@ interface TavilySearchResult {
   };
 }
 
-interface TavilySearchResponse {
+export interface TavilySearchResponse {
   results: TavilySearchResult[];
   query: string;
   search_depth: string;
@@ -44,7 +44,7 @@ interface GroqResponse {
 }
 
 // Tavily API for search results with support for specialized search types
-async function tavilySearch(query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> {
+export async function tavilySearch(query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> {
   try {
     // Validate API key format (basic check)
     if (!apiKey || apiKey.trim() === '') {
@@ -123,7 +123,7 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
 }
 
 // Groq API for AI responses
-async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string, modelPreference: string = 'auto'): Promise<{answer: string; model: string}> {
+export async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string, modelPreference: string = 'auto'): Promise<{answer: string; model: string}> {
   try {
     // Validate API key
     if (!apiKey || apiKey.trim() === '') {
