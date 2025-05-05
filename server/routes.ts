@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import { registerRealtimeVoiceRoutes } from "./realtime-voice";
 import { storage } from "./storage";
 import fetch from "node-fetch";
 import { setupAuth } from "./auth";
@@ -1501,5 +1502,9 @@ ${uniqueResults.map((r, i) => `[${i+1}] ${r.title} (${r.url}): ${r.content.subst
   app.get("/api/image-search/:searchId", getImageSearchResults);
 
   const httpServer = createServer(app);
+  
+  // Register realtime voice routes with WebSocket support
+  await registerRealtimeVoiceRoutes(app, httpServer);
+  
   return httpServer;
 }

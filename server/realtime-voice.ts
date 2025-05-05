@@ -1,61 +1,8 @@
-import { WebSocket } from "ws";
+import { WebSocketServer } from 'ws';
 import { Express, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { storage } from "./storage";
 import { UnifiedSearchService } from "./services/unified-search";
-
-// Define interface for Realtime API session
-interface RealtimeSession {
-  id: string;
-  client: any; // Will be OpenAIRealtimeWS
-  socket: WebSocket;
-  lastActivity: number;
-}
-
-// Active sessions storage
-const activeSessions: Map<string, RealtimeSession> = new Map();
-
-// Function to clean up inactive sessions
-const cleanupInactiveSessions = () => {
-  const now = Date.now();
-  const timeout = 5 * 60 * 1000; // 5 minutes
-  
-  for (const [id, session] of activeSessions.entries()) {
-    if (now - session.lastActivity > timeout) {
-      console.log(`Closing inactive session ${id}`);
-      try {
-        session.client.close();
-        session.socket.close();
-        activeSessions.delete(id);
-      } catch (error) {
-        console.error(`Error closing session ${id}:`, error);
-      }
-    }
-  }
-};
-
-// Cleanup every minute
-setInterval(cleanupInactiveSessions, 60 * 1000);
-
-// Basic search function as fallback
-async function performBasicSearch(query: string, apiKey: string): Promise<any[]> {
-  try {
-    const { tavilySearch } = await import("./routes");
-    const searchResults = await tavilySearch(query, apiKey, {
-      search_depth: "basic",
-      max_results: 5
-    });
-    
-    return searchResults.results.map((result: any) => ({
-      title: result.title,
-      url: result.url,
-      content: result.content.substring(0, 300) + "..."
-    }));
-  } catch (error) {
-    console.error("Error performing search:", error);
-    return [];
-  }
-}
 
 // Create instance of UnifiedSearchService
 const unifiedSearchService = new UnifiedSearchService();
@@ -117,26 +64,26 @@ export async function registerRealtimeVoiceRoutes(app: Express, httpServer: any)
     }
   });
 
-  // Set up WebSocket server for real-time voice
-  const wss = new WebSocket.Server({ noServer: true });
+  // Set up WebSocket handling
+  const wsServer = new WebSocketServer({ noServer: true });
   
   // Handle WebSocket upgrade requests
   httpServer.on("upgrade", (request: any, socket: any, head: any) => {
     const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
     
     if (pathname.startsWith('/api/voice/ws/')) {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
+      wsServer.handleUpgrade(request, socket, head, (ws) => {
+        wsServer.emit('connection', ws, request);
       });
     }
   });
   
   // Handle WebSocket connections
-  wss.on('connection', async (ws, request) => {
+  wsServer.on('connection', (ws, request) => {
     try {
       // Extract session ID from URL
       const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
-      const sessionId = pathname.split('/').pop();
+      const sessionId = pathname.split('/').pop() || '';
       
       if (!sessionId) {
         ws.close(1008, "Invalid session ID");
@@ -150,42 +97,13 @@ export async function registerRealtimeVoiceRoutes(app: Express, httpServer: any)
         return;
       }
       
-      const { openaiApiKey, tavilyApiKey, groqApiKey } = sessionData;
-      
-      // Note: This is where we would initialize OpenAI's Realtime API
-      // const realtimeClient = await OpenAIRealtimeWS.createSession({...})
-      // 
-      // For now, let's create a mock implementation
-      const mockRealtimeClient = {
-        async sendMessage(message: any) {
-          console.log("Mock sending message:", message);
-          return true;
-        },
-        async close() {
-          console.log("Mock closing client");
-          return true;
-        }
-      };
+      const { tavilyApiKey, groqApiKey } = sessionData;
       
       console.log(`Realtime session created: ${sessionId}`);
-      
-      // Store session
-      activeSessions.set(sessionId, {
-        id: sessionId,
-        client: mockRealtimeClient,
-        socket: ws,
-        lastActivity: Date.now()
-      });
       
       // Handle WebSocket messages from client (audio data)
       ws.on('message', async (message) => {
         try {
-          // Update last activity timestamp
-          const session = activeSessions.get(sessionId);
-          if (!session) return;
-          
-          session.lastActivity = Date.now();
-          
           // Parse message
           const data = JSON.parse(message.toString());
           
@@ -243,22 +161,8 @@ export async function registerRealtimeVoiceRoutes(app: Express, httpServer: any)
       });
       
       // Handle WebSocket close
-      ws.on('close', async () => {
-        try {
-          console.log(`WebSocket closed for session ${sessionId}`);
-          
-          // Clean up session
-          const session = activeSessions.get(sessionId);
-          if (session) {
-            await session.client.close();
-            activeSessions.delete(sessionId);
-          }
-          
-          // Clean up session data
-          (request as any).sessionStore?.destroy(sessionId);
-        } catch (error) {
-          console.error(`Error cleaning up session ${sessionId}:`, error);
-        }
+      ws.on('close', () => {
+        console.log(`WebSocket closed for session ${sessionId}`);
       });
       
     } catch (error) {
@@ -267,5 +171,5 @@ export async function registerRealtimeVoiceRoutes(app: Express, httpServer: any)
     }
   });
   
-  return wss;
+  return wsServer;
 }

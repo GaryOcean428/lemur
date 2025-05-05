@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import SearchResults from "@/pages/SearchResults";
 import ImageSearchResults from "@/pages/ImageSearchResults";
 import TestMultimodal from "@/pages/test-multimodal";
+import RealtimeVoicePage from "@/pages/realtime-voice";
 import AuthPage from "@/pages/auth-page";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/search" component={SearchResults} />
       <Route path="/search/image/:searchId" component={ImageSearchResults} />
+      <Route path="/search/voice" component={RealtimeVoicePage} />
       <Route path="/test-multimodal" component={TestMultimodal} />
       
       {/* Auth pages */}
