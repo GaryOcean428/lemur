@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import fetch from "node-fetch";
@@ -6,6 +6,7 @@ import { setupAuth } from "./auth";
 import Stripe from "stripe";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
+import { upload, handleVoiceTranscription, handleImageSearch, getImageSearchResults } from "./multimodal";
 
 // Define Tavily API response interface
 interface TavilySearchResult {
@@ -1491,6 +1492,13 @@ ${uniqueResults.map((r, i) => `[${i+1}] ${r.title} (${r.url}): ${r.content.subst
       });
     }
   });
+  
+  // Voice transcription endpoint
+  app.post("/api/voice-transcribe", upload.single('audio'), handleVoiceTranscription);
+  
+  // Image search endpoints
+  app.post("/api/image-search", upload.single('image'), handleImageSearch);
+  app.get("/api/image-search/:searchId", getImageSearchResults);
 
   const httpServer = createServer(app);
   return httpServer;
