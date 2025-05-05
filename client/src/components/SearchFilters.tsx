@@ -267,8 +267,8 @@ export default function SearchFiltersPanel() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="auto">Auto-select (Recommended)</SelectItem>
-                      <SelectItem value="comprehensive">Comprehensive (Llama-3.3-70B)</SelectItem>
-                      <SelectItem value="fast">Fast (Llama-4-Scout)</SelectItem>
+                      <SelectItem value="comprehensive">Comprehensive (Compound Beta)</SelectItem>
+                      <SelectItem value="fast">Fast (Compound Beta Mini)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

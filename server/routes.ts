@@ -175,10 +175,13 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
                            query.includes("?") && query.length > 20; // Questions with decent length
     
     // Map model preferences to actual API model names
+    // Use Compound Beta models as recommended in the Groq documentation
+    // https://console.groq.com/docs/agentic-tooling/compound-beta
+    // https://console.groq.com/docs/agentic-tooling/compound-beta-mini
     const modelMap: Record<string, string> = {
-      "auto": isComplexQuery ? "llama-3.3-70b-versatile" : "llama-4-scout-17b-16e-instruct",
-      "fast": "llama-4-scout-17b-16e-instruct", // Fast (Llama-4-Scout)
-      "comprehensive": "llama-3.3-70b-versatile"  // Comprehensive (Llama-3.3-70B)
+      "auto": isComplexQuery ? "compound-beta" : "compound-beta-mini",
+      "fast": "compound-beta-mini", // Fast model with lower latency
+      "comprehensive": "compound-beta"  // Comprehensive model for complex reasoning
     };
     
     // Normalize the model preference string and ensure it's a valid option
@@ -206,7 +209,7 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
         messages: [
           {
             role: "system",
-            content: "You are Lemur, an advanced search assistant powered by Llama 3.3 and Llama 4 models. You provide comprehensive answers based on web sources with proper citations. For technical or complex topics, you break down information into understandable explanations. For time-sensitive queries, you note source recency. Always maintain a helpful, informative tone while prioritizing accuracy and source attribution. Use markdown formatting appropriately to structure your responses with headings, lists, and emphasis where it improves readability."
+            content: "You are Lemur, an advanced search assistant powered by Groq's Compound Beta models. You provide comprehensive answers based on web sources with proper citations. For technical or complex topics, you break down information into understandable explanations. For time-sensitive queries, you note source recency. Always maintain a helpful, informative tone while prioritizing accuracy and source attribution. Use markdown formatting appropriately to structure your responses with headings, lists, and emphasis where it improves readability."
           },
           {
             role: "user",
