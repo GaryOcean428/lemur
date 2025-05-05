@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard } from "lucide-react";
 import lemurLogo from "../assets/images/Lemur6.png";
-import lemurTextLogo from "../assets/images/Lemur6.png";
 import { ThemeToggle } from "./theme-toggle";
 import SubscriptionBadge from "./SubscriptionBadge";
 
@@ -30,7 +29,7 @@ export default function Header() {
               <div className="absolute -inset-1.5 bg-[hsl(var(--glow-neon))] rounded-full blur-md group-hover:blur-lg opacity-70 group-hover:opacity-100 transition-all duration-300 -z-10"></div>
               <img src={lemurLogo} alt="Lemur logo" className="w-full h-full relative z-10 object-contain" />
             </div>
-            <img src={lemurTextLogo} alt="Lemur" className="h-8" />
+            <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500">Lemur</span>
           </Link>
         </div>
         

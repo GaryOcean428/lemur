@@ -1,6 +1,5 @@
 import SearchForm from "@/components/SearchForm";
 import lemurLogo from "../assets/images/Lemur6.png";
-import lemurTextLogo from "../assets/images/Lemur6.png";
 
 export default function Home() {
   return (
@@ -12,7 +11,7 @@ export default function Home() {
             <div className="absolute -inset-3 bg-[hsl(var(--glow-neon))] rounded-full blur-lg group-hover:blur-xl opacity-70 group-hover:opacity-100 transition-all duration-300 -z-10"></div>
             <img src={lemurLogo} alt="Lemur logo" className="w-full h-full relative z-10 object-contain" />
           </div>
-          <img src={lemurTextLogo} alt="Lemur" className="h-12 mb-2" />
+          <h1 className="text-xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500">Lemur</h1>
           <p className="text-lg text-[hsl(var(--neutral-muted))] mb-8 text-center max-w-md dark:text-gray-300">
             Discover information with AI-powered insights and web results
           </p>
