@@ -45,7 +45,13 @@ export async function directGroqCompoundSearch(
   try {
     // Validate API key
     if (!apiKey || apiKey.trim() === '') {
-      throw new Error('Missing Groq API key');
+      // More helpful error message with suggestion
+      throw new Error('Missing Groq API key. Please make sure the GROQ_API_KEY environment variable is set.');
+    }
+    
+    // Check if API key seems valid (basic format check)
+    if (!apiKey.startsWith('gsk_')) {
+      console.warn('Warning: Groq API key does not have the expected format (should start with "gsk_"). API calls may fail.');
     }
 
     // Choose model based on preference
