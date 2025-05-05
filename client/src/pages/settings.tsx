@@ -384,11 +384,11 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
-                  <Input id="username" value={user?.username || 'Guest User'} readOnly={!user} />
+                  <Input id="username" value={user?.username || 'Guest User'} readOnly={true} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" value={user?.email || 'Not signed in'} readOnly={!user} />
+                  <Input id="email" type="email" value={user?.email || 'Not signed in'} readOnly={true} />
                 </div>
               </div>
               
