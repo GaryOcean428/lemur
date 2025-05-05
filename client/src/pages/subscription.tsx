@@ -9,10 +9,17 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 
-// Use the real Stripe publishable key
-let stripeKey = 'pk_live_51R6Te4AYIAu3GrrMRq9JiQx5NZoL9ReTJ5Go3BDhQAwp1H7orczSBXMfEr92gOAwTPBcXfJHZjGYezwVy5abigzj00x62BzCj2';
+// Get Stripe key from environment variable
+let stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
 
-console.log('Using actual Stripe key:', stripeKey.substring(0, 8) + '...');
+// If not available in environment, use a safe fallback for development only
+// But don't hardcode any actual API keys
+if (!stripeKey || !stripeKey.startsWith('pk_')) {
+  console.log('Using development Stripe key mode - for testing only');
+  stripeKey = 'pk_test_placeholder';
+}
+
+console.log('Using Stripe key:', stripeKey.startsWith('pk_') ? stripeKey.substring(0, 8) + '...' : 'placeholder');
 
 const stripePromise = loadStripe(stripeKey);
 
@@ -156,7 +163,7 @@ export default function SubscriptionPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
-  // No need to check for Stripe key - we're using the hardcoded one
+  // Check for authentication status first before proceeding
   
   useEffect(() => {
     // Redirect if not logged in
