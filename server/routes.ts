@@ -854,13 +854,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const invoiceData = await stripe.invoices.retrieve(subscription.latest_invoice);
           
           // Then retrieve the payment intent from the invoice
-          if (invoiceData && invoiceData.payment_intent) {
-            if (typeof invoiceData.payment_intent === 'string') {
-              // Retrieve the payment intent to get the client secret
-              const paymentIntentData = await stripe.paymentIntents.retrieve(invoiceData.payment_intent);
-              clientSecret = paymentIntentData.client_secret;
-            } else if (typeof invoiceData.payment_intent === 'object' && 'client_secret' in invoiceData.payment_intent) {
-              clientSecret = invoiceData.payment_intent.client_secret;
+          if (invoiceData && typeof invoiceData === 'object') {
+            // Check if payment_intent is available as a string (ID)
+            const paymentIntentId = typeof invoiceData.payment_intent === 'string' ? 
+              invoiceData.payment_intent : undefined;
+              
+            if (paymentIntentId) {
+              // Retrieve the payment intent using its ID to get the client secret
+              const paymentIntentData = await stripe.paymentIntents.retrieve(paymentIntentId);
+              if (paymentIntentData && typeof paymentIntentData === 'object' && paymentIntentData.client_secret) {
+                clientSecret = paymentIntentData.client_secret;
+                console.log('Retrieved client secret from payment intent');
+              }
             }
           }
         } catch (retrievalError) {

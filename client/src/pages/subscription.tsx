@@ -13,10 +13,11 @@ import { useLocation } from 'wouter';
 let stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
 
 // We can use either a real Stripe publishable key (pk_test_...) or 
-// for development, we can use 'pk_test_dev' to allow Stripe Elements to render
-if (stripeKey && !stripeKey.startsWith('pk_')) {
+// for development, we can use a test key to allow Stripe Elements to render
+if (!stripeKey || !stripeKey.startsWith('pk_')) {
   console.log('Using development Stripe key mode');
-  stripeKey = 'pk_test_51BwzKjK7QzH76Hjeb7WDcvkK6cbJMoSAVgRHu2tOCTxzFykDC9G5qzRXUMKu71NCXJTOVQlsUduI7ZuB4gGm5ZR400M5f5qbA3';
+  // This is a test key for development only
+  stripeKey = 'pk_test_51OgGvPAlv8YEJOg42UnDHAQF4b7YA90nnrKiJUL03ZJaVUudW9rE2CpCvhHOiLMvdofgkk0HxLM3IpqLwreBHoqL00UYJHKk4N';
 }
 
 const stripePromise = loadStripe(stripeKey);
