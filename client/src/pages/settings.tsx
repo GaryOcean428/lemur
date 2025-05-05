@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Clipboard, RefreshCw, Globe, Shield, Bell, Eye, Search, Palette, Lock } from "lucide-react";
+import { Clipboard, RefreshCw, Globe, Shield, Bell, Eye, Search, Palette, Lock, CreditCard } from "lucide-react";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -403,6 +403,36 @@ export default function SettingsPage() {
                   <Button>Sign In</Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="dark:bg-gray-800 border-0 shadow-md mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CreditCard className="mr-2 h-5 w-5 text-[hsl(var(--primary))]"/> 
+                Subscription Management
+              </CardTitle>
+              <CardDescription>
+                Manage your subscription plan and billing details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium">Current Plan: {user?.subscriptionTier === 'pro' ? 'Pro' : user?.subscriptionTier === 'basic' ? 'Basic' : 'Free'}</h3>
+                  {user?.subscriptionExpiresAt && (
+                    <p className="text-sm text-muted-foreground">
+                      Active until {new Date(user.subscriptionExpiresAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant={user?.subscriptionTier === 'free' ? 'default' : 'outline'}
+                  onClick={() => window.location.href = user?.subscriptionTier === 'free' ? '/subscription' : '/manage-subscription'}
+                >
+                  {user?.subscriptionTier === 'free' ? 'Upgrade Plan' : 'Manage Subscription'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

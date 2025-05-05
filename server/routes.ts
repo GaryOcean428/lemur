@@ -897,6 +897,240 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current subscription information
+  app.get("/api/subscription", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({
+          message: "You must be logged in to view subscription details"
+        });
+      }
+
+      // Special case for developer accounts
+      const isDeveloperAccount = req.user.username === 'GaryOcean' ||
+                                req.user.email?.endsWith('@replit.com') ||
+                                req.user.email?.endsWith('@example.com');
+      
+      if (isDeveloperAccount) {
+        return res.json({
+          tier: req.user.subscriptionTier,
+          expiresAt: req.user.subscriptionExpiresAt,
+          isDeveloperAccount: true,
+          searchCount: req.user.searchCount || 0,
+          maxSearches: req.user.subscriptionTier === 'basic' ? 100 : null // null means unlimited
+        });
+      }
+
+      // Check for Stripe API key
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeKey || !req.user.stripeCustomerId || !req.user.stripeSubscriptionId) {
+        // User doesn't have an active Stripe subscription
+        return res.json({
+          tier: req.user.subscriptionTier,
+          expiresAt: req.user.subscriptionExpiresAt,
+          searchCount: req.user.searchCount || 0,
+          maxSearches: req.user.subscriptionTier === 'basic' ? 100 : 
+                       req.user.subscriptionTier === 'pro' ? null : 5 // null means unlimited
+        });
+      }
+      
+      // User has a Stripe subscription, get additional details
+      const stripe = new Stripe(stripeKey);
+      const subscription = await stripe.subscriptions.retrieve(req.user.stripeSubscriptionId);
+      
+      res.json({
+        tier: req.user.subscriptionTier,
+        expiresAt: req.user.subscriptionExpiresAt,
+        searchCount: req.user.searchCount || 0,
+        maxSearches: req.user.subscriptionTier === 'basic' ? 100 : 
+                     req.user.subscriptionTier === 'pro' ? null : 5, // null means unlimited
+        stripeDetails: {
+          status: subscription.status,
+          currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+          cancelAtPeriodEnd: subscription.cancel_at_period_end
+        }
+      });
+      
+    } catch (error) {
+      console.error("Error retrieving subscription data:", error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "An error occurred while retrieving subscription data"
+      });
+    }
+  });
+
+  // Cancel subscription endpoint
+  app.post("/api/cancel-subscription", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({
+          message: "You must be logged in to cancel your subscription"
+        });
+      }
+
+      // Special case for developer accounts
+      const isDeveloperAccount = req.user.username === 'GaryOcean' ||
+                                req.user.email?.endsWith('@replit.com') ||
+                                req.user.email?.endsWith('@example.com');
+      
+      if (isDeveloperAccount) {
+        return res.status(403).json({
+          message: "Developer accounts cannot be cancelled"
+        });
+      }
+
+      // Check if user has an active subscription
+      if (!req.user.stripeSubscriptionId) {
+        return res.status(400).json({
+          message: "No active subscription found"
+        });
+      }
+
+      // Get Stripe API key
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeKey) {
+        return res.status(500).json({
+          message: "Stripe API key not configured"
+        });
+      }
+
+      // Initialize Stripe
+      const stripe = new Stripe(stripeKey);
+      
+      // Cancel subscription at period end
+      await stripe.subscriptions.update(req.user.stripeSubscriptionId, {
+        cancel_at_period_end: true
+      });
+
+      res.json({
+        message: "Subscription will be cancelled at the end of the current billing period",
+        success: true
+      });
+      
+    } catch (error) {
+      console.error("Error cancelling subscription:", error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "An error occurred while cancelling subscription"
+      });
+    }
+  });
+
+  // Change subscription plan endpoint
+  app.post("/api/change-subscription", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({
+          message: "You must be logged in to change your subscription"
+        });
+      }
+
+      const { planType } = req.body;
+      if (!planType || !['basic', 'pro'].includes(planType)) {
+        return res.status(400).json({
+          message: "Invalid plan type. Must be 'basic' or 'pro'."
+        });
+      }
+
+      // Special case for developer accounts
+      const isDeveloperAccount = req.user.username === 'GaryOcean' ||
+                                req.user.email?.endsWith('@replit.com') ||
+                                req.user.email?.endsWith('@example.com');
+      
+      if (isDeveloperAccount) {
+        return res.status(403).json({
+          message: "Developer accounts cannot change subscription plans"
+        });
+      }
+
+      // Check if user has an active subscription
+      const isDowngrade = req.user.subscriptionTier === 'pro' && planType === 'basic';
+      const isUpgrade = req.user.subscriptionTier === 'basic' && planType === 'pro';
+
+      // If user doesn't have a Stripe subscription yet, create a new one
+      if (!req.user.stripeSubscriptionId) {
+        return res.json({
+          redirectUrl: `/subscription?plan=${planType}`,
+          requiresPayment: true
+        });
+      }
+
+      // Get Stripe API key
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeKey) {
+        return res.status(500).json({
+          message: "Stripe API key not configured"
+        });
+      }
+
+      // Initialize Stripe
+      const stripe = new Stripe(stripeKey);
+      
+      // Use price IDs from environment variables
+      const STRIPE_BASIC_PRICE_ID = process.env.STRIPE_BASIC_PRICE_ID;
+      const STRIPE_PRO_PRICE_ID = process.env.STRIPE_PRO_PRICE_ID;
+
+      // For security, validate that price IDs exist
+      if (!STRIPE_BASIC_PRICE_ID || !STRIPE_PRO_PRICE_ID) {
+        return res.status(500).json({ 
+          message: "Stripe price IDs not configured. Please set STRIPE_BASIC_PRICE_ID and STRIPE_PRO_PRICE_ID environment variables."
+        });
+      }
+
+      const SUBSCRIPTION_PRICES = {
+        basic: STRIPE_BASIC_PRICE_ID, // Basic plan
+        pro: STRIPE_PRO_PRICE_ID      // Pro plan
+      };
+      
+      // Determine price based on plan type
+      const priceId = planType === 'pro' ? 
+        SUBSCRIPTION_PRICES.pro : 
+        SUBSCRIPTION_PRICES.basic;
+      
+      // If it's a downgrade, we can just update the subscription to the new price
+      // at the end of the current period
+      if (isDowngrade) {
+        await stripe.subscriptions.update(req.user.stripeSubscriptionId, {
+          proration_behavior: 'none',
+          items: [{
+            id: (await stripe.subscriptions.retrieve(req.user.stripeSubscriptionId)).items.data[0].id,
+            price: priceId,
+          }],
+          cancel_at_period_end: false,
+        });
+        
+        return res.json({
+          message: "Subscription will be downgraded at the end of the current billing period",
+          success: true,
+          requiresPayment: false
+        });
+      }
+      
+      // For upgrades, we need to create a new payment session
+      if (isUpgrade) {
+        return res.json({
+          redirectUrl: `/subscription?plan=${planType}`,
+          requiresPayment: true
+        });
+      }
+      
+      // If it's the same plan, just confirm
+      return res.json({
+        message: "You are already subscribed to this plan",
+        success: true,
+        requiresPayment: false
+      });
+      
+    } catch (error) {
+      console.error("Error changing subscription:", error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "An error occurred while changing subscription"
+      });
+    }
+  });
+
   // Deep Research API endpoint for Pro users
   app.post("/api/deep-research", async (req, res) => {
     try {
