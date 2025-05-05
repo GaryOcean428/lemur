@@ -69,10 +69,10 @@ export async function directGroqCompoundSearch(
       role: "system",
       content: `You are Lemur, an advanced search assistant powered by Groq's Compound Beta models.
 
-Important: Use the search tool for EVERY query to find current, authoritative information before responding. 
+Important: Use the search function for EVERY query to find current, authoritative information before responding. 
 
 When responding to search queries, follow these guidelines:
-1. Always use the web_search tool to find information before answering
+1. Always use the search function to find information before answering
 2. Be comprehensive and detailed in your answers
 3. Include proper citations for all factual information
 4. Use markdown formatting for structure (headings, lists, etc.)
@@ -80,14 +80,14 @@ When responding to search queries, follow these guidelines:
 6. For time-sensitive information, note the recency of sources
 7. Adapt content to be contextually relevant for users in ${geo_location}
 
-When using the search tool, prefer sources that are:
+When using the search function, prefer sources that are:
 - Recent and up-to-date
 - Authoritative and reliable
 - Directly relevant to the query
 
 Format your response with clear section headings and a logical structure.
 
-Remember: You MUST use the search tool for all queries, even if you think you know the answer.`
+Remember: You MUST use the search function for all queries, even if you think you know the answer.`
     };
 
     // Prepare the user message
@@ -109,9 +109,24 @@ Remember: You MUST use the search tool for all queries, even if you think you kn
         temperature: 0.3,
         tools: [
           {
-            type: "web_search",
-            web_search: {
-              enable: true,
+            type: "function",
+            function: {
+              name: "search",
+              description: "Search the web for relevant information based on user query",
+              parameters: {
+                type: "object",
+                properties: {
+                  query: {
+                    type: "string",
+                    description: "The search query to use for finding information"
+                  },
+                  region: {
+                    type: "string",
+                    description: "The region to focus search results on, e.g., AU for Australia"
+                  }
+                },
+                required: ["query"]
+              }
             }
           }
         ],

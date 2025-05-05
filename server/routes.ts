@@ -819,14 +819,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (search_tools_used && search_tools_used.length > 0) {
         // Process the search tool results if they're available
         const searchTools = search_tools_used.filter(tool => 
-          tool.type === 'web_search' || tool.type === 'search' || 
-          tool.type.includes('search'));
+          tool.type === 'function' && 
+          tool.function?.name === 'search');
         
         if (searchTools.length > 0) {
           // Extract results from the first search tool's output
           try {
             console.log('Search tool found:', searchTools[0].type);
-            const searchResults = searchTools[0].output;
+            // Function tools have different structure, extract the output properly
+            const searchResults = searchTools[0].output || 
+              // For function type tools, the output might be directly in the output property
+              // or nested within a function property's output
+              (searchTools[0].function && searchTools[0].function.output);
             
             // Handle different output formats based on the tool type
             if (Array.isArray(searchResults)) {
