@@ -49,17 +49,20 @@ export async function directGroqCompoundSearch(
     }
 
     // Choose model based on preference
-    const modelMap: Record<string, string> = {
-      "auto": "compound-beta",
-      "fast": "compound-beta-mini", // Fast model with lower latency
-      "comprehensive": "compound-beta"  // Comprehensive model for complex reasoning
-    };
+    // Note: compound-beta-mini doesn't support tool calling, 
+    // so we need different handling based on whether tools are needed
     
-    // Normalize the model preference
-    const normalizedPref = modelPreference.toLowerCase();
+    // For tool-based search (our default), we must use compound-beta
+    const model = "compound-beta";  // Always use full model for tool calling
     
-    // Get model based on user preference or fallback to default
-    const model = modelMap[normalizedPref] || "compound-beta";
+    // Note: If we want to add a non-tool version in the future, we could use:
+    // const modelMap: Record<string, string> = {
+    //   "auto": "compound-beta",
+    //   "fast": "compound-beta-mini",
+    //   "comprehensive": "compound-beta"
+    // };
+    // const normalizedPref = modelPreference.toLowerCase();
+    // const model = modelMap[normalizedPref] || "compound-beta";
     
     // Log which model was selected
     console.log(`Using Direct Groq Compound Beta model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
