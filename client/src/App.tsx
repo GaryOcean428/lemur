@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import SearchResults from "@/pages/SearchResults";
+import ImageSearchResults from "@/pages/ImageSearchResults";
 import AuthPage from "@/pages/auth-page";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -34,6 +35,7 @@ function Router() {
       {/* Main pages */}
       <Route path="/" component={Home} />
       <Route path="/search" component={SearchResults} />
+      <Route path="/search/image/:searchId" component={ImageSearchResults} />
       
       {/* Auth pages */}
       <Route path="/auth" component={AuthPage} />
