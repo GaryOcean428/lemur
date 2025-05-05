@@ -50,8 +50,8 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
     if (!searchedTabs[newTab]) {
       console.log(`New search needed for tab type: ${newTab}`);
       
-      // Get the current filters
-      const { filters } = useSearchStore.getState();
+      // We'll use the current filters for specialized searches in the future
+      // Currently we're just using the same results for all tabs
       
       // Mark this tab as searched
       setSearchedTab(newTab, true);
