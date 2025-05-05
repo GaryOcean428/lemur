@@ -145,7 +145,7 @@ export default function SearchResults() {
         </div>
         
         {/* Search Tabs with All Results */}
-        <SearchTabs data={data} query={query} isLoading={isLoading} />
+        <SearchTabs data={data} query={query} isLoading={isLoading} isFollowUp={isFollowUp} />
       </div>
     </div>
   );

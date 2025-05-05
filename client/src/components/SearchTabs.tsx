@@ -22,7 +22,7 @@ interface SearchTabsProps {
   isFollowUp?: boolean;
 }
 
-export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) {
+export default function SearchTabs({ data, query, isLoading, isFollowUp = false }: SearchTabsProps) {
   // Access the search store
   const { 
     activeTab, 
@@ -181,6 +181,7 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
                     answer={activeTabData.ai.answer}
                     sources={activeTabData.ai.sources}
                     model={activeTabData.ai.model}
+                    contextual={isFollowUp}
                   />
                 )}
               </div>
@@ -194,6 +195,7 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
                 answer={activeTabData.ai.answer}
                 sources={activeTabData.ai.sources}
                 model={activeTabData.ai.model}
+                contextual={isFollowUp}
               />
             )}
           </TabsContent>
