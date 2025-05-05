@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard } from "lucide-react";
 import lemurLogo from "../assets/images/find5.png";
 import lemurTextLogo from "../assets/images/Lemur2.png";
 import { ThemeToggle } from "./theme-toggle";
+import SubscriptionBadge from "./SubscriptionBadge";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -53,7 +54,17 @@ export default function Header() {
             </Button>
           ) : user ? (
             <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium">Hi, {user.username}</span>
+              <div className="flex flex-col items-end">
+                <span className="text-sm font-medium">Hi, {user.username}</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <SubscriptionBadge />
+                  {user.subscriptionTier !== 'pro' && (
+                    <Link href="/subscription" className="text-xs text-primary hover:underline">
+                      Upgrade
+                    </Link>
+                  )}
+                </div>
+              </div>
               <Button 
                 variant="outline"
                 onClick={handleLogout}
@@ -119,8 +130,16 @@ export default function Header() {
             ) : user ? (
               <div className="py-2 space-y-2">
                 <div className="font-medium">Hi, {user.username}</div>
+                <div className="flex items-center gap-2">
+                  <SubscriptionBadge />
+                  {user.subscriptionTier !== 'pro' && (
+                    <Link href="/subscription" className="text-xs text-primary hover:underline">
+                      Upgrade
+                    </Link>
+                  )}
+                </div>
                 <button 
-                  className="text-[hsl(var(--primary))] font-medium relative group overflow-hidden px-2 py-1 rounded-md"
+                  className="text-[hsl(var(--primary))] font-medium relative group overflow-hidden px-2 py-1 rounded-md mt-2"
                   onClick={handleLogout}
                   disabled={logoutMutation.isPending}
                 >

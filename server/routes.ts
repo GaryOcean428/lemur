@@ -687,10 +687,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize Stripe
       const stripe = new (require('stripe'))(stripeKey);
       
+      // Define price IDs for subscription plans
+      // For a real production app, these would be stored in environment variables
+      const SUBSCRIPTION_PRICES = {
+        basic: 'price_1Ov8fhH0QmkABnzYylulzWiM', // $9.99/month
+        pro: 'price_1Ov8g8H0QmkABnzYbfFntbnt'     // $29.99/month
+      };
+      
       // Determine price based on plan type
       const priceId = planType === 'pro' ? 
-        process.env.STRIPE_PRO_PRICE_ID : 
-        process.env.STRIPE_BASIC_PRICE_ID;
+        SUBSCRIPTION_PRICES.pro : 
+        SUBSCRIPTION_PRICES.basic;
       
       if (!priceId) {
         return res.status(500).json({ message: `Price ID for ${planType} plan not configured` });

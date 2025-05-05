@@ -111,7 +111,7 @@ export function setupAuth(app: Express) {
 
   app.post("/api/login", passport.authenticate("local"), async (req, res) => {
     // Check if user needs to be assigned Pro tier (developers and specific email domains)
-    if (req.user.subscriptionTier === 'free') {
+    if (req.user && req.user.subscriptionTier === 'free') {
       const isDeveloperUser = req.user.email?.endsWith('@replit.com') || 
                              req.user.email?.endsWith('@example.com');
       

@@ -54,6 +54,14 @@ function Router() {
       <Route path="/help" component={HelpPage} />
       <Route path="/api" component={APIPage} />
       
+      {/* Subscription pages */}
+      <Route path="/subscription">
+        <ProtectedRoute path="/subscription" component={SubscriptionPage} />
+      </Route>
+      <Route path="/subscription/success">
+        <ProtectedRoute path="/subscription/success" component={SubscriptionSuccessPage} />
+      </Route>
+      
       {/* 404 page - must be last */}
       <Route component={NotFound} />
     </Switch>
