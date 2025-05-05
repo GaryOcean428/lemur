@@ -10,23 +10,29 @@ import { Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 // Get Stripe key from environment variable
-let stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
 
-// If not available in environment, use a safe fallback for development only
-// This is the Stripe test public key from their documentation - safe to include
-if (!stripeKey || stripeKey.trim() === '') {
-  console.log('Using Stripe test mode key');
-  stripeKey = 'pk_test_51R6Te4AYIAu3GrrMWLxZrkDcmVnExBmO0Upr1b9MtAMM4qNZZxKUdXyWXj0r7jJJMPSITeDmDDHvCpTUzvtw6rXk00QMmxUeGw';
-}
+// Check if we're in development mode
+const isDevelopment = import.meta.env.MODE === 'development';
 
-// Only log if we have a key and it's in the right format
-if (stripeKey && stripeKey.startsWith('pk_')) {
-  console.log('Using Stripe key:', stripeKey.substring(0, 8) + '...');
+// Validate the key and provide user feedback
+const isValidStripeKey = stripeKey && stripeKey.startsWith('pk_');
+
+// Show appropriate console messages but never the full key
+if (isValidStripeKey) {
+  console.log('Using Stripe publishable key starting with:', stripeKey.substring(0, 8) + '...');
 } else {
   console.log('Stripe publishable key missing or invalid. Environment variable VITE_STRIPE_PUBLIC_KEY needs to be set.');
+  
+  // In development, provide extra information
+  if (isDevelopment) {
+    console.log('During development, you can request Stripe test keys from the project lead or set up your own Stripe test account.');
+    console.log('For testing, use the cards provided in Stripe documentation: https://stripe.com/docs/testing');
+  }
 }
 
-const stripePromise = loadStripe(stripeKey);
+// Only attempt to load Stripe with a valid key
+const stripePromise = isValidStripeKey ? loadStripe(stripeKey) : null;
 
 function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any }) {
   const stripe = useStripe();
@@ -332,6 +338,42 @@ export default function SubscriptionPage() {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Handle missing Stripe configuration
+  if (!isValidStripeKey) {
+    return (
+      <div className="container max-w-5xl mx-auto py-12">
+        <Card className="border-red-200 mb-8">
+          <CardHeader>
+            <CardTitle className="text-red-500">Payment System Unavailable</CardTitle>
+            <CardDescription>
+              The payment system is temporarily unavailable. Please try again later.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isDevelopment ? (
+              <div className="space-y-3">
+                <p>To enable the payment system in development mode, please set the following environment variables:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><code>VITE_STRIPE_PUBLIC_KEY</code> - Your Stripe publishable key (starts with 'pk_')</li>
+                  <li><code>STRIPE_SECRET_KEY</code> - Your Stripe secret key (starts with 'sk_')</li>
+                </ul>
+                <p className="text-sm text-muted-foreground mt-4">
+                  For development, you can use Stripe test keys from their dashboard. 
+                  Once set, the payment system will function with test cards.
+                </p>
+              </div>
+            ) : (
+              <p>Our team has been notified about this issue and is working to resolve it as soon as possible.</p>
+            )}
+          </CardContent>
+          <CardFooter>
+            <Button variant="outline" onClick={() => setLocation('/')}>Return to Home</Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }
