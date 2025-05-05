@@ -101,30 +101,141 @@ export async function registerRealtimeVoiceRoutes(app: Express, httpServer: any)
       
       console.log(`Realtime session created: ${sessionId}`);
       
+            // State for transcription buffering and realtime processing
+      let transcriptionBuffer = '';
+      let isSearchInProgress = false;
+      let lastTranscriptionTime = Date.now();
+      let audioChunks: Buffer[] = [];
+      let lastSearchQuery = '';
+      
+      // OpenAI API client
+      const { OpenAI } = require('openai');
+      const openai = new OpenAI({ apiKey: sessionData.openaiApiKey });
+
       // Handle WebSocket messages from client (audio data)
       ws.on('message', async (message) => {
         try {
           // Parse message
           const data = JSON.parse(message.toString());
           
-          if (data.type === 'search') {
-            // Handle search request
-            const query = data.query;
+          if (data.type === 'audio') {
+            // Handle streaming audio data
+            const audioBuffer = Buffer.from(data.buffer, 'base64');
+            audioChunks.push(audioBuffer);
+            
+            // Process audio chunks periodically for real-time transcription
+            const now = Date.now();
+            if (now - lastTranscriptionTime > 1000) { // Process every second
+              lastTranscriptionTime = now;
+              
+              if (audioChunks.length > 0) {
+                try {
+                  // Combine audio chunks for transcription
+                  const combinedAudio = Buffer.concat(audioChunks);
+                  audioChunks = []; // Reset for next batch
+                  
+                  // Create a temporary file for the audio data
+                  const fs = require('fs');
+                  const tempFilePath = `/tmp/audio-${Date.now()}.webm`;
+                  fs.writeFileSync(tempFilePath, combinedAudio);
+                  
+                  // Use OpenAI's Whisper API for transcription
+                  const transcription = await openai.audio.transcriptions.create({
+                    file: fs.createReadStream(tempFilePath),
+                    model: "whisper-1",
+                  });
+                  
+                  // Clean up temp file
+                  fs.unlinkSync(tempFilePath);
+                  
+                  if (transcription.text && transcription.text.trim() !== '') {
+                    // Append to transcription buffer
+                    transcriptionBuffer += ' ' + transcription.text;
+                    transcriptionBuffer = transcriptionBuffer.trim();
+                    
+                    // Send transcription back to client
+                    ws.send(JSON.stringify({
+                      type: 'transcription',
+                      text: transcriptionBuffer
+                    }));
+                    
+                    // If we have enough text and no search is in progress, trigger a search
+                    if (transcriptionBuffer.length > 15 && !isSearchInProgress && 
+                        transcriptionBuffer !== lastSearchQuery) {
+                      // Start a partial search while user is still speaking
+                      isSearchInProgress = true;
+                      const partialQuery = transcriptionBuffer;
+                      
+                      try {
+                        console.log(`Starting real-time partial search for: "${partialQuery}"`);
+                        
+                        // Use the unified search service
+                        const searchResult = await unifiedSearchService.performDecomposedSearch({
+                          initialQuery: partialQuery,
+                          maxDepth: 1, // Reduced depth for partial searches
+                          tavilyApiKey,
+                          groqApiKey,
+                          modelPreference: "fast", // Use faster model for real-time responses
+                          useRealtimeApi: true
+                        });
+                        
+                        // Send partial results back to client
+                        ws.send(JSON.stringify({
+                          type: 'search_results',
+                          isPartial: true,
+                          data: {
+                            query: partialQuery,
+                            results: searchResult.searchResults.map(r => ({
+                              title: r.title,
+                              url: r.url,
+                              content: r.content.substring(0, 250) + "..."
+                            })),
+                            answer: searchResult.synthesizedResponse,
+                            model: searchResult.modelUsed
+                          }
+                        }));
+                        
+                        lastSearchQuery = partialQuery;
+                        
+                      } catch (error) {
+                        console.error(`Error processing partial search:`, error);
+                      } finally {
+                        isSearchInProgress = false;
+                      }
+                    }
+                  }
+                } catch (transcriptionError) {
+                  console.error("Error transcribing audio:", transcriptionError);
+                }
+              }
+            }
+          } else if (data.type === 'search') {
+            // Handle explicit search request (when user stops speaking)
+            const query = data.query || transcriptionBuffer;
+            const isPartial = !!data.isPartial;
+            
+            if (!query || query.trim() === '') {
+              return;
+            }
             
             try {
+              isSearchInProgress = true;
+              console.log(`Processing ${isPartial ? 'partial' : 'final'} search: "${query}"`);
+              
               // Use the unified search service
               const searchResult = await unifiedSearchService.performDecomposedSearch({
                 initialQuery: query,
-                maxDepth: 3,
+                maxDepth: isPartial ? 1 : 3, // More depth for final searches
                 tavilyApiKey,
                 groqApiKey,
-                modelPreference: "comprehensive",
-                useRealtimeApi: false
+                modelPreference: isPartial ? "fast" : "comprehensive",
+                useRealtimeApi: isPartial
               });
               
               // Send back search results
               ws.send(JSON.stringify({
                 type: 'search_results',
+                isPartial,
                 data: {
                   query,
                   results: searchResult.searchResults.map(r => ({
@@ -137,13 +248,19 @@ export async function registerRealtimeVoiceRoutes(app: Express, httpServer: any)
                 }
               }));
               
-              // Log the search to user's history if authenticated
-              const userId = sessionData.userId;
-              if (userId) {
-                await storage.createSearchHistory({
-                  query,
-                  userId
-                });
+              // Only log final searches
+              if (!isPartial) {
+                // Reset transcription buffer after a final search
+                transcriptionBuffer = '';
+                
+                // Log the search to user's history if authenticated
+                const userId = sessionData.userId;
+                if (userId) {
+                  await storage.createSearchHistory({
+                    query,
+                    userId
+                  });
+                }
               }
               
             } catch (error) {
@@ -152,6 +269,8 @@ export async function registerRealtimeVoiceRoutes(app: Express, httpServer: any)
                 type: 'error',
                 error: 'Failed to process search'
               }));
+            } finally {
+              isSearchInProgress = false;
             }
           }
           

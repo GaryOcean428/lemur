@@ -186,41 +186,66 @@ const VoiceSearch = ({ onSearchComplete }: VoiceSearchProps) => {
       setTranscript("");
       setResponse("");
       setIsListening(true);
+      setSearchResults([]);
       
-      // Get microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Create media recorder
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm',
+      // Get microphone access with audio processing constraints
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000,
+          channelCount: 1
+        } 
       });
       
-      mediaRecorderRef.current = mediaRecorder;
+      // Create a more responsive and continuous media recorder
+      const options = {
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 16000 // Lower bitrate for faster processing
+      };
       
-      // Initialize transcript accumulation
+      // Fall back to other formats if opus not supported
+      const recorder = new MediaRecorder(stream, 
+        MediaRecorder.isTypeSupported(options.mimeType) ? options : { mimeType: 'audio/webm' }
+      );
+      
+      mediaRecorderRef.current = recorder;
+      
+      // Initialize transcript accumulation for real-time searching
       let accumulatedTranscript = "";
       let lastSentTime = Date.now();
+      let activeSearch = false;
       
-      // Handle audio data
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && socketRef.current) {
-          // Convert blob to base64
+      // Handle audio data for continuous streaming
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+          // Process audio chunks immediately
           const reader = new FileReader();
           reader.onloadend = () => {
-            if (!socketRef.current) return;
+            if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
             
             const base64data = (reader.result as string).split(',')[1];
+            
+            // Send audio data to server
             socketRef.current.send(JSON.stringify({
               type: 'audio',
               buffer: base64data
             }));
             
-            // Periodically send the accumulated transcript for searching while user is speaking
-            // This enables real-time search as the user talks
+            // Handle real-time search based on transcript updates
             const now = Date.now();
-            if (transcript && transcript !== accumulatedTranscript && now - lastSentTime > 2000) {
+            if (!activeSearch && transcript && 
+                transcript !== accumulatedTranscript && 
+                transcript.length > 8 && // Only trigger search when we have enough text
+                now - lastSentTime > 1500) { // Reduced time between searches for responsiveness
+              
+              activeSearch = true; // Prevent multiple concurrent searches
               accumulatedTranscript = transcript;
               lastSentTime = now;
+              
+              // Show user that search is in progress
+              setResponse("Searching...");
               
               // Send the current transcript for real-time search
               socketRef.current.send(JSON.stringify({
@@ -228,14 +253,30 @@ const VoiceSearch = ({ onSearchComplete }: VoiceSearchProps) => {
                 query: transcript,
                 isPartial: true // Indicate this is a partial query while user is still speaking
               }));
+              
+              // Allow new searches after a short delay
+              setTimeout(() => {
+                activeSearch = false;
+              }, 1000);
             }
           };
           reader.readAsDataURL(event.data);
         }
       };
       
-      // Start recording
-      mediaRecorder.start(250); // Capture data more frequently (250ms) for a more real-time feel
+      // Log when recording starts
+      recorder.onstart = () => {
+        console.log('Recording started - sending audio in real-time');
+      };
+      
+      // Handle recording errors
+      recorder.onerror = (e) => {
+        console.error('MediaRecorder error:', e);
+        setError("Error during recording. Please try again.");
+      };
+      
+      // Start recording with small time slices for near real-time transmission
+      recorder.start(200); // Capture data every 200ms for a more responsive feel
       
     } catch (error) {
       console.error("Error starting microphone:", error);
@@ -250,15 +291,32 @@ const VoiceSearch = ({ onSearchComplete }: VoiceSearchProps) => {
   };
   
   const stopListening = () => {
+    // Stop the media recorder to stop capturing audio
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       
-      // When the user stops speaking, send the final transcript for a complete search
+      // Get the tracks from the stream and stop them
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      
+      // When the user stops speaking, send the final transcript for a comprehensive search
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        // Show loading state
+        setResponse("Processing your question...");
+        
+        // Skip if transcript is empty
+        if (!transcript || transcript.trim() === '') {
+          setResponse("No speech detected. Please try again.");
+          setIsListening(false);
+          return;
+        }
+        
+        console.log(`Sending final query: "${transcript}"`); 
+        
+        // Send the complete transcript for full processing
         socketRef.current.send(JSON.stringify({
           type: 'search',
-          query: transcript || "example search query", // Fallback for testing
-          isPartial: false // Indicate this is the final query
+          query: transcript,
+          isPartial: false // Indicate this is the final query - use the comprehensive model
         }));
       }
     }
@@ -267,30 +325,75 @@ const VoiceSearch = ({ onSearchComplete }: VoiceSearchProps) => {
   };
   
   const closeSession = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    // Clean up media recorder and stream tracks
+    if (mediaRecorderRef.current) {
+      try {
+        if (mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
+        
+        // Make sure to stop all tracks in the media stream
+        if (mediaRecorderRef.current.stream) {
+          mediaRecorderRef.current.stream.getTracks().forEach(track => {
+            if (track.readyState === 'live') {
+              track.stop();
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error cleaning up media recorder:', e);
+      }
+      mediaRecorderRef.current = null;
     }
     
+    // Close WebSocket connection
     if (socketRef.current) {
-      socketRef.current.close();
+      try {
+        if (socketRef.current.readyState === WebSocket.OPEN || 
+            socketRef.current.readyState === WebSocket.CONNECTING) {
+          socketRef.current.close(1000, 'User closed session');
+        }
+      } catch (e) {
+        console.error('Error closing WebSocket:', e);
+      }
       socketRef.current = null;
     }
     
+    // Stop any playing audio
     if (audioSourceRef.current) {
-      audioSourceRef.current.stop();
+      try {
+        audioSourceRef.current.stop();
+      } catch (e) {
+        console.error('Error stopping audio source:', e);
+      }
       audioSourceRef.current = null;
     }
     
+    // Close audio context
     if (audioContextRef.current) {
-      audioContextRef.current.close();
+      try {
+        if (audioContextRef.current.state !== 'closed') {
+          audioContextRef.current.close();
+        }
+      } catch (e) {
+        console.error('Error closing audio context:', e);
+      }
       audioContextRef.current = null;
     }
     
+    // Clear the audio queue
+    audioQueueRef.current = [];
+    
+    // Reset all state
     setIsConnected(false);
     setIsListening(false);
+    setIsConnecting(false);
     setTranscript("");
     setResponse("");
     setSearchResults([]);
+    setError("");
+    
+    console.log('Voice search session closed and resources cleaned up');
   };
   
   useEffect(() => {
