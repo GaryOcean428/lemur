@@ -40,9 +40,23 @@ export default function SearchResults() {
   if (error) {
     let errorMessage = "An error occurred while fetching search results. Please try again."; 
     let errorDetail = "";
+    let isSubscriptionLimitError = false;
     
     if (error instanceof Error) {
-      if (error.message.includes("401 Unauthorized")) {
+      // Check for subscription limit error (403 with limitReached flag)
+      if (error.message.includes("403") && 
+          (error.message.includes("search limit") || 
+           error.message.includes("Please sign in"))) {
+        isSubscriptionLimitError = true;
+        
+        if (error.message.includes("Please sign in")) {
+          errorMessage = "Sign in to continue searching";
+          errorDetail = "You've reached the limit for anonymous searches. Create a free account to continue.";
+        } else {
+          errorMessage = "Search limit reached";
+          errorDetail = "You've reached your limit of free searches. Upgrade to continue searching with Lemur.";
+        }
+      } else if (error.message.includes("401 Unauthorized")) {
         errorMessage = "API authorization error"; 
         errorDetail = "The search service is currently unavailable due to API key issues. Please try again later or contact support.";
       } else if (error.message.includes("500") || error.message.includes("400")) {
@@ -64,12 +78,25 @@ export default function SearchResults() {
           </div>
           <h2 className="text-2xl font-semibold mb-2">{errorMessage}</h2>
           {errorDetail && <p className="text-gray-600 mb-6">{errorDetail}</p>}
-          <Button onClick={() => window.location.reload()} className="mr-2">
-            Try Again
-          </Button>
-          <Button variant="outline" onClick={() => setLocation("/")}>
-            Return Home
-          </Button>
+          {isSubscriptionLimitError ? (
+            <>
+              <Button onClick={() => setLocation("/auth")} className="mr-2 bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]">
+                Sign In
+              </Button>
+              <Button variant="outline" onClick={() => setLocation("/subscription")}>
+                Upgrade Plan
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => window.location.reload()} className="mr-2">
+                Try Again
+              </Button>
+              <Button variant="outline" onClick={() => setLocation("/")}>
+                Return Home
+              </Button>
+            </>
+          )}
         </div>
       </div>
     );
