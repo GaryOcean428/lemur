@@ -11,9 +11,13 @@ import createMemoryStore from "memorystore";
 declare global {
   namespace Express {
     interface User extends SelectUser {}
-    interface Session {
-      anonymousSearchCount?: number;
-    }
+  }
+}
+
+// Extend express-session with our custom properties
+declare module 'express-session' {
+  interface SessionData {
+    anonymousSearchCount?: number;
   }
 }
 
@@ -106,6 +110,12 @@ export function setupAuth(app: Express) {
 
       req.login(user, (err) => {
         if (err) return next(err);
+        
+        // Clear anonymous search count when user registers
+        if (req.session.anonymousSearchCount) {
+          delete req.session.anonymousSearchCount;
+        }
+        
         res.status(201).json(user);
       });
     } catch (error) {
@@ -128,6 +138,11 @@ export function setupAuth(app: Express) {
         if (loginErr) {
           console.error("Login error:", loginErr);
           return res.status(500).json({ message: "Login error" });
+        }
+        
+        // Clear anonymous search count when user logs in
+        if (req.session.anonymousSearchCount) {
+          delete req.session.anonymousSearchCount;
         }
         
         try {

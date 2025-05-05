@@ -67,20 +67,9 @@ export default function SearchForm({ initialQuery = "" }: SearchFormProps) {
     
     setShowSuggestions(false);
     
-    // Check search limits for non-authenticated users
-    if (!user) {
-      // For anonymous users, we'll check if they've already performed a search
-      // This is a client-side check; the server will also enforce this limit
-      const anonymousSearchCount = localStorage.getItem('anonymousSearchCount');
-      if (anonymousSearchCount && parseInt(anonymousSearchCount) >= 1) {
-        setSubscriptionPromptMessage("You've reached the limit for anonymous searches. Create a free account to continue.");
-        setShowSubscriptionPrompt(true);
-        return;
-      } else {
-        // Increment local storage counter (server will also track this)
-        localStorage.setItem('anonymousSearchCount', '1');
-      }
-    } else if (user.subscriptionTier === 'free' && user.searchCount >= 5) {
+    // Check search limits only for free tier users
+    // For anonymous users, the server will enforce the 1 search limit via sessions
+    if (user && user.subscriptionTier === 'free' && user.searchCount >= 5) {
       // For free tier users, we'll check their search count
       setSubscriptionPromptMessage("You've reached your limit of free searches. Upgrade to continue searching with Lemur.");
       setShowSubscriptionPrompt(true);
@@ -95,17 +84,9 @@ export default function SearchForm({ initialQuery = "" }: SearchFormProps) {
     setSearchQuery(suggestion);
     setShowSuggestions(false);
     
-    // We'll reuse the same limit checking logic from handleSubmit
-    if (!user) {
-      const anonymousSearchCount = localStorage.getItem('anonymousSearchCount');
-      if (anonymousSearchCount && parseInt(anonymousSearchCount) >= 1) {
-        setSubscriptionPromptMessage("You've reached the limit for anonymous searches. Create a free account to continue.");
-        setShowSubscriptionPrompt(true);
-        return;
-      } else {
-        localStorage.setItem('anonymousSearchCount', '1');
-      }
-    } else if (user.subscriptionTier === 'free' && user.searchCount >= 5) {
+    // For anonymous users, let them search once - limit will be enforced by the server
+    // Logged-in free users have a 5 search limit
+    if (user && user.subscriptionTier === 'free' && user.searchCount >= 5) {
       setSubscriptionPromptMessage("You've reached your limit of free searches. Upgrade to continue searching with Lemur.");
       setShowSubscriptionPrompt(true);
       return;
