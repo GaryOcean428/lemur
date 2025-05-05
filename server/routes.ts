@@ -760,7 +760,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Determine model based on user tier
-      // Default to compound-beta-mini for anonymous and free users
+      // Default to compound-beta-mini for anonymous and free users without tool calling
       let modelPreference = 'fast'; // compound-beta-mini
       
       // Pro users get access to compound-beta and can choose their model
@@ -768,10 +768,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         modelPreference = req.query.model as string || 'auto';
         console.log(`Pro user - using preferred model: ${modelPreference}`);
       } else if (userTier === 'basic') {
-        // Basic users get default model selection but still limited response
+        // Basic users get the standard model selection
         modelPreference = 'auto';
         console.log(`Basic user - using auto model selection`);
       } else {
+        // Force non-tool model for free/anonymous users
+        modelPreference = 'fast'; // explicitly set to fast (compound-beta-mini)
         console.log(`Free/anonymous user - restricting to compound-beta-mini`);
       }
       

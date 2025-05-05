@@ -55,28 +55,38 @@ export async function directGroqCompoundSearch(
     }
 
     // Choose model based on preference
-    // Note: compound-beta-mini doesn't support tool calling, 
+    // Note: compound-beta-mini doesn't support tool calling,
     // so we need different handling based on whether tools are needed
     
-    // For tool-based search (our default), we must use compound-beta
-    const model = "compound-beta";  // Always use full model for tool calling
+    // Model selection map
+    const modelMap: Record<string, string> = {
+      "auto": "compound-beta",
+      "fast": "compound-beta-mini",
+      "comprehensive": "compound-beta"
+    };
     
-    // Note: If we want to add a non-tool version in the future, we could use:
-    // const modelMap: Record<string, string> = {
-    //   "auto": "compound-beta",
-    //   "fast": "compound-beta-mini",
-    //   "comprehensive": "compound-beta"
-    // };
-    // const normalizedPref = modelPreference.toLowerCase();
-    // const model = modelMap[normalizedPref] || "compound-beta";
+    // Normalize the preference to lowercase for consistent matching
+    const normalizedPref = modelPreference.toLowerCase();
+    
+    // Select the model based on preference, defaulting to compound-beta if not found
+    const model = modelMap[normalizedPref] || "compound-beta";
+    
+    // Check if we're using a model that supports tools
+    const supportsTools = model === "compound-beta";
+    
+    // For non-tool models (fast/mini), use a simpler system prompt without tool instructions
+    const isToolModel = supportsTools;
     
     // Log which model was selected
     console.log(`Using Direct Groq Compound Beta model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
 
     // Create the system message with search preferences
+    // Use different prompts for tool and non-tool models
     const systemMessage = {
       role: "system",
-      content: `You are Lemur, an advanced search assistant powered by Groq's Compound Beta models.
+      content: supportsTools ? 
+        // For tool-enabled models (compound-beta)
+        `You are Lemur, an advanced search assistant powered by Groq's Compound Beta models.
 
 Important: Use the search function for EVERY query to find current, authoritative information before responding. 
 
@@ -96,7 +106,20 @@ When using the search function, prefer sources that are:
 
 Format your response with clear section headings and a logical structure.
 
-Remember: You MUST use the search function for all queries, even if you think you know the answer.`
+Remember: You MUST use the search function for all queries, even if you think you know the answer.` : 
+        // For non-tool models (compound-beta-mini)
+        `You are Lemur, an advanced search assistant powered by Groq's AI models.
+
+When responding to search queries, follow these guidelines:
+1. Be concise yet informative in your answers
+2. Use markdown formatting for structure (headings, lists, etc.)
+3. Break down complex information into understandable parts
+4. Provide balanced viewpoints on controversial topics
+5. Adapt content to be contextually relevant for users in ${geo_location}
+
+Format your response with clear section headings and a logical structure.
+
+Note: You're working with a limited model that doesn't have real-time search capabilities. Acknowledge when information might be outdated or when you don't have enough context to provide a complete answer.`
     };
 
     // Prepare the user message
@@ -117,7 +140,7 @@ Remember: You MUST use the search function for all queries, even if you think yo
         messages: [systemMessage, userMessage],
         temperature: 0.3,
         // Only add tools for models that support them (compound-beta but not compound-beta-mini)
-        ...(model === 'compound-beta' ? {
+        ...(supportsTools ? {
           tools: [
             {
               type: "function",
