@@ -757,8 +757,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let event;
       try {
         event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-      } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`);
+      } catch (err: any) {
+        return res.status(400).send(`Webhook Error: ${err.message || 'Unknown error'}`);
+
       }
       
       // Handle specific event types

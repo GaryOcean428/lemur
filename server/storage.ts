@@ -13,6 +13,7 @@ export interface IStorage {
   updateUserSubscription(userId: number, tier: string, expiresAt?: Date): Promise<User>;
   incrementUserSearchCount(userId: number): Promise<User>;
   updateStripeInfo(userId: number, customerId: string, subscriptionId: string): Promise<User>;
+  isFirstUser(): Promise<boolean>; // Check if this is the first user being created
   
   // Search history operations
   createSearchHistory(history: InsertSearchHistory): Promise<SearchHistory>;
@@ -88,6 +89,15 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return updatedUser;
+  }
+  
+  async isFirstUser(): Promise<boolean> {
+    // Check if there are any existing users in the database
+    const userCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users);
+    
+    return userCount[0].count === 0;
   }
   
   // Search history operations

@@ -85,9 +85,18 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
+      // All developer users assigned Pro tier automatically
+      // This includes the first registered user and any user with specific developer email domains
+      const isDeveloperUser = req.body.email?.endsWith('@replit.com') || 
+                            req.body.email?.endsWith('@example.com') || 
+                            await storage.isFirstUser();
+      
       const user = await storage.createUser({
         ...req.body,
         password: await hashPassword(req.body.password),
+        subscriptionTier: isDeveloperUser ? 'pro' : 'free',
+        searchCount: 0,
+        subscriptionExpiresAt: isDeveloperUser ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : undefined, // 1 year for developers
       });
 
       req.login(user, (err) => {
