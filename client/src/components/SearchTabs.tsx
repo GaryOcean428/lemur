@@ -6,6 +6,15 @@ import { useSearchStore } from "@/store/searchStore";
 import { type SearchTabType } from "@/store/searchStore";
 import { performSearch } from "@/lib/api";
 
+// Import specialized tab components
+import ImageResults from "./search-tabs/ImageResults";
+import VideoResults from "./search-tabs/VideoResults";
+import NewsResults from "./search-tabs/NewsResults";
+import ShoppingResults from "./search-tabs/ShoppingResults";
+import SocialResults from "./search-tabs/SocialResults";
+import MapsResults from "./search-tabs/MapsResults";
+import AcademicResults from "./search-tabs/AcademicResults";
+
 interface SearchTabsProps {
   data: SearchResults | undefined;
   query: string;
@@ -234,15 +243,40 @@ export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) 
             </div>
           </TabsContent>
           
-          {/* Placeholder tabs for other search types */}
-          {['images', 'videos', 'news', 'shopping', 'social', 'maps', 'academic'].map((tab) => (
-            <TabsContent key={tab} value={tab} className="mt-0">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-10 text-center">
-                <h2 className="text-xl font-semibold mb-4 capitalize dark:text-white">{tab} Search</h2>
-                <p className="text-gray-500 dark:text-gray-400 mb-6">This search type will be implemented in a future update.</p>
-              </div>
-            </TabsContent>
-          ))}
+          {/* Images tab */}
+          <TabsContent value="images" className="mt-0">
+            <ImageResults query={query} />
+          </TabsContent>
+          
+          {/* Videos tab */}
+          <TabsContent value="videos" className="mt-0">
+            <VideoResults query={query} />
+          </TabsContent>
+          
+          {/* News tab */}
+          <TabsContent value="news" className="mt-0">
+            <NewsResults query={query} />
+          </TabsContent>
+          
+          {/* Shopping tab */}
+          <TabsContent value="shopping" className="mt-0">
+            <ShoppingResults query={query} />
+          </TabsContent>
+          
+          {/* Social tab */}
+          <TabsContent value="social" className="mt-0">
+            <SocialResults query={query} />
+          </TabsContent>
+          
+          {/* Maps tab */}
+          <TabsContent value="maps" className="mt-0">
+            <MapsResults query={query} />
+          </TabsContent>
+          
+          {/* Academic tab */}
+          <TabsContent value="academic" className="mt-0">
+            <AcademicResults query={query} />
+          </TabsContent>
         </div>
       )}
     </Tabs>
