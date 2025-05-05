@@ -371,6 +371,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tavilyApiKey || !groqApiKey) {
         return res.status(500).json({ message: "API keys not configured" });
       }
+      
+      // Handle subscription tier restrictions
+      let userTier = 'anonymous'; // Default for non-authenticated users
+      let userSearchCount = 0;
+      let userId = null;
+      let useLimitedAIResponse = true; // Default to limited response for anonymous users
+      let preferredModel = req.query.model as string || 'auto';
+      
+      // Check if user is authenticated
+      if (req.isAuthenticated()) {
+        userId = req.user.id;
+        userTier = req.user.subscriptionTier;
+        userSearchCount = req.user.searchCount;
+        
+        // Pro users get unlimited access to all features
+        if (userTier === 'pro') {
+          useLimitedAIResponse = false;
+        }
+        // Free users get limited searches and limited responses
+        else if (userTier === 'free' && userSearchCount >= 5) {
+          return res.status(403).json({ 
+            message: "You've reached your search limit. Please upgrade to continue searching.",
+            limitReached: true
+          });
+        }
+        // Update search count for authenticated non-pro users
+        if (userTier !== 'pro') {
+          await storage.incrementUserSearchCount(userId);
+        }
+      } else {
+        // Anonymous users get only 1 search
+        const anonymousSearches = await storage.getSearchHistoryByUserId(null);
+        if (anonymousSearches.length >= 1) {
+          return res.status(403).json({
+            message: "Please sign in to continue searching",
+            limitReached: true
+          });
+        }
+      }
 
       // Configuration for different search types
       const searchTypeConfig: Record<string, any> = {

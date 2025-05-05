@@ -10,6 +10,9 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserSubscription(userId: number, tier: string, expiresAt?: Date): Promise<User>;
+  incrementUserSearchCount(userId: number): Promise<User>;
+  updateStripeInfo(userId: number, customerId: string, subscriptionId: string): Promise<User>;
   
   // Search history operations
   createSearchHistory(history: InsertSearchHistory): Promise<SearchHistory>;
@@ -42,6 +45,49 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  async updateUserSubscription(userId: number, tier: string, expiresAt?: Date): Promise<User> {
+    const updateData: any = {
+      subscriptionTier: tier
+    };
+    
+    if (expiresAt) {
+      updateData.subscriptionExpiresAt = expiresAt;
+    }
+    
+    const [updatedUser] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return updatedUser;
+  }
+
+  async incrementUserSearchCount(userId: number): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        searchCount: sql`${users.searchCount} + 1`
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return user;
+  }
+
+  async updateStripeInfo(userId: number, customerId: string, subscriptionId: string): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return updatedUser;
   }
   
   // Search history operations

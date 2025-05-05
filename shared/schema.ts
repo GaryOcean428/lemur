@@ -2,13 +2,19 @@ import { pgTable, text, serial, integer, boolean, jsonb, timestamp } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Basic User Schema (for future auth features)
+// Basic User Schema with subscription tiers
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
   createdAt: timestamp("created_at").defaultNow(),
+  // Subscription information
+  subscriptionTier: text("subscription_tier").notNull().default('free'), // 'free', 'basic', 'pro'
+  searchCount: integer("search_count").notNull().default(0), // Track searches for limiting free users
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionExpiresAt: timestamp("subscription_expires_at"),
 });
 
 // Search History
