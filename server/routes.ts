@@ -1,16 +1,14 @@
-import type { Express, Request, Response } from "express";
+import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { registerRealtimeVoiceRoutes } from "./realtime-voice";
 import { storage } from "./storage";
 import fetch from "node-fetch";
 import { setupAuth } from "./auth";
 import Stripe from "stripe";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
-import { upload, handleVoiceTranscription, handleImageSearch, getImageSearchResults } from "./multimodal";
 
 // Define Tavily API response interface
-export interface TavilySearchResult {
+interface TavilySearchResult {
   title: string;
   url: string;
   content: string;
@@ -22,7 +20,7 @@ export interface TavilySearchResult {
   };
 }
 
-export interface TavilySearchResponse {
+interface TavilySearchResponse {
   results: TavilySearchResult[];
   query: string;
   search_depth: string;
@@ -45,7 +43,7 @@ interface GroqResponse {
 }
 
 // Tavily API for search results with support for specialized search types
-export async function tavilySearch(query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> {
+async function tavilySearch(query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> {
   try {
     // Validate API key format (basic check)
     if (!apiKey || apiKey.trim() === '') {
@@ -124,7 +122,7 @@ export async function tavilySearch(query: string, apiKey: string, config: Record
 }
 
 // Groq API for AI responses
-export async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string, modelPreference: string = 'auto'): Promise<{answer: string; model: string}> {
+async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string, modelPreference: string = 'auto'): Promise<{answer: string; model: string}> {
   try {
     // Validate API key
     if (!apiKey || apiKey.trim() === '') {
@@ -431,9 +429,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.incrementUserSearchCount(userId);
         }
       } else {
-        // Anonymous users get up to 3 searches before requiring sign in
+        // Anonymous users get only 1 search
         const anonymousSearches = await storage.getSearchHistoryByUserId(null);
-        if (anonymousSearches.length >= 3) {
+        if (anonymousSearches.length >= 1) {
           return res.status(403).json({
             message: "Please sign in to continue searching",
             limitReached: true
@@ -560,11 +558,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
 
-      // Log search in database (with userId for authenticated users only)
+      // Log search in database (without userId for anonymous searches)
       try {
         await storage.createSearchHistory({
           query,
-          userId, // This will be null for anonymous searches
+          userId: null, // For anonymous searches
         });
         console.log(`Search logged: "${query}" (type: ${searchType})`);
       } catch (dbError) {
@@ -1493,18 +1491,7 @@ ${uniqueResults.map((r, i) => `[${i+1}] ${r.title} (${r.url}): ${r.content.subst
       });
     }
   });
-  
-  // Voice transcription endpoint
-  app.post("/api/voice-transcribe", upload.single('audio'), handleVoiceTranscription);
-  
-  // Image search endpoints
-  app.post("/api/image-search", upload.single('image'), handleImageSearch);
-  app.get("/api/image-search/:searchId", getImageSearchResults);
 
   const httpServer = createServer(app);
-  
-  // Register realtime voice routes with WebSocket support
-  await registerRealtimeVoiceRoutes(app, httpServer);
-  
   return httpServer;
 }
