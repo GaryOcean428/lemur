@@ -10,12 +10,17 @@ export default function SubscriptionBadge() {
   
   // Helper to determine badge color and tooltip text based on subscription tier
   const getBadgeInfo = () => {
+    // Special case for developer accounts (like GaryOcean)
+    const isDeveloperAccount = user.username === 'GaryOcean';
+    
     switch (user.subscriptionTier) {
       case 'pro':
         return {
           variant: 'default' as const,
-          label: 'Pro',
-          tooltip: `Pro subscription with unlimited searches${user.subscriptionExpiresAt ? ` (expires ${new Date(user.subscriptionExpiresAt).toLocaleDateString()})` : ''}`,
+          label: isDeveloperAccount ? 'Developer' : 'Pro',
+          tooltip: isDeveloperAccount
+            ? 'Developer account with unlimited Pro features'
+            : `Pro subscription with unlimited searches${user.subscriptionExpiresAt ? ` (expires ${new Date(user.subscriptionExpiresAt).toLocaleDateString()})` : ''}`,
           showProgress: false,
         };
       case 'basic':

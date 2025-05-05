@@ -91,17 +91,28 @@ export default function SubscriptionPage() {
 
   // Already subscribed
   if (user?.subscriptionTier === 'pro') {
+    const isDeveloperAccount = user.username === 'GaryOcean';
+    
     return (
       <div className="container max-w-5xl mx-auto py-12">
         <Card>
           <CardHeader>
-            <CardTitle>You're already a Pro member!</CardTitle>
+            <CardTitle>{isDeveloperAccount ? 'Developer Account' : 'You\'re already a Pro member!'}</CardTitle>
             <CardDescription>
-              You're already enjoying all the benefits of the Pro tier.
+              {isDeveloperAccount 
+                ? 'As a developer, you have complete access to all Pro features without charge.' 
+                : 'You\'re already enjoying all the benefits of the Pro tier.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p>Your subscription is active until {user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt).toLocaleDateString() : 'forever'}.</p>
+            {isDeveloperAccount ? (
+              <p className="text-sm text-muted-foreground">
+                Your developer status grants you unlimited access to all premium features, 
+                including unlimited searches, the full compound-beta model, and advanced research capabilities.
+              </p>
+            ) : (
+              <p>Your subscription is active until {user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt).toLocaleDateString() : 'forever'}.</p>
+            )}
           </CardContent>
           <CardFooter>
             <Button variant="outline" onClick={() => setLocation('/')}>Return to Home</Button>
@@ -128,6 +139,20 @@ export default function SubscriptionPage() {
     try {
       const response = await apiRequest('POST', '/api/create-subscription', { planType: type });
       const data = await response.json();
+      
+      // Handle developer account auto-subscription
+      if (data.isDeveloperAccount) {
+        toast({
+          title: "Subscription Successful",
+          description: "As a developer, your account has been automatically upgraded without payment.",
+          variant: "default",
+        });
+        
+        // Reload to get updated user data
+        window.location.href = '/';
+        return;
+      }
+      
       setClientSecret(data.clientSecret);
     } catch (error: any) {
       toast({

@@ -704,6 +704,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pro: STRIPE_PRO_PRICE_ID      // Pro plan
       };
       
+      // Special case for developer accounts - bypass payment process
+      const isDeveloperAccount = req.user.username === 'GaryOcean' ||
+                                req.user.email?.endsWith('@replit.com') ||
+                                req.user.email?.endsWith('@example.com');
+      
+      if (isDeveloperAccount) {
+        // Update user to Pro without payment
+        const oneYearFromNow = new Date();
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+        
+        const updatedUser = await storage.updateUserSubscription(
+          req.user.id, 
+          planType, // 'basic' or 'pro'
+          oneYearFromNow
+        );
+        
+        // Return special response for developer accounts
+        return res.json({
+          subscriptionId: 'dev_account_' + Date.now(),
+          isDeveloperAccount: true,
+          planType,
+          message: 'Developer account automatically upgraded without payment'
+        });
+      }
+      
+      // Normal payment flow for regular users
       // Determine price based on plan type
       const priceId = planType === 'pro' ? 
         SUBSCRIPTION_PRICES.pro : 
