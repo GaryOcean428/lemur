@@ -361,8 +361,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         all: { search_depth: 'advanced', include_images: true, max_results: 15 },
         web: { search_depth: 'advanced', include_images: true, max_results: 15 },
         news: { search_depth: 'advanced', search_type: 'news', include_images: true, max_results: 10 },
-        images: { search_depth: 'basic', include_images: true, include_answer: false, max_results: 16 },
-        videos: { search_depth: 'basic', search_type: 'video', include_images: true, max_results: 8 },
+        // Special configuration for image search to prioritize images
+        images: { 
+          search_depth: 'advanced', // Increase search depth for better image results
+          include_images: true,
+          include_image_descriptions: true, // Enable image descriptions
+          include_answer: false,
+          max_results: 16
+        },
+        // Special configuration for video search to prioritize videos with thumbnails
+        videos: { 
+          search_depth: 'advanced', // Increase search depth for better video results 
+          search_type: 'video',
+          include_images: true,
+          include_image_descriptions: true, // Enable image descriptions
+          max_results: 8
+        },
         academic: { search_depth: 'advanced', search_type: 'scholarly_articles', include_images: true, max_results: 10 },
         shopping: { search_depth: 'basic', search_type: 'shopping', include_images: true, max_results: 12 },
         social: { search_depth: 'basic', search_type: 'social_media', include_images: true, max_results: 8 },
@@ -374,7 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get search results from Tavily with specific configuration
       const tavilyResults = await tavilySearch(query, tavilyApiKey, searchConfig);
       
-      // Convert to our format
+      // Convert to our format and preprocess the results
       const traditional = tavilyResults.results.map((result) => {
         // Format the date to display or use placeholder if not available
         const date = result.published_date ? new Date(result.published_date).toLocaleDateString('en-US', { 
@@ -383,16 +397,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           day: 'numeric' 
         }) : '';
         
+        // Ensure snippet is not too long
+        const snippet = result.content.substring(0, 350) + "...";
+        
+        // Process and validate image data if available
+        let imageData = undefined;
+        if (result.image && result.image.url) {
+          // Ensure the image URL is valid
+          const imageUrl = result.image.url.trim();
+          if (imageUrl.startsWith('http')) {
+            imageData = {
+              url: imageUrl,
+              alt: result.image.alt || result.title
+            };
+          }
+        }
+        
         return {
           title: result.title,
           url: result.url,
-          snippet: result.content.substring(0, 350) + "...", // Increased snippet length for more verbose results
+          snippet: snippet,
           domain: new URL(result.url).hostname.replace("www.", ""),
           date,
-          // Include image data if available from Tavily
-          image: result.image || undefined
+          // Include image data if available and valid from Tavily
+          image: imageData
         };
       });
+      
+      // Log information about images for debugging
+      console.log(`Total results: ${traditional.length}, with images: ${traditional.filter(r => r.image).length}`);
+      if (searchType === 'images' || searchType === 'videos') {
+        console.log(`${searchType} search results with valid images: ${traditional.filter(r => r.image).length}/${traditional.length}`);
+      }
 
       // Only get AI answer for certain search types
       let aiAnswer = null;

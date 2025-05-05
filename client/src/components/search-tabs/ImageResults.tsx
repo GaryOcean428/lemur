@@ -32,20 +32,33 @@ export default function ImageResults({ query, loading: initialLoading = false }:
       setError(null);
       
       try {
+        console.log(`Fetching image results for query: "${query}"`);
         const results = await performSearch(query, "images", filters);
+        
+        // Log the results for debugging
+        console.log("Image search results received:", 
+                   results?.traditional?.length || 0, "traditional results", 
+                   results?.traditional?.filter(r => r.image && r.image.url).length || 0, "with images");
         
         // Extract images from results
         if (results && results.traditional && results.traditional.length > 0) {
           // First, check if any results have images
           const withImages = results.traditional.filter(result => result.image && result.image.url);
+          console.log(`Found ${withImages.length} results with image URLs`);
           
           if (withImages.length > 0) {
-            const imageResults: ImageResult[] = withImages.map(result => ({
-              title: result.title,
-              url: result.url,
-              imageUrl: result.image!.url,
-              domain: result.domain
-            }));
+            const imageResults: ImageResult[] = withImages.map(result => {
+              // Make sure the image URL is valid
+              const imageUrl = result.image?.url || '';
+              console.log(`Processing image result: ${result.title.substring(0, 30)}... with image URL: ${imageUrl.substring(0, 30)}...`);
+              
+              return {
+                title: result.title,
+                url: result.url,
+                imageUrl: imageUrl,
+                domain: result.domain
+              };
+            });
             
             setImages(imageResults);
           } else {
@@ -57,9 +70,11 @@ export default function ImageResults({ query, loading: initialLoading = false }:
               domain: result.domain
             }));
             
+            console.log("No results with images found, using fallback display");
             setImages(fallbackResults);
           }
         } else {
+          console.log("No results found at all");
           setImages([]);
           setError("No image results found");
         }

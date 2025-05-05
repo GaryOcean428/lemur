@@ -33,20 +33,29 @@ export default function VideoResults({ query, loading: initialLoading = false }:
       setError(null);
       
       try {
+        console.log(`Fetching video results for query: "${query}"`);
         const results = await performSearch(query, "videos", filters);
+        
+        // Log the results for debugging
+        console.log("Video search results received:", 
+                   results?.traditional?.length || 0, "traditional results", 
+                   results?.traditional?.filter(r => r.image && r.image.url).length || 0, "with images");
         
         // Process traditional results as video results
         if (results && results.traditional && results.traditional.length > 0) {
           // We still show video results even if they don't have thumbnails
           const videoResults: VideoResult[] = results.traditional.map(result => {
-            // Extract video information
+            // Extract video information and make sure thumbnail URL is valid
+            const thumbnailUrl = result.image?.url || '';
+            console.log(`Processing video result: ${result.title.substring(0, 30)}... with thumbnail URL: ${thumbnailUrl ? thumbnailUrl.substring(0, 30) + '...' : 'none'}`);
+            
             return {
               title: result.title,
               url: result.url,
               snippet: result.snippet,
               domain: result.domain,
               date: result.date,
-              thumbnailUrl: result.image?.url || '' // Default to empty string if no thumbnail
+              thumbnailUrl: thumbnailUrl
             };
           });
           
@@ -56,6 +65,7 @@ export default function VideoResults({ query, loading: initialLoading = false }:
           console.log("Processed video results:", videoResults.length, 
                      "with thumbnails:", videoResults.filter(v => v.thumbnailUrl).length);
         } else {
+          console.log("No video results found at all");
           setVideos([]);
           setError("No video results found");
         }
