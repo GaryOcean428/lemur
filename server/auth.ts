@@ -110,26 +110,49 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), async (req, res) => {
-    // Check if user needs to be assigned Pro tier (developers and specific email domains)
-    if (req.user && req.user.subscriptionTier === 'free') {
-      const isDeveloperUser = req.user.email?.endsWith('@replit.com') || 
-                             req.user.email?.endsWith('@example.com') ||
-                             req.user.username === 'GaryOcean';
-      
-      if (isDeveloperUser) {
-        // Update to Pro tier with 1 year expiration
-        const updatedUser = await storage.updateUserSubscription(
-          req.user.id, 
-          'pro',
-          new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year
-        );
-        req.user = updatedUser;
-        console.log(`User ${req.user.username} automatically upgraded to Pro tier (developer account)`); 
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err: any, user: SelectUser | false, info: any) => {
+      if (err) {
+        console.error("Authentication error:", err);
+        return res.status(500).json({ message: "Authentication error" });
       }
-    }
+      if (!user) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      
+      req.login(user, async (loginErr) => {
+        if (loginErr) {
+          console.error("Login error:", loginErr);
+          return res.status(500).json({ message: "Login error" });
+        }
+        
+        try {
+          // Check if user needs to be assigned Pro tier (developers and specific email domains)
+          if (req.user && req.user.subscriptionTier === 'free') {
+            const isDeveloperUser = req.user.email?.endsWith('@replit.com') || 
+                                  req.user.email?.endsWith('@example.com') ||
+                                  req.user.username === 'GaryOcean';
+            
+            if (isDeveloperUser) {
+              // Update to Pro tier with 1 year expiration
+              const updatedUser = await storage.updateUserSubscription(
+                req.user.id, 
+                'pro',
+                new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year
+              );
+              req.user = updatedUser;
+              console.log(`User ${req.user.username} automatically upgraded to Pro tier (developer account)`); 
+            }
+          }
     
-    res.status(200).json(req.user);
+          res.status(200).json(req.user);
+        } catch (err) {
+          console.error("Error upgrading user tier:", err);
+          // Still return the user even if tier upgrade fails
+          res.status(200).json(req.user);
+        }
+      });
+    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
