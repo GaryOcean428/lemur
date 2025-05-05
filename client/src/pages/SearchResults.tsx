@@ -12,10 +12,12 @@ import { useEffect, useState } from "react";
 export default function SearchResults() {
   const [, setLocation] = useLocation();
   const { setIsLoading } = useSearchStore();
+  const [useDirectSearch, setUseDirectSearch] = useState(true); // Default to using direct search
 
   // Get the search query from URL
   const params = new URLSearchParams(window.location.search);
   const query = params.get("q") || "";
+  const isFollowUp = params.get("followUp") === "true";
 
   // If no query, redirect to home
   if (!query) {
@@ -26,10 +28,29 @@ export default function SearchResults() {
   // Get filters from search store
   const { filters } = useSearchStore();
   
-  // Fetch search results with filters
+  // Fetch search results with the optimal search method
   const { data, isLoading, error } = useQuery({
-    queryKey: ['/api/search', query, filters],
-    queryFn: () => performSearch(query, 'all', filters),
+    queryKey: [useDirectSearch ? '/api/direct-search' : '/api/search', query, filters, isFollowUp],
+    queryFn: () => {
+      // Try direct search first for better performance
+      if (useDirectSearch) {
+        return performDirectSearch(query, isFollowUp, filters)
+          .catch(error => {
+            console.error("Direct search failed, falling back to traditional search:", error);
+            // If direct search fails, fall back to traditional search
+            setUseDirectSearch(false);
+            // Let the error propagate to trigger a re-fetch with the new queryKey
+            throw error;
+          });
+      } else {
+        // Fall back to traditional search pipeline
+        return performSearch(query, 'all', filters);
+      }
+    },
+    retry: (failureCount, error) => {
+      // Only retry if we're falling back from direct to traditional search
+      return failureCount < 1 && !useDirectSearch;
+    }
   });
   
   // Update global loading state

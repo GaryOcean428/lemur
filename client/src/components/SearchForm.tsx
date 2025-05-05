@@ -8,9 +8,10 @@ import SubscriptionPrompt from "./SubscriptionPrompt";
 
 interface SearchFormProps {
   initialQuery?: string;
+  isFollowUp?: boolean;
 }
 
-export default function SearchForm({ initialQuery = "" }: SearchFormProps) {
+export default function SearchForm({ initialQuery = "", isFollowUp = false }: SearchFormProps) {
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -76,8 +77,12 @@ export default function SearchForm({ initialQuery = "" }: SearchFormProps) {
       return;
     }
     
-    // Proceed with search
-    setLocation(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+    // Proceed with search, include follow-up parameter if applicable
+    let searchUrl = `/search?q=${encodeURIComponent(trimmedQuery)}`;
+    if (isFollowUp) {
+      searchUrl += '&followUp=true';
+    }
+    setLocation(searchUrl);
   };
   
   const handleSuggestionClick = (suggestion: string) => {
@@ -92,8 +97,12 @@ export default function SearchForm({ initialQuery = "" }: SearchFormProps) {
       return;
     }
     
-    // Proceed with search
-    setLocation(`/search?q=${encodeURIComponent(suggestion)}`);
+    // Proceed with search, include follow-up parameter if applicable
+    let searchUrl = `/search?q=${encodeURIComponent(suggestion)}`;
+    if (isFollowUp) {
+      searchUrl += '&followUp=true';
+    }
+    setLocation(searchUrl);
   };
   
   const clearSearch = () => {
