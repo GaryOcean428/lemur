@@ -1,5 +1,9 @@
 import { Source } from "@/lib/types";
 import DOMPurify from 'dompurify';
+import { useState } from 'react';
+import { useLocation } from 'wouter';
+import { MessageCircleMore } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
 interface AIAnswerProps {
   answer: string;
@@ -9,6 +13,10 @@ interface AIAnswerProps {
 }
 
 export default function AIAnswer({ answer, sources, model, contextual = false }: AIAnswerProps) {
+  const [, setLocation] = useLocation();
+  const [followUpQuery, setFollowUpQuery] = useState('');
+  const [showFollowUpInput, setShowFollowUpInput] = useState(false);
+  
   // Basic markdown rendering function for improved readability
   function renderMarkdown(text: string): string {
     // Step 1: Process citations to make them clickable
@@ -76,6 +84,14 @@ export default function AIAnswer({ answer, sources, model, contextual = false }:
     console.log(`User ${type}d the answer`);
   };
 
+  // Handle follow-up question submission
+  const handleFollowUpSubmit = () => {
+    if (!followUpQuery.trim()) return;
+    
+    // Navigate to search results with the follow-up query and flag
+    setLocation(`/search?q=${encodeURIComponent(followUpQuery)}&followUp=true`);
+  };
+
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl shadow-md dark:shadow-gray-800/30 p-6 mb-6 border border-gray-100 dark:border-gray-800">
       <div className="flex justify-between items-center mb-4">
@@ -91,6 +107,39 @@ export default function AIAnswer({ answer, sources, model, contextual = false }:
         className="prose dark:prose-invert prose-headings:font-semibold prose-headings:text-primary dark:prose-headings:text-primary-light prose-a:text-citation prose-a:no-underline hover:prose-a:underline prose-strong:font-semibold prose-strong:text-primary-dark dark:prose-strong:text-primary-light prose-code:text-primary-dark dark:prose-code:text-primary-light prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800 prose-pre:rounded-md prose-pre:p-4 prose-pre:overflow-x-auto prose-li:marker:text-primary dark:prose-li:marker:text-primary-light max-w-none"
         dangerouslySetInnerHTML={{ __html: html }}
       />
+      
+      {/* Follow-up question section */}
+      {!showFollowUpInput ? (
+        <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
+          <Button 
+            variant="outline" 
+            className="w-full flex items-center justify-center gap-2 text-base"
+            onClick={() => setShowFollowUpInput(true)}
+          >
+            <MessageCircleMore className="h-4 w-4" />
+            Ask a follow-up question
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+            <form onSubmit={(e) => { e.preventDefault(); handleFollowUpSubmit(); }}>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={followUpQuery}
+                  onChange={(e) => setFollowUpQuery(e.target.value)}
+                  placeholder="Ask a follow-up question..."
+                  className="flex-grow rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <Button type="submit">
+                  Search
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       
       <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
         <h4 className="text-sm font-semibold text-[hsl(var(--neutral-muted))] mb-2">Sources:</h4>

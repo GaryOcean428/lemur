@@ -19,6 +19,7 @@ interface SearchTabsProps {
   data: SearchResults | undefined;
   query: string;
   isLoading: boolean;
+  isFollowUp?: boolean;
 }
 
 export default function SearchTabs({ data, query, isLoading }: SearchTabsProps) {
