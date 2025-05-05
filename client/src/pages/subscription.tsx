@@ -9,16 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 
-// Detect if the key is not in the expected format (should start with pk_)
-let stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
+// Use the real Stripe publishable key
+let stripeKey = 'pk_live_51R6Te4AYIAu3GrrMRq9JiQx5NZoL9ReTJ5Go3BDhQAwp1H7orczSBXMfEr92gOAwTPBcXfJHZjGYezwVy5abigzj00x62BzCj2';
 
-// We can use either a real Stripe publishable key (pk_test_...) or 
-// for development, we can use a test key to allow Stripe Elements to render
-if (!stripeKey || !stripeKey.startsWith('pk_')) {
-  console.log('Using development Stripe key mode');
-  // This is a test key for development only
-  stripeKey = 'pk_test_51OgGvPAlv8YEJOg42UnDHAQF4b7YA90nnrKiJUL03ZJaVUudW9rE2CpCvhHOiLMvdofgkk0HxLM3IpqLwreBHoqL00UYJHKk4N';
-}
+console.log('Using actual Stripe key:', stripeKey.substring(0, 8) + '...');
 
 const stripePromise = loadStripe(stripeKey);
 
@@ -162,18 +156,7 @@ export default function SubscriptionPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
-  // Debugging to check proper environment variable loading and formatting
-  useEffect(() => {
-    // Check if we have a publishable key and it's formatted correctly
-    const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-    if (!stripeKey) {
-      console.error('VITE_STRIPE_PUBLIC_KEY is not defined in environment');
-    } else if (!stripeKey.startsWith('pk_')) {
-      console.error('VITE_STRIPE_PUBLIC_KEY should start with pk_, check your environment variables');
-    } else {
-      console.log('Stripe publishable key is properly configured');
-    }
-  }, []);
+  // No need to check for Stripe key - we're using the hardcoded one
   
   useEffect(() => {
     // Redirect if not logged in
