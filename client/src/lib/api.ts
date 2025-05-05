@@ -1,6 +1,38 @@
 import { SearchResults } from "./types";
 import { SearchFilters } from "@/store/searchStore";
 
+// Debounce helper function to limit API calls
+function debounce<F extends (...args: any[]) => any>(func: F, delay: number): (...args: Parameters<F>) => void {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  
+  return (...args: Parameters<F>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+}
+
+// Function to get search suggestions as user types
+export async function fetchSearchSuggestions(query: string): Promise<string[]> {
+  if (!query || query.length < 2) return [];
+  
+  try {
+    const response = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
+    
+    if (!response.ok) {
+      console.error(`Error fetching suggestions: ${response.status}`);
+      return [];
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error in fetchSearchSuggestions:", error);
+    return [];
+  }
+}
+
+// Debounced version of the search suggestions function to prevent excessive API calls
+export const debouncedFetchSearchSuggestions = debounce(fetchSearchSuggestions, 300);
+
 export async function performSearch(query: string, filters?: SearchFilters): Promise<SearchResults> {
   try {
     // Build URL with query parameter

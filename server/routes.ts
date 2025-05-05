@@ -220,6 +220,104 @@ Remember you are powered by Llama 3.3 and Llama 4 models optimized for search an
   }
 }
 
+// Function to get search suggestions based on partial query
+async function getSearchSuggestions(partialQuery: string): Promise<string[]> {
+  // If API keys are available, we would use them for real search suggestions
+  // For now, we'll create relevant suggestions based on the partial query
+  if (!partialQuery || partialQuery.length < 2) {
+    return [];
+  }
+  
+  const query = partialQuery.toLowerCase().trim();
+  
+  // Common prefixes and suffixes to generate realistic suggestions
+  const prefixes = [
+    "", // No prefix (i.e. just the query)
+    "how to ",
+    "what is ",
+    "why does ",
+    "when did ",
+    "where is "
+  ];
+  
+  const suffixes = [
+    "", // No suffix
+    " meaning",
+    " definition",
+    " examples",
+    " news",
+    " today",
+    " near me",
+    " vs",
+    " alternatives",
+    " tutorial",
+    " explained",
+    " guide",
+    " best practices",
+    " history"
+  ];
+  
+  // Look for search history in the database
+  let historySuggestions: string[] = [];
+  try {
+    // Get recent search history
+    const searchHistory = await storage.getSearchHistoryByUserId(null);
+    // Filter for searches containing the query
+    historySuggestions = searchHistory
+      .map(h => h.query)
+      .filter(q => q.toLowerCase().includes(query))
+      .slice(0, 5);
+  } catch (error) {
+    console.error("Error getting search history for suggestions:", error);
+    // Continue with just the generated suggestions
+  }
+  
+  // Generate suggestions from prefixes and suffixes
+  let suggestions: string[] = [];
+  
+  // First check if the query already has a prefix
+  let effectiveQuery = query;
+  let foundPrefix = false;
+  
+  for (const prefix of prefixes) {
+    if (query.startsWith(prefix) && prefix !== "") {
+      // Remove the prefix from the query for better suffix matching
+      effectiveQuery = query.substring(prefix.length);
+      foundPrefix = true;
+      break;
+    }
+  }
+  
+  // Generate suggestions based on whether we have a prefix or not
+  if (foundPrefix) {
+    // If query already has a prefix, just add suffixes to it
+    suggestions = suffixes
+      .filter(suffix => suffix !== "")
+      .map(suffix => `${query}${suffix}`);
+  } else {
+    // Generate combinations of prefixes and suffixes
+    for (const prefix of prefixes) {
+      for (const suffix of suffixes) {
+        // Skip empty prefix + empty suffix as it's just the query itself
+        if (prefix === "" && suffix === "") continue;
+        
+        suggestions.push(`${prefix}${effectiveQuery}${suffix}`);
+      }
+    }
+  }
+  
+  // Combine history suggestions with generated ones, prioritizing history and removing duplicates
+  // First, convert to a combined array and filter for query inclusion
+  const combinedSuggestions = [...historySuggestions, ...suggestions]
+    .filter(s => s.toLowerCase().includes(query));
+    
+  // Then remove duplicates using a Map (more compatible across TS targets than Set)
+  const uniqueSuggestions = Array.from(new Map(combinedSuggestions.map(s => [s.toLowerCase(), s])).values())
+    .slice(0, 10); // Limit to top 10 suggestions
+  
+  return uniqueSuggestions;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes and middleware
   setupAuth(app);
@@ -382,6 +480,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching saved searches:", error);
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "An error occurred while fetching saved searches" 
+      });
+    }
+  });
+  
+  // Search suggestions endpoint
+  app.get("/api/search/suggestions", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      
+      if (!query || query.length < 2) {
+        return res.json([]);
+      }
+      
+      const suggestions = await getSearchSuggestions(query);
+      
+      // Log when suggestions are requested (useful for monitoring)
+      console.log(`Suggestions for "${query}": ${suggestions.length} results`);
+      
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error getting search suggestions:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "An error occurred while getting search suggestions" 
       });
     }
   });
