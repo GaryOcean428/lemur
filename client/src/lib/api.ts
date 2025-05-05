@@ -33,10 +33,10 @@ export async function fetchSearchSuggestions(query: string): Promise<string[]> {
 // Debounced version of the search suggestions function to prevent excessive API calls
 export const debouncedFetchSearchSuggestions = debounce(fetchSearchSuggestions, 300);
 
-export async function performSearch(query: string, filters?: SearchFilters): Promise<SearchResults> {
+export async function performSearch(query: string, searchType: string = 'all', filters?: SearchFilters): Promise<SearchResults> {
   try {
-    // Build URL with query parameter
-    let url = `/api/search?q=${encodeURIComponent(query)}`;
+    // Build URL with query parameter and search type
+    let url = `/api/search?q=${encodeURIComponent(query)}&type=${encodeURIComponent(searchType)}`;
     
     // Add filter parameters if provided
     if (filters) {

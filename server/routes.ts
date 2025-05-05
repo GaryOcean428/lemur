@@ -39,8 +39,8 @@ interface GroqResponse {
   model: string;
 }
 
-// Tavily API for search results
-async function tavilySearch(query: string, apiKey: string): Promise<TavilySearchResponse> {
+// Tavily API for search results with support for specialized search types
+async function tavilySearch(query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> {
   try {
     // Validate API key format (basic check)
     if (!apiKey || apiKey.trim() === '') {
@@ -53,8 +53,8 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
     // Truncate query to 400 characters (Tavily API limit)
     const truncatedQuery = query.length > 400 ? query.substring(0, 397) + '...' : query;
     
-    const requestBody = {
-      query: truncatedQuery,
+    // Default request configuration
+    const defaultConfig = {
       search_depth: "advanced", // Options: "basic" or "advanced"
       max_results: 15, // Up to 20 allowed
       include_answer: "basic", // Options: false, "basic", or "advanced"
@@ -67,9 +67,22 @@ async function tavilySearch(query: string, apiKey: string): Promise<TavilySearch
       geo_location: "AU" // Australia
     };
     
+    // Merge the default configuration with the provided configuration
+    const requestBody = {
+      ...defaultConfig,
+      ...config,
+      query: truncatedQuery // Always use the truncated query
+    };
+    
     if (truncatedQuery !== query) {
       console.log(`Query was truncated from ${query.length} to ${truncatedQuery.length} characters for Tavily API request`);
     }
+    
+    console.log(`Tavily search config for ${config.search_type || 'general'} search:`, 
+               JSON.stringify({
+                 ...requestBody,
+                 query: requestBody.query.substring(0, 30) + (requestBody.query.length > 30 ? '...' : '') // Truncate query for logging
+               }, null, 2));
     
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
@@ -321,10 +334,11 @@ async function getSearchSuggestions(partialQuery: string): Promise<string[]> {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes and middleware
   setupAuth(app);
-  // Search API endpoint
+  // Main Search API endpoint that supports different search types
   app.get("/api/search", async (req, res) => {
     try {
       const query = req.query.q as string;
+      const searchType = req.query.type as string || 'all'; // Default to 'all' if not specified
       
       if (!query) {
         return res.status(400).json({ message: "Query parameter 'q' is required" });
@@ -336,13 +350,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('API Key status - Tavily:', tavilyApiKey ? 'Present (starts with: ' + tavilyApiKey.substring(0, 5) + '...)' : 'Not found');
       console.log('API Key status - Groq:', groqApiKey ? 'Present (starts with: ' + groqApiKey.substring(0, 5) + '...)' : 'Not found');
+      console.log(`Performing ${searchType} search for: "${query}"`);
       
       if (!tavilyApiKey || !groqApiKey) {
         return res.status(500).json({ message: "API keys not configured" });
       }
 
-      // Get search results from Tavily
-      const tavilyResults = await tavilySearch(query, tavilyApiKey);
+      // Configuration for different search types
+      const searchTypeConfig: Record<string, any> = {
+        all: { search_depth: 'advanced' },
+        web: { search_depth: 'advanced' },
+        news: { search_depth: 'advanced', search_type: 'news' },
+        images: { search_depth: 'basic', include_images: true, include_answer: false, max_results: 16 },
+        videos: { search_depth: 'basic', search_type: 'video', max_results: 8 },
+        academic: { search_depth: 'advanced', search_type: 'scholarly_articles', max_results: 10 },
+        shopping: { search_depth: 'basic', search_type: 'shopping', max_results: 12 },
+        social: { search_depth: 'basic', search_type: 'social_media', max_results: 8 },
+        maps: { search_depth: 'basic', search_type: 'location', max_results: 5 }
+      };
+
+      const searchConfig = searchTypeConfig[searchType] || searchTypeConfig['all'];
+
+      // Get search results from Tavily with specific configuration
+      const tavilyResults = await tavilySearch(query, tavilyApiKey, searchConfig);
       
       // Convert to our format
       const traditional = tavilyResults.results.map((result) => {
@@ -364,15 +394,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      // Get AI answer from Groq using the sources
-      const { answer, model } = await groqSearch(query, tavilyResults.results, groqApiKey);
+      // Only get AI answer for certain search types
+      let aiAnswer = null;
+      if (['all', 'ai', 'web', 'news', 'academic'].includes(searchType)) {
+        // Get AI answer from Groq using the sources
+        const { answer, model } = await groqSearch(query, tavilyResults.results, groqApiKey);
 
-      // Format sources for the AI answer
-      const sources = tavilyResults.results.slice(0, 5).map((result) => ({
-        title: result.title,
-        url: result.url,
-        domain: new URL(result.url).hostname.replace("www.", "")
-      }));
+        // Format sources for the AI answer
+        const sources = tavilyResults.results.slice(0, 5).map((result) => ({
+          title: result.title,
+          url: result.url,
+          domain: new URL(result.url).hostname.replace("www.", "")
+        }));
+
+        aiAnswer = {
+          answer,
+          sources,
+          model
+        };
+      }
 
       // Log search in database (without userId for anonymous searches)
       try {
@@ -380,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           query,
           userId: null, // For anonymous searches
         });
-        console.log(`Search logged: "${query}"`);
+        console.log(`Search logged: "${query}" (type: ${searchType})`);
       } catch (dbError) {
         // Log error but don't fail the search request
         console.error("Failed to log search to database:", dbError);
@@ -388,12 +428,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return combined results
       res.json({
-        ai: {
-          answer,
-          sources,
-          model
-        },
-        traditional
+        ai: aiAnswer,
+        traditional,
+        searchType
       });
     } catch (error) {
       console.error("Search API error:", error);
