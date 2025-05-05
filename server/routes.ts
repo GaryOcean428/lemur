@@ -731,8 +731,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pro: STRIPE_PRO_PRICE_ID      // Pro plan
       };
       
-      // Special case for developer accounts - bypass payment process
+      // Special case for developer accounts and test accounts - bypass payment process
       const isDeveloperAccount = req.user.username === 'GaryOcean' ||
+                                req.user.username === 'TestUser' ||
                                 req.user.email?.endsWith('@replit.com') ||
                                 req.user.email?.endsWith('@example.com');
       
