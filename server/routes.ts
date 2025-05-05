@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import fetch from "node-fetch";
 import { setupAuth } from "./auth";
+import Stripe from "stripe";
 
 // Define Tavily API response interface
 interface TavilySearchResult {
@@ -685,7 +686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Initialize Stripe
-      const stripe = new (require('stripe'))(stripeKey);
+      const stripe = new Stripe(stripeKey);
       
       // Define price IDs for subscription plans
       // For a real production app, these would be stored in environment variables
@@ -733,9 +734,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateStripeInfo(req.user.id, customerId || '', subscription.id);
       
       // Return client secret for frontend to complete payment
+      const invoice = typeof subscription.latest_invoice === 'string' 
+        ? await stripe.invoices.retrieve(subscription.latest_invoice, { expand: ['payment_intent'] })
+        : subscription.latest_invoice;
+      
+      const paymentIntent = invoice?.payment_intent;
+      const clientSecret = typeof paymentIntent === 'string' 
+        ? (await stripe.paymentIntents.retrieve(paymentIntent)).client_secret
+        : paymentIntent?.client_secret;
+      
       res.json({
         subscriptionId: subscription.id,
-        clientSecret: subscription.latest_invoice.payment_intent.client_secret,
+        clientSecret,
         planType
       });
       
@@ -758,7 +768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Stripe API keys not configured" });
       }
       
-      const stripe = new (require('stripe'))(stripeKey);
+      const stripe = new Stripe(stripeKey);
       
       // Verify webhook signature and extract the event
       let event;
