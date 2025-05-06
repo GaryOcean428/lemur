@@ -943,7 +943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         status: subscription.status,
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        currentPeriodEnd: subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         tier: req.user.subscriptionTier,
         searchCount: req.user.searchCount
