@@ -88,7 +88,7 @@ export async function tavilySearchRequest(
 export async function groqChatRequest(
   messages: Array<{role: string; content: string}>,
   groqApiKey: string,
-  model: string = "compound-beta",
+  model: string = "llama3-70b-8192",
   temperature: number = 0.3,
   tools?: any[],
   toolChoice: string = "auto"

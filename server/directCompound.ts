@@ -79,31 +79,31 @@ export async function directGroqCompoundSearch(
     }
 
     // Choose model based on preference
-    // Note: compound-beta-mini doesn't support tool calling,
+    // Note: Some Llama models may have varying tool calling capabilities,
     // so we need different handling based on whether tools are needed
     
     // Model selection map
-    // Using the correct Groq Compound Beta models as documented
+    // Using the latest Groq models as documented
     const modelMap: Record<string, string> = {
-      "auto": "compound-beta", // Full-featured model with multiple tool calls
-      "fast": "compound-beta-mini", // Faster with single tool call
-      "comprehensive": "compound-beta" // Full-featured for comprehensive results
+      "auto": "llama3-70b-8192", // Balanced performance and quality (Llama 3.1)
+      "fast": "llama3-8b-8192", // Faster with lower latency (Llama 3.1 small)
+      "comprehensive": "llama4-8b-8192" // High quality, advanced reasoning (Llama 4)
     };
     
     // Normalize the preference to lowercase for consistent matching
     const normalizedPref = modelPreference.toLowerCase();
     
-    // Select the model based on preference, defaulting to compound-beta if not found
-    const model = modelMap[normalizedPref] || "compound-beta";
+    // Select the model based on preference, defaulting to llama3-70b-8192 if not found
+    const model = modelMap[normalizedPref] || "llama3-70b-8192";
     
-    // Groq Compound Beta supports built-in tool calling with Tavily integration
+    // Groq's Llama models support built-in tool calling with Tavily integration
     const supportsTools = true;
     
-    // For non-tool models (fast/mini), use a simpler system prompt without tool instructions
+    // For non-tool compatible models, use a simpler system prompt without tool instructions
     const isToolModel = supportsTools;
     
     // Log which model was selected
-    console.log(`Using Direct Groq Compound Beta model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
+    console.log(`Using Groq Llama model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
 
     // Create the system message with search preferences
     // Use different prompts for tool and non-tool models
