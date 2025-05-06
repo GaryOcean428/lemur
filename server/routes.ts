@@ -1027,11 +1027,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { tier } = req.body;
       
-      if (!tier || (tier !== 'basic' && tier !== 'pro')) {
-        return res.status(400).json({ message: "Valid subscription tier (basic or pro) is required" });
+      if (!tier || (tier !== 'free' && tier !== 'basic' && tier !== 'pro')) {
+        return res.status(400).json({ message: "Valid subscription tier (free, basic, or pro) is required" });
       }
       
-      // Get stripe price ID based on tier
+      // Handle free tier differently - no Stripe subscription needed
+      if (tier === 'free') {
+        // Just update the user's subscription tier and return success
+        await storage.updateUserSubscription(req.user.id, 'free');
+        
+        return res.json({
+          success: true,
+          message: "Successfully subscribed to free tier",
+          tier: 'free'
+        });
+      }
+      
+      // For paid tiers, get Stripe price ID
       let priceId;
       
       if (tier === 'basic') {
