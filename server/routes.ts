@@ -1135,6 +1135,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Direct subscription change endpoint (no payment processing)
+  app.post("/api/change-subscription", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
+    
+    const { planType } = req.body;
+    
+    if (!planType || !['free', 'basic', 'pro'].includes(planType)) {
+      return res.status(400).json({ success: false, message: "Invalid plan type" });
+    }
+    
+    try {
+      // Handle developer accounts
+      if (req.user.username === 'GaryOcean') {
+        // Developers always get pro features
+        await storage.updateUserSubscription(req.user.id, 'pro');
+        return res.json({ 
+          success: true, 
+          message: "Developer account automatically upgraded to Pro tier", 
+          isDeveloperAccount: true 
+        });
+      }
+      
+      // Calculate expiration date (30 days from now)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+      
+      // Update user subscription in the database
+      const updatedUser = await storage.updateUserSubscription(req.user.id, planType, expiresAt);
+      
+      return res.json({
+        success: true,
+        tier: planType,
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error("Error updating subscription:", error);
+      return res.status(500).json({ success: false, message: "Error updating subscription" });
+    }
+  });
+  
   // Handle Stripe webhook (for production use)
   app.post("/api/webhook", async (req, res) => {
     if (!stripe) {
@@ -1220,51 +1262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Downgrade to free tier
-  app.post("/api/change-subscription", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
-    try {
-      const { planType } = req.body;
-      
-      if (planType === 'free') {
-        // If user wants to downgrade to free, we'll update their tier immediately
-        const user = await storage.updateUserSubscription(req.user.id, 'free');
-        
-        // If they have an active Stripe subscription, cancel it at period end
-        if (req.user.stripeSubscriptionId && stripe) {
-          await stripe.subscriptions.update(req.user.stripeSubscriptionId, {
-            cancel_at_period_end: true
-          });
-        }
-        
-        return res.json({
-          success: true,
-          message: "Successfully downgraded to free tier",
-          user
-        });
-      } else if (planType === 'basic' || planType === 'pro') {
-        // If switching between paid plans, a simple tier update is needed first
-        // The payment flow will be handled separately in create-subscription
-        await storage.updateUserSubscription(req.user.id, planType);
-        
-        return res.json({
-          success: true,
-          message: `Plan changed to ${planType}`,
-          requiresPayment: true
-        });
-      } else {
-        return res.status(400).json({
-          message: "Invalid plan type. Must be 'free', 'basic', or 'pro'."
-        });
-      }
-    } catch (error) {
-      console.error("Error changing subscription plan:", error);
-      res.status(500).json({ message: "Error changing subscription plan" });
-    }
-  });
+  // This endpoint is now handled by the /api/change-subscription endpoint above
 
   // Create HTTP server
   const httpServer = createServer(app);
