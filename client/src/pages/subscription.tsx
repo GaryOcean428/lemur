@@ -6,7 +6,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { loadStripe } from '@stripe/stripe-js';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle as AlertTriangleIcon, Code as CodeIcon, Check as CheckIcon } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 // Get Stripe key from environment variable
@@ -34,7 +34,7 @@ if (isValidStripeKey) {
 // Only attempt to load Stripe with a valid key
 const stripePromise = isValidStripeKey ? loadStripe(stripeKey) : null;
 
-function CheckoutForm({ planType, user }: { planType: 'free' | 'basic' | 'pro', user: any }) {
+function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'basic' | 'pro', user: any, clientSecret?: string | null }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -622,17 +622,67 @@ export default function SubscriptionPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Elements 
-              stripe={stripePromise} 
-              options={{ 
-                clientSecret,
-                appearance: { theme: 'stripe' },
-                // Customize options to make sure the element appears and is activated
-                loader: 'always',
-              }}
-            >
-              <CheckoutForm planType={planType} user={user} />
-            </Elements>
+            {/* Check if we're in development mode (client secret is "dev_secret") */}
+            {clientSecret === "dev_secret" ? (
+              <div className="p-4 rounded-md bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-800 mb-4">
+                <h3 className="text-yellow-800 dark:text-yellow-200 font-semibold flex items-center">
+                  <AlertTriangleIcon className="h-5 w-5 mr-2" />
+                  Development Mode
+                </h3>
+                <p className="text-yellow-700 dark:text-yellow-300 mt-2 text-sm">
+                  No actual payment will be processed. This is a development environment simulation.
+                </p>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const fakeDomEvent = { preventDefault: () => {} } as React.FormEvent;
+                  // Create a fake instance of the checkout form handler
+                  const handleDevCheckout = async () => {
+                    try {
+                      const activateResponse = await apiRequest('POST', '/api/activate-subscription', {
+                        planType,
+                        setupIntentId: `dev_setup_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+                      });
+                      
+                      const activateData = await activateResponse.json();
+                      
+                      if (activateData.success) {
+                        toast({
+                          title: "Development Mode",
+                          description: "Your subscription has been activated without payment in development mode."
+                        });
+                        setTimeout(() => setLocation('/'), 2000);
+                      } else {
+                        throw new Error(activateData.message || 'Could not activate subscription in development mode');
+                      }
+                    } catch (error: any) {
+                      toast({
+                        title: "Subscription Error",
+                        description: error.message || "An error occurred during development mode subscription",
+                        variant: "destructive",
+                      });
+                    }
+                  };
+                  
+                  handleDevCheckout();
+                }} className="mt-4">
+                  <Button type="submit" className="w-full">
+                    Simulate Payment & Subscribe (Dev Mode)
+                  </Button>
+                </form>
+              </div>
+            ) : (
+              <Elements 
+                stripe={stripePromise} 
+                options={{ 
+                  clientSecret,
+                  appearance: { theme: 'stripe' },
+                  // Customize options to make sure the element appears and is activated
+                  loader: 'always',
+                }}
+              >
+                <CheckoutForm planType={planType} user={user} clientSecret={clientSecret} />
+              </Elements>
+            )}
           </CardContent>
         </Card>
       ) : null}
