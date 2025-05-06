@@ -26,6 +26,7 @@ export default function ManageSubscriptionPage() {
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
+  const [showDowngradeToFreeDialog, setShowDowngradeToFreeDialog] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   
   // Load subscription data
@@ -148,7 +149,7 @@ export default function ManageSubscriptionPage() {
     }
   };
   
-  const handleChangeSubscription = async (newPlan: 'basic' | 'pro') => {
+  const handleChangeSubscription = async (newPlan: 'free' | 'basic' | 'pro') => {
     const isUpgrade = user?.subscriptionTier === 'basic' && newPlan === 'pro';
     const isDowngrade = user?.subscriptionTier === 'pro' && newPlan === 'basic';
     
@@ -191,6 +192,7 @@ export default function ManageSubscriptionPage() {
       setIsLoading_changeSubscription(false);
       setShowUpgradeDialog(false);
       setShowDowngradeDialog(false);
+      setShowDowngradeToFreeDialog(false);
     }
   };
   
@@ -271,10 +273,22 @@ export default function ManageSubscriptionPage() {
                 variant="outline"
                 onClick={() => setShowDowngradeDialog(true)}
                 disabled={isLoading_changeSubscription}
+                className="mr-2"
               >
                 {isLoading_changeSubscription ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
                 ) : 'Downgrade to Basic'}
+              </Button>
+
+              <Button 
+                variant="outline"
+                onClick={() => setShowDowngradeToFreeDialog(true)}
+                disabled={isLoading_changeSubscription}
+                className="mr-2"
+              >
+                {isLoading_changeSubscription ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
+                ) : 'Downgrade to Free'}
               </Button>
               
               <Button 
@@ -382,6 +396,36 @@ export default function ManageSubscriptionPage() {
               {isLoading_changeSubscription ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
               ) : 'Confirm Downgrade'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Downgrade to Free Dialog */}
+      <Dialog open={showDowngradeToFreeDialog} onOpenChange={setShowDowngradeToFreeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Downgrade to Free?</DialogTitle>
+            <DialogDescription>
+              You're about to downgrade to the Free plan. You'll have limited search capability (20 searches/month), and access to only the basic model. Your current plan benefits will remain active until the end of your current billing period.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDowngradeToFreeDialog(false)}
+              disabled={isLoading_changeSubscription}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="secondary"
+              onClick={() => handleChangeSubscription('free')}
+              disabled={isLoading_changeSubscription}
+            >
+              {isLoading_changeSubscription ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
+              ) : 'Confirm Downgrade to Free'}
             </Button>
           </DialogFooter>
         </DialogContent>

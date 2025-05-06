@@ -954,6 +954,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Downgrade to free tier
+  app.post("/api/change-subscription", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const { planType } = req.body;
+      
+      if (planType === 'free') {
+        // If user wants to downgrade to free, we'll update their tier immediately
+        const user = await storage.updateUserSubscription(req.user.id, 'free');
+        
+        // If they have an active Stripe subscription, cancel it at period end
+        if (req.user.stripeSubscriptionId && stripe) {
+          await stripe.subscriptions.update(req.user.stripeSubscriptionId, {
+            cancel_at_period_end: true
+          });
+        }
+        
+        return res.json({
+          success: true,
+          message: "Successfully downgraded to free tier",
+          user
+        });
+      } else if (planType === 'basic' || planType === 'pro') {
+        // If switching between paid plans, a simple tier update is needed first
+        // The payment flow will be handled separately in create-subscription
+        await storage.updateUserSubscription(req.user.id, planType);
+        
+        return res.json({
+          success: true,
+          message: `Plan changed to ${planType}`,
+          requiresPayment: true
+        });
+      } else {
+        return res.status(400).json({
+          message: "Invalid plan type. Must be 'free', 'basic', or 'pro'."
+        });
+      }
+    } catch (error) {
+      console.error("Error changing subscription plan:", error);
+      res.status(500).json({ message: "Error changing subscription plan" });
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
 
