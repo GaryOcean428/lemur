@@ -8,11 +8,14 @@ import { performSearch, performDirectSearch } from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 import { useSearchStore } from "@/store/searchStore";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function SearchResults() {
   const [, setLocation] = useLocation();
   const { setIsLoading } = useSearchStore();
   const [useDirectSearch, setUseDirectSearch] = useState(true); // Default to using direct search
+  const [authRequired, setAuthRequired] = useState(false); // Track if authentication is required
+  const { user } = useAuth(); // Get current user from auth context
 
   // Get the search query from URL
   const params = new URLSearchParams(window.location.search);
@@ -73,6 +76,7 @@ export default function SearchResults() {
         if (error.message.includes("Please sign in")) {
           errorMessage = "Sign in to continue searching";
           errorDetail = "You've reached the limit for anonymous searches. Create a free account to continue.";
+          setAuthRequired(true); // Set the authRequired flag for anonymous users
         } else {
           errorMessage = "Search limit reached";
           errorDetail = "You've reached your limit of free searches. Upgrade to continue searching with Lemur.";
@@ -145,7 +149,7 @@ export default function SearchResults() {
         </div>
         
         {/* Search Tabs with All Results */}
-        <SearchTabs data={data} query={query} isLoading={isLoading} isFollowUp={isFollowUp} />
+        <SearchTabs data={data} query={query} isLoading={isLoading} isFollowUp={isFollowUp} authRequired={authRequired} />
       </div>
     </div>
   );
