@@ -1,11 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { directGroqCompoundSearch } from "./directCompound";
-import passport from "passport";
-import session from "express-session";
-import { Strategy as LocalStrategy } from "passport-local";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
 import { storage } from "./storage";
 import fetch from "node-fetch";
 import Stripe from "stripe";
@@ -16,7 +11,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 // Initialize Stripe with the secret key if available
 const stripe = process.env.STRIPE_SECRET_KEY 
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" }) 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY) 
   : null;
 
 // Define Tavily search result interfaces
@@ -189,15 +184,13 @@ async function getSearchSuggestions(partialQuery: string): Promise<string[]> {
     .slice(0, 7); // Return at most 7 suggestions
 }
 
-// Function to hash passwords for user authentication
-async function hashPassword(password: string) {
-  const scryptAsync = promisify(scrypt);
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
-}
+
+
+import { setupAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup auth routes and middleware
+  setupAuth(app);
   // Search suggestions endpoint
   app.get("/api/suggestions", async (req, res) => {
     try {
@@ -692,102 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User registration endpoint
-  app.post("/api/register", async (req, res) => {
-    try {
-      const { username, email, password } = req.body;
-      
-      // Validate input
-      if (!username || !email || !password) {
-        return res.status(400).json({ message: "Username, email, and password are required" });
-      }
-      
-      // Check if username already exists
-      const existingUser = await storage.getUserByUsername(username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-      
-      // Hash the password
-      const hashedPassword = await hashPassword(password);
-      
-      // Determine if this is the first user (admin)
-      const isFirstUser = await storage.isFirstUser();
-      
-      // Create user with appropriate subscription tier
-      // First user is automatically a pro user
-      const subscriptionTier = isFirstUser ? 'pro' : 'free';
-      const user = await storage.createUser({
-        username,
-        email,
-        password: hashedPassword,
-        subscriptionTier,
-        searchCount: 0,
-        stripeCustomerId: null,
-        stripeSubscriptionId: null,
-        createdAt: new Date()
-      });
-      
-      // Automatically log the user in
-      req.login(user, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Error logging in after registration" });
-        }
-        
-        // Return user info (excluding password)
-        const { password, ...userInfo } = user;
-        res.status(201).json(userInfo);
-      });
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).json({ message: "An error occurred during registration" });
-    }
-  });
-
-  // User login endpoint
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
-      if (err) {
-        return next(err);
-      }
-      if (!user) {
-        return res.status(401).json({ message: "Invalid username or password" });
-      }
-      req.login(user, (err) => {
-        if (err) {
-          return next(err);
-        }
-        
-        // Return user info (excluding password)
-        const { password, ...userInfo } = user;
-        return res.json(userInfo);
-      });
-    })(req, res, next);
-  });
-
-  // User logout endpoint
-  app.post("/api/logout", (req, res) => {
-    req.logout(() => {
-      req.session.destroy((err) => {
-        if (err) {
-          return res.status(500).json({ message: "Error logging out" });
-        }
-        res.clearCookie('connect.sid');
-        res.status(200).json({ message: "Logged out successfully" });
-      });
-    });
-  });
-
-  // Get current user info
-  app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
-    // Return user info (excluding password)
-    const { password, ...userInfo } = req.user;
-    res.json(userInfo);
-  });
+  // Authentication-related endpoints are now handled in auth.ts
 
   // Update user profile
   app.patch("/api/user", (req, res) => {
