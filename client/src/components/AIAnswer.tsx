@@ -196,7 +196,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
       
       <div className="mt-6 flex justify-between">
         <div className="text-xs text-[hsl(var(--neutral-muted))]">
-          {isLimitReached ? 'Lemure Search' : 
+          {isLimitReached ? 'Lemur Search' : 
             model === 'llama-3.3-70b-versatile' ? 'Powered by Groq Llama 3.3 70B Versatile' : 
             model === 'llama-4-scout-17b-16e-instruct' ? 'Powered by Groq Llama 4 Scout 17B Instruct' : 
             `Powered by Groq ${model}`
