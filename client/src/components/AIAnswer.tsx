@@ -23,23 +23,49 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
   // Check if this is a limit reached message
   const isLimitReached = model === 'limit-reached';
   
-  // Basic markdown rendering function for improved readability
+  // Enhanced markdown rendering function with improved citation handling
   function renderMarkdown(text: string): string {
-    // Step 1: Process citations to make them clickable
+    // Step 1: Process citations to make them clickable with better pattern matching
     let processedText = text
       // Handle [Source X] pattern citation links
       .replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">${match}</a>`;
         }
         return match;
       })
-      // Handle simple [X] pattern citation links
+      // Handle [X] pattern citation links
       .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link">${match}</a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">${match}</a>`;
+        }
+        return match;
+      })
+      // Handle (Source: title) pattern - common in AI responses
+      .replace(/\(Source: ([^\)]+)\)/g, (match, sourceTitle) => {
+        // Find source by title (partial match)
+        const sourceIndex = sources.findIndex(source => 
+          source.title.toLowerCase().includes(sourceTitle.toLowerCase()) ||
+          sourceTitle.toLowerCase().includes(source.title.toLowerCase())
+        );
+        
+        if (sourceIndex >= 0) {
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">(Source: ${sourceTitle})</a>`;
+        }
+        return match;
+      })
+      // Handle citation patterns like "according to [source name]"
+      .replace(/according to ([\w\s\-\.]+)/gi, (match, sourceName) => {
+        // Find source by domain or title (partial match)
+        const sourceIndex = sources.findIndex(source => 
+          source.title.toLowerCase().includes(sourceName.toLowerCase()) || 
+          (source.domain && source.domain.toLowerCase().includes(sourceName.toLowerCase()))
+        );
+        
+        if (sourceIndex >= 0) {
+          return `according to <a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">${sourceName}</a>`;
         }
         return match;
       });
@@ -111,6 +137,34 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         )}
       </div>
       
+      <div className="mb-3">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full border border-blue-200 dark:border-blue-800 font-medium">
+            AI Summary
+          </span>
+          {sources.length > 0 && (
+            <span className="text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-2 py-1 rounded-full border border-green-200 dark:border-green-800 font-medium flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 11v8a1 1 0 0 0 1 1h8"/>
+                <path d="M4 11V7a4 4 0 0 1 4-4h8"/>
+                <path d="M12 19v-8h8"/>
+                <path d="M20 11V7a4 4 0 0 0-4-4h-8"/>
+              </svg>
+              {sources.length} sources cited
+            </span>
+          )}
+          <span className="text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-1 rounded-full border border-purple-200 dark:border-purple-800 font-medium inline-flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="8" height="8" x="8" y="8" rx="1"/>
+              <path d="M12 4v4"/>
+              <path d="M4 12h4"/>
+              <path d="M12 16v4"/>
+              <path d="M16 12h4"/>
+            </svg>
+            Groq {model.replace('compound-beta', 'Compound').replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          </span>
+        </div>
+      </div>
       <div 
         className="prose dark:prose-invert prose-headings:font-semibold prose-headings:text-primary dark:prose-headings:text-primary-light prose-a:text-citation prose-a:no-underline hover:prose-a:underline prose-strong:font-semibold prose-strong:text-primary-dark dark:prose-strong:text-primary-light prose-code:text-primary-dark dark:prose-code:text-primary-light prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800 prose-pre:rounded-md prose-pre:p-4 prose-pre:overflow-x-auto prose-li:marker:text-primary dark:prose-li:marker:text-primary-light max-w-none"
         dangerouslySetInnerHTML={{ __html: html }}
@@ -175,22 +229,42 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
 
       {!isLimitReached && sources.length > 0 && (
         <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
-          <h4 className="text-sm font-semibold text-[hsl(var(--neutral-muted))] mb-2">Sources:</h4>
-          <ol className="text-sm space-y-1">
-            {sources.map((source, index) => (
-              <li key={index}>
-                <a 
-                  id={`source-${index + 1}`}
-                  href={source.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="citation-link hover:underline"
-                >
-                  [{index + 1}] {source.title}
-                </a>
-              </li>
-            ))}
-          </ol>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-semibold text-[hsl(var(--neutral-muted))]">Sources ({sources.length}):</h4>
+            <div className="text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium border border-green-200 dark:border-green-800">
+              {sources.length} citations used
+            </div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+            <ol className="text-sm space-y-3">
+              {sources.map((source, index) => (
+                <li key={index} className="pb-2 border-b border-gray-100 dark:border-gray-800 last:border-0 last:pb-0">
+                  <div className="flex items-start gap-3">
+                    <div className="flex justify-center items-center w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-800/50 text-purple-700 dark:text-purple-300 text-xs font-semibold">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <a 
+                        id={`source-${index + 1}`}
+                        href={source.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary dark:text-primary-light hover:underline"
+                      >
+                        {source.title}
+                      </a>
+                      {source.domain && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                          <span className="inline-block w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-700 mr-1.5"></span>
+                          {source.domain}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
       )}
       

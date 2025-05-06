@@ -54,7 +54,8 @@ export async function directGroqCompoundSearch(
   apiKey: string, 
   modelPreference: string = 'auto',
   geo_location: string = 'AU',
-  isContextual: boolean = false
+  isContextual: boolean = false,
+  conversationContext: Array<{query: string; answer?: string; timestamp: number}> = []
 ): Promise<{
   answer: string;
   model: string;

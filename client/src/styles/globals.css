@@ -106,7 +106,24 @@
   }
 
   .citation-link {
-    @apply text-[hsl(var(--citation))] font-medium hover:underline;
+    @apply text-[hsl(var(--citation))] font-medium hover:underline relative;
+    padding: 0 2px;
+    border-radius: 3px;
+    background-color: hsla(var(--citation)/0.08);
+    transition: all 0.2s ease;
+  }
+  
+  .citation-link:hover {
+    background-color: hsla(var(--citation)/0.15);
+  }
+  
+  .citation-link::after {
+    content: '🔗';
+    font-size: 0.7em;
+    margin-left: 1px;
+    position: relative;
+    top: -3px;
+    opacity: 0.7;
   }
 
   .tab-active {
