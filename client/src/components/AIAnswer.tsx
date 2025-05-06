@@ -166,7 +166,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
     if (!followUpQuery.trim()) return;
     
     // Navigate to search results with the follow-up query and flag
-    setLocation(`/search?q=${encodeURIComponent(followUpQuery)}&followUp=true`);
+    setLocation(`/search?q=${encodeURIComponent(followUpQuery)}&isFollowUp=true`);
   };
 
   return (
