@@ -119,7 +119,7 @@ function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any
     setIsProcessing(true);
 
     try {
-      console.log('Attempting to confirm payment...');
+      console.log('Attempting to confirm subscription...');
       
       // First, verify all elements are complete
       const { error: elementsError } = await elements.submit();
@@ -135,8 +135,9 @@ function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any
         return;
       }
 
-      // Confirm payment with proper return URL
-      const { error, paymentIntent } = await stripe.confirmPayment({
+      // For subscriptions, we use confirmSetup instead of confirmPayment
+      // This will set up the payment method for future subscription charges
+      const { error, setupIntent } = await stripe.confirmSetup({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/subscription/success`
@@ -283,7 +284,7 @@ export default function SubscriptionPage() {
     );
   }
 
-  // We use direct API calls instead of the Stripe-based implementation
+  // Handle plan selection with proper Stripe integration
   const handleSelectPlan = async (type: 'basic' | 'pro') => {
     setPlanType(type);
     
@@ -296,31 +297,83 @@ export default function SubscriptionPage() {
       return;
     }
     
-    // For demo purposes, we'll use the direct API call approach
+    if (type === 'free') {
+      // Free plan doesn't need payment processing
+      try {
+        const response = await apiRequest('POST', '/api/change-subscription', { planType: type });
+        const data = await response.json();
+        
+        if (data.success) {
+          toast({
+            title: "Free Plan Activated",
+            description: "You're now on the free plan with 20 searches per month."
+          });
+          // Redirect to home page
+          setTimeout(() => setLocation('/'), 2000);
+        } else {
+          toast({
+            title: "Subscription Error",
+            description: data.message || "Could not change subscription. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Could not activate free plan",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+    
+    // For paid plans, we need to collect payment details
+    setIsLoadingPayment(true);
+    
     try {
-      const response = await apiRequest('POST', '/api/change-subscription', { planType: type });
+      // This will create a payment intent and return a client secret
+      const response = await apiRequest('POST', '/api/create-subscription', { planType: type });
       const data = await response.json();
       
-      if (data.success) {
+      // Handle developer account auto-subscription
+      if (data.isDeveloperAccount) {
         toast({
-          title: `${type.charAt(0).toUpperCase() + type.slice(1)} Plan Activated`,
-          description: `You're now on the ${type} plan with ${type === 'basic' ? '100' : '300'} searches per month.`
+          title: "Subscription Successful",
+          description: "As a developer, your account has been automatically upgraded without payment.",
+          variant: "default",
         });
-        // Redirect to home page
+        
+        // Reload to get updated user data
+        window.location.href = '/';
+        return;
+      }
+      
+      if (data.clientSecret) {
+        // Set the client secret which will display the payment form
+        setClientSecret(data.clientSecret);
+      } else if (data.success) {
+        // Some accounts might not need payment processing
+        toast({
+          title: "Subscription Activated",
+          description: `Your ${type} subscription has been activated!`
+        });
         setTimeout(() => setLocation('/'), 2000);
       } else {
+        // Error case
         toast({
-          title: "Subscription Error",
-          description: data.message || "Could not change subscription. Please try again.",
+          title: "Payment Setup Error",
+          description: data.message || "Could not setup payment. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || `Could not activate ${type} plan`,
+        description: error.message || `Could not setup payment for ${type} plan`,
         variant: "destructive",
       });
+    } finally {
+      setIsLoadingPayment(false);
     }
   };
 
@@ -434,39 +487,19 @@ export default function SubscriptionPage() {
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => {
-                // Use the same approach as free tier - direct API call
-                apiRequest('POST', '/api/change-subscription', { planType: 'basic' })
-                  .then(response => response.json())
-                  .then(data => {
-                    if (data.success) {
-                      toast({
-                        title: "Basic Plan Activated",
-                        description: "You're now on the Basic plan with 100 searches per month."
-                      });
-                      // Redirect to home page
-                      setTimeout(() => setLocation('/'), 2000);
-                    } else if (data.requiresPayment) {
-                      // This would normally go to payment flow
-                      toast({
-                        title: "Payment Required",
-                        description: "Payment processing is temporarily disabled in this demo.",
-                        variant: "destructive"
-                      });
-                    }
-                  })
-                  .catch(error => {
-                    toast({
-                      title: "Error",
-                      description: error.message || "Could not activate Basic plan",
-                      variant: "destructive",
-                    });
-                  });
-              }} 
+              onClick={() => handleSelectPlan('basic')} 
               variant={planType === 'basic' ? "default" : "outline"}
               className="w-full"
+              disabled={isLoadingPayment}
             >
-              Select Basic
+              {planType === 'basic' && isLoadingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Select Basic'
+              )}
             </Button>
           </CardFooter>
         </Card>
@@ -487,45 +520,54 @@ export default function SubscriptionPage() {
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => {
-                // Use the same approach as free tier - direct API call
-                apiRequest('POST', '/api/change-subscription', { planType: 'pro' })
-                  .then(response => response.json())
-                  .then(data => {
-                    if (data.success) {
-                      toast({
-                        title: "Pro Plan Activated",
-                        description: "You're now on the Pro plan with 300 searches and full model access."
-                      });
-                      // Redirect to home page
-                      setTimeout(() => setLocation('/'), 2000);
-                    } else if (data.requiresPayment) {
-                      // This would normally go to payment flow
-                      toast({
-                        title: "Payment Required",
-                        description: "Payment processing is temporarily disabled in this demo.",
-                        variant: "destructive"
-                      });
-                    }
-                  })
-                  .catch(error => {
-                    toast({
-                      title: "Error",
-                      description: error.message || "Could not activate Pro plan",
-                      variant: "destructive",
-                    });
-                  });
-              }}
+              onClick={() => handleSelectPlan('pro')} 
               variant={planType === 'pro' ? "default" : "outline"}
               className="w-full"
+              disabled={isLoadingPayment}
             >
-              Select Pro
+              {planType === 'pro' && isLoadingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Select Pro'
+              )}
             </Button>
           </CardFooter>
         </Card>
       </div>
       
-      {/* Payment processing section is disabled in this demo version */}
+      {isLoadingPayment ? (
+        <Card>
+          <CardContent className="flex justify-center items-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="ml-3">Preparing payment form...</p>
+          </CardContent>
+        </Card>
+      ) : clientSecret ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Complete Your Subscription</CardTitle>
+            <CardDescription>
+              You're subscribing to our {planType === 'pro' ? 'Pro' : 'Basic'} plan
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Elements 
+              stripe={stripePromise} 
+              options={{ 
+                clientSecret,
+                appearance: { theme: 'stripe' },
+                // Customize options to make sure the element appears and is activated
+                loader: 'always',
+              }}
+            >
+              <CheckoutForm planType={planType} user={user} />
+            </Elements>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }
