@@ -31,7 +31,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
       .replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}">${match}</a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${match}</span></a>`;
         }
         return match;
       })
@@ -39,7 +39,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
       .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}">${match}</a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-0.5 w-4 h-4 rounded-full bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span></span></a>`;
         }
         return match;
       })
@@ -52,7 +52,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         );
         
         if (sourceIndex >= 0) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-1 py-0.5 rounded-md font-medium hover:bg-green-100 dark:hover:bg-green-800/30 transition-colors" title="${sources[sourceIndex].title}">(Source: ${sourceTitle})</a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-1 py-0.5 rounded-md font-medium hover:bg-green-100 dark:hover:bg-green-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>(Source: ${sourceTitle})</span></a>`;
         }
         return match;
       })
@@ -65,7 +65,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         );
         
         if (sourceIndex >= 0) {
-          return `according to <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}">${sourceName}</a>`;
+          return `according to <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${sourceName}</span></a>`;
         }
         return match;
       })
@@ -78,7 +78,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         );
         
         if (sourceIndex >= 0) {
-          return `from <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}">${sourceName}</a>`;
+          return `from <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${sourceName}</span></a>`;
         }
         return match;
       });
@@ -117,8 +117,40 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
     // Paragraphs (add p tags to text blocks)
     processedText = processedText.replace(/^(?!<[a-z][^>]*>)(.+)$/gm, '<p>$1</p>');
     
-    // Step 3: Sanitize HTML to prevent XSS
-    return DOMPurify.sanitize(processedText);
+    // Step 3: Add styling for better citation visualization
+    processedText = processedText
+      // Add custom classes to citation links to help with styling
+      .replace(/<a href="#source-([0-9]+)"([^>]*)>([^<]+)<\/a>/g, (match, sourceNumber, attributes, text) => {
+        return `<a href="#source-${sourceNumber}" ${attributes} data-source-id="${sourceNumber}" class="source-citation-${sourceNumber} ${attributes.includes('class=') ? '' : 'citation-link'}" onmouseover="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.add('citation-highlight'))" onmouseout="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.remove('citation-highlight'))">${text}</a>`;
+      });
+
+    // Step 4: Add CSS for citation highlighting
+    processedText = `
+      <style>
+        .citation-highlight {
+          background-color: rgba(168, 85, 247, 0.2) !important;
+          box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.4);
+          transition: all 0.2s ease-in-out;
+        }
+        .dark .citation-highlight {
+          background-color: rgba(168, 85, 247, 0.3) !important;
+          box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
+        }
+        .citation-link {
+          text-decoration: none !important;
+          transition: all 0.2s ease-in-out;
+        }
+        .citation-link:hover {
+          text-decoration: none !important;
+        }
+      </style>
+    ` + processedText;
+    
+    // Step 5: Sanitize HTML to prevent XSS
+    return DOMPurify.sanitize(processedText, { 
+      ADD_TAGS: ['style'],
+      ADD_ATTR: ['onmouseover', 'onmouseout', 'data-source-id']
+    });
   }
 
   // Render the markdown to HTML
@@ -274,7 +306,17 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
                 return (
                   <li key={index} className="pb-2 border-b border-gray-100 dark:border-gray-800 last:border-0 last:pb-0">
                     <div className="flex items-start gap-3">
-                      <div className={`flex justify-center items-center w-6 h-6 rounded-full ${importanceStyle[importanceLevel]} text-xs font-semibold transition-all duration-200`}>
+                      <div 
+                        className={`source-citation-${index + 1} flex justify-center items-center w-6 h-6 rounded-full ${importanceStyle[importanceLevel]} text-xs font-semibold transition-all duration-200`}
+                        onMouseOver={() => {
+                          document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                            el.classList.add('citation-highlight'))
+                        }}
+                        onMouseOut={() => {
+                          document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                            el.classList.remove('citation-highlight'))
+                        }}
+                      >
                         {index + 1}
                       </div>
                       <div className="flex-1">
@@ -284,12 +326,30 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
                             href={source.url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="font-medium text-primary dark:text-primary-light hover:underline"
+                            className={`source-citation-${index + 1} font-medium text-primary dark:text-primary-light hover:underline`}
+                            onMouseOver={() => {
+                              document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                                el.classList.add('citation-highlight'))
+                            }}
+                            onMouseOut={() => {
+                              document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                                el.classList.remove('citation-highlight'))
+                            }}
                           >
                             {source.title}
                           </a>
                           {citationCount > 0 && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${importanceStyle[importanceLevel]} font-medium ml-2`}>
+                            <span 
+                              className={`source-citation-${index + 1} text-xs px-1.5 py-0.5 rounded-full ${importanceStyle[importanceLevel]} font-medium ml-2 transition-all duration-200`}
+                              onMouseOver={() => {
+                                document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                                  el.classList.add('citation-highlight'))
+                              }}
+                              onMouseOut={() => {
+                                document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                                  el.classList.remove('citation-highlight'))
+                              }}
+                            >
                               {citationCount === 1 ? '1 citation' : `${citationCount} citations`}
                             </span>
                           )}
