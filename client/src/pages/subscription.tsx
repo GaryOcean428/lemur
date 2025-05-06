@@ -394,6 +394,7 @@ export default function SubscriptionPage() {
               <li className="flex items-center">✓ Access to compound-beta-mini model</li>
               <li className="flex items-center">✓ Standard search capabilities</li>
               <li className="flex items-center">✓ Basic filters</li>
+              <li className="flex items-center">✓ Upgrade from 20 free searches</li>
             </ul>
           </CardContent>
           <CardFooter>
@@ -415,7 +416,7 @@ export default function SubscriptionPage() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              <li className="flex items-center">✓ Unlimited searches</li>
+              <li className="flex items-center">✓ 300 Searches per month</li>
               <li className="flex items-center">✓ Access to full compound-beta model</li>
               <li className="flex items-center">✓ Deep Research capability</li>
               <li className="flex items-center">✓ Advanced filters and personalization</li>
