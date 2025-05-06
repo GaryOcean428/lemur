@@ -382,7 +382,52 @@ export default function SubscriptionPage() {
     <div className="container max-w-5xl mx-auto py-12">
       <h1 className="text-3xl font-bold mb-8">Upgrade Your Lemur Experience</h1>
       
-      <div className="grid md:grid-cols-2 gap-8 mb-12">
+      <div className="grid md:grid-cols-3 gap-8 mb-12">
+        <Card className="border-2 border-gray-200 dark:border-gray-700">
+          <CardHeader>
+            <CardTitle>Free Plan</CardTitle>
+            <CardDescription>$0/month</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <ul className="space-y-2">
+              <li className="flex items-center">✓ 20 Searches per month</li>
+              <li className="flex items-center">✓ Access to compound-beta-mini model</li>
+              <li className="flex items-center">✓ Basic search capabilities</li>
+              <li className="flex items-center">✓ Standard results</li>
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              onClick={() => {
+                // Direct API call for free tier
+                apiRequest('POST', '/api/create-subscription', { tier: 'free' })
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.success) {
+                      toast({
+                        title: "Free Plan Activated",
+                        description: "You're now on the free plan with 20 searches per month."
+                      });
+                      // Redirect to home page
+                      setTimeout(() => setLocation('/'), 2000);
+                    }
+                  })
+                  .catch(error => {
+                    toast({
+                      title: "Error",
+                      description: error.message || "Could not activate free plan",
+                      variant: "destructive",
+                    });
+                  });
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              Continue with Free
+            </Button>
+          </CardFooter>
+        </Card>
+        
         <Card className={`border-2 ${planType === 'basic' ? 'border-primary' : 'border-transparent'}`}>
           <CardHeader>
             <CardTitle>Basic Plan</CardTitle>

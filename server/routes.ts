@@ -1025,7 +1025,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      const { tier } = req.body;
+      // Accept either 'tier' or 'planType' parameter for better compatibility
+      const tier = req.body.tier || req.body.planType;
       
       if (!tier || (tier !== 'free' && tier !== 'basic' && tier !== 'pro')) {
         return res.status(400).json({ message: "Valid subscription tier (free, basic, or pro) is required" });
