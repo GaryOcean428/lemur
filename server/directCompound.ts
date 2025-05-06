@@ -94,9 +94,9 @@ export async function directGroqCompoundSearch(
     // Select the model based on preference, defaulting to compound-beta if not found
     const model = modelMap[normalizedPref] || "compound-beta";
     
-    // Compound-beta models support tool calling for web search integration
-    // We need to enable this for Tavily search to work through Groq
-    const supportsTools = true;
+    // According to the API error, Groq models do not currently support explicit tool calling
+    // as we've implemented it. We should use the model without tools.
+    const supportsTools = false;
     
     // For non-tool models (fast/mini), use a simpler system prompt without tool instructions
     const isToolModel = supportsTools;
@@ -106,51 +106,69 @@ export async function directGroqCompoundSearch(
 
     // Create the system message with search preferences
     // Use different prompts for tool and non-tool models
+    // First, fetch Tavily search results to provide context
+    let searchContext = '';
+    try {
+      console.log('Prefetching Tavily search results for', query);
+      const searchApiUrl = 'https://api.tavily.com/search';
+      const searchHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`  // We should be passing the Tavily key here
+      };
+      
+      const searchRequestBody = {
+        query: query,
+        search_depth: "basic",
+        include_domains: filters?.include_domains || [],
+        exclude_domains: filters?.exclude_domains || [],
+        max_results: 5
+      };
+      
+      const searchResponse = await fetch(searchApiUrl, {
+        method: 'POST',
+        headers: searchHeaders,
+        body: JSON.stringify(searchRequestBody)
+      });
+      
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        if (searchData.results && searchData.results.length > 0) {
+          // Format search results as context for the model
+          searchContext = 'Here are some recent search results that may be helpful:\n\n';
+          searchData.results.forEach((result: any, index: number) => {
+            searchContext += `[${index + 1}]: ${result.title}\n`;
+            searchContext += `URL: ${result.url}\n`;
+            searchContext += `Content: ${result.content.substring(0, 300)}...\n\n`;
+          });
+        }
+      } else {
+        console.log('Tavily search failed, proceeding without search context');
+      }
+    } catch (error) {
+      console.error('Error fetching Tavily search results:', error);
+      // Continue without search context
+    }
+    
     const systemMessage = {
       role: "system",
-      content: supportsTools ? 
-        // For tool-enabled models (compound-beta)
-        `You are Lemur, an advanced search assistant powered by Groq's Compound Beta models.
-
-Important: Use the search function for EVERY query to find current, authoritative information before responding. 
+      content: `You are Lemur, an advanced search assistant powered by Groq's AI models.
 
 When responding to search queries, follow these guidelines:
-1. Always use the search function to find information before answering
-2. Be comprehensive and detailed in your answers
-3. Include proper citations for all factual information
-4. Use markdown formatting for structure (headings, lists, etc.)
-5. Break down complex information into understandable parts
-6. For time-sensitive information, note the recency of sources
-7. Adapt content to be contextually relevant for users in ${geo_location}
-
-When using the search function, prefer sources that are:
-- Recent and up-to-date
-- Authoritative and reliable
-- Directly relevant to the query
-
-Format your response with clear section headings and a logical structure.
-
-Remember: You MUST use the search function for all queries, even if you think you know the answer.` : 
-        // For non-tool models (compound-beta-mini)
-        `You are Lemur, an advanced search assistant powered by Groq's AI models.
-
-When responding to search queries, follow these guidelines:
-1. Be concise yet informative in your answers
+1. Be comprehensive and detailed in your answers
 2. Use markdown formatting for structure (headings, lists, etc.)
 3. Break down complex information into understandable parts
-4. Provide balanced viewpoints on controversial topics
+4. Be factual and provide balanced viewpoints on controversial topics
 5. Adapt content to be contextually relevant for users in ${geo_location}
 
 IMPORTANT CITATION FORMAT: 
-For any factual information, include numbered references at the end of your response in this format:
+For any factual information from the search results provided, include numbered references at the end of your response in this format:
 [1]: https://example.com "Title of Source"
-[2]: https://anotherexample.com "Another Source Title"
 
 Refer to these sources in-text using the number in brackets, for example: [1]
 
 Format your response with clear section headings and a logical structure.
 
-Note: You're working with a limited model that doesn't have real-time search capabilities. Acknowledge when information might be outdated or when you don't have enough context to provide a complete answer.`
+${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     };
 
     // Prepare conversation context and messages
