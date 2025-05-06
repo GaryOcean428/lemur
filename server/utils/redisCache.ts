@@ -8,30 +8,35 @@
 import { Redis } from '@upstash/redis';
 
 // Initialize Redis from environment variables
-let redis: Redis;
+let redis: Redis | undefined;
 
 try {
   // Check if we have direct Redis URL
   if (process.env.REDIS_URL) {
     redis = new Redis({
       url: process.env.REDIS_URL,
+      token: process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN,
     });
   } 
   // Otherwise check for KV environment variables
   else if (process.env.KV_URL) {
     redis = new Redis({
       url: process.env.KV_URL,
-      token: process.env.KV_REST_API_TOKEN,
+      token: process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN,
     });
   }
   // Fall back to using REST API directly
-  else if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+  else if (process.env.KV_REST_API_URL && (process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN)) {
     redis = new Redis({
       url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
+      token: process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN,
     });
   } else {
     console.warn('No Redis/KV configuration found. Redis caching will be disabled.');
+  }
+
+  if (redis) {
+    console.log('Redis client initialized successfully. Distributed caching enabled.');
   }
 } catch (error) {
   console.error('Failed to initialize Redis client:', error);
@@ -118,14 +123,14 @@ export async function deleteCacheByPattern(pattern: string): Promise<void> {
   
   try {
     // Scan for keys matching the pattern
-    let cursor = 0;
+    let cursor = "0";
     let keys: string[] = [];
     
     do {
       const result = await redis.scan(cursor, { match: pattern, count: 100 });
-      cursor = result[0] as number;
+      cursor = result[0] as string;
       keys = keys.concat(result[1] as string[]);
-    } while (cursor !== 0);
+    } while (cursor !== "0");
     
     // Delete the found keys
     if (keys.length > 0) {

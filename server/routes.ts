@@ -13,6 +13,22 @@ import {
   getRelevantSourcesFromContext,
   createContextualSystemMessage
 } from "./utils/context";
+import { 
+  startApiTiming, 
+  completeApiTiming, 
+  getRecentTimings, 
+  getSystemMetrics, 
+  resetSystemMetrics,
+  recordCacheResult,
+  logEvent
+} from "./utils/telemetry";
+import {
+  getCache,
+  setCache,
+  getOrCompute,
+  generateCacheKey,
+  isRedisAvailable
+} from "./utils/redisCache";
 import fetch from "node-fetch";
 import Stripe from "stripe";
 
@@ -446,6 +462,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: 'Test failed',
         message: error.message || 'Unknown error'
       });
+    }
+  });
+  
+  // System monitoring endpoint
+  app.get("/api/monitoring/system", async (req, res) => {
+    try {
+      // Check authentication - only admins can view detailed monitoring
+      const isAuthenticated = req.isAuthenticated();
+      // Check for admin status based on a special username for now
+      // In a real system we would have proper role-based access control
+      const isAdmin = isAuthenticated && req.user.username === 'admin';
+      
+      // Get system health metrics
+      const metrics = getSystemMetrics();
+      
+      // Create a simplified version for non-admin users
+      if (!isAdmin) {
+        // Only include non-sensitive information
+        return res.json({
+          status: 'ok',
+          uptime: process.uptime(),
+          timestamp: Date.now(),
+          cacheStatus: {
+            memoryCache: true,
+            redisCache: isRedisAvailable()
+          }
+        });
+      }
+      
+      // Include recent API timings, system metrics, and more detailed info for admins
+      const recentTimings = getRecentTimings(20);
+      
+      res.json({
+        status: 'ok',
+        uptime: process.uptime(),
+        timestamp: Date.now(),
+        metrics,
+        recentTimings,
+        memory: process.memoryUsage(),
+        cacheStatus: {
+          memoryCache: true,
+          redisCache: isRedisAvailable()
+        }
+      });
+    } catch (error) {
+      console.error('Monitoring error:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to retrieve monitoring data' });
+    }
+  });
+
+  // Reset monitoring statistics
+  app.post("/api/monitoring/reset", async (req, res) => {
+    try {
+      // Check authentication - only admins can reset monitoring
+      // Check for admin status based on a special username for now
+      if (!req.isAuthenticated() || req.user.username !== 'admin') {
+        return res.status(403).json({ status: 'error', message: 'Unauthorized' });
+      }
+      
+      // Reset the metrics
+      resetSystemMetrics();
+      
+      res.json({ status: 'ok', message: 'Monitoring statistics reset successfully' });
+    } catch (error) {
+      console.error('Monitoring reset error:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to reset monitoring data' });
     }
   });
   
