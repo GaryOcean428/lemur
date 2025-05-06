@@ -1032,6 +1032,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid subscription tier (free, basic, or pro) is required" });
       }
       
+      // Special case for developer account - auto-approve without payment
+      if (req.user.username === 'GaryOcean' || req.user.isDeveloper) {
+        console.log(`Auto-approving subscription for developer account: ${req.user.username}`);
+        await storage.updateUserSubscription(req.user.id, tier);
+        return res.json({
+          success: true,
+          isDeveloperAccount: true,
+          message: `Developer account automatically subscribed to ${tier} tier`,
+          tier
+        });
+      }
+      
       // Handle free tier differently - no Stripe subscription needed
       if (tier === 'free') {
         // Just update the user's subscription tier and return success
@@ -1065,12 +1077,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get or create customer
       let customerId = req.user.stripeCustomerId;
       
+      // Log available price ID for debugging
+      console.log(`Using price ID for ${tier} tier: ${priceId}`);
+      
       if (!customerId) {
+        // Create customer, ensuring there's always a valid email
+        const email = req.user.email || `${req.user.username}@example.com`;
+        console.log(`Creating new Stripe customer with email: ${email}`);
+        
         const customer = await stripe.customers.create({
-          email: req.user.email,
+          email,
           name: req.user.username
         });
         customerId = customer.id;
+        console.log(`Created new Stripe customer with ID: ${customerId}`);
+      } else {
+        console.log(`Using existing Stripe customer: ${customerId}`);
       }
       
       // Create subscription
@@ -1089,10 +1111,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Return subscription details
-      res.json({
-        subscriptionId: subscription.id,
-        clientSecret: subscription.latest_invoice.payment_intent.client_secret
-      });
+      if (subscription.latest_invoice && 
+          typeof subscription.latest_invoice !== 'string' && 
+          subscription.latest_invoice.payment_intent && 
+          typeof subscription.latest_invoice.payment_intent !== 'string' &&
+          subscription.latest_invoice.payment_intent.client_secret) {
+        console.log(`Successfully created subscription with ID: ${subscription.id}`);
+        return res.json({
+          subscriptionId: subscription.id,
+          clientSecret: subscription.latest_invoice.payment_intent.client_secret
+        });
+      } else {
+        console.error("Missing expected payment_intent.client_secret in subscription response");
+        console.log("Subscription response structure issue");
+        return res.status(500).json({ 
+          message: "Payment setup incomplete", 
+          details: "Could not retrieve payment details from Stripe" 
+        });
+      }
     } catch (error) {
       console.error("Error creating subscription:", error);
       res.status(500).json({ message: "Error creating subscription" });

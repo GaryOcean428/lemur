@@ -9,6 +9,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
   createdAt: timestamp("created_at").defaultNow(),
+  // User role information
+  isDeveloper: boolean("is_developer").default(false), // Special flag for developers and admins
   // Subscription information
   subscriptionTier: text("subscription_tier").notNull().default('free'), // 'free', 'basic', 'pro'
   searchCount: integer("search_count").notNull().default(0), // Track searches for limiting free users
@@ -50,6 +52,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   email: true,
+  isDeveloper: true,
   subscriptionTier: true,
   searchCount: true,
   stripeCustomerId: true,
