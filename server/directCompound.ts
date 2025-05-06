@@ -79,25 +79,22 @@ export async function directGroqCompoundSearch(
     // Note: compound-beta-mini doesn't support tool calling,
     // so we need different handling based on whether tools are needed
     
-    // The compound-beta models were initially expected to support tool calling,
-    // but there appear to be issues with their availability or capabilities.
-    // Let's use standard models that are more reliably available.
-    
-    // Model selection map - using established Groq models that are known to be stable
+    // Model selection map
+    // Using the correct Groq Compound Beta models as documented
     const modelMap: Record<string, string> = {
-      "auto": "llama3-70b-8192", // Default to Llama 3 for auto
-      "fast": "mixtral-8x7b-32768", // Faster but less comprehensive
-      "comprehensive": "llama3-70b-8192" // More comprehensive but slower
+      "auto": "compound-beta", // Full-featured model with multiple tool calls
+      "fast": "compound-beta-mini", // Faster with single tool call
+      "comprehensive": "compound-beta" // Full-featured for comprehensive results
     };
     
     // Normalize the preference to lowercase for consistent matching
     const normalizedPref = modelPreference.toLowerCase();
     
-    // Select the model based on preference, defaulting to llama3 if not found
-    const model = modelMap[normalizedPref] || "llama3-70b-8192";
+    // Select the model based on preference, defaulting to compound-beta if not found
+    const model = modelMap[normalizedPref] || "compound-beta";
     
-    // Currently no Groq models reliably support tool calling, so set to false
-    const supportsTools = false;
+    // compound-beta supports tool calling, compound-beta-mini supports only one tool call
+    const supportsTools = model === "compound-beta";
     
     // For non-tool models (fast/mini), use a simpler system prompt without tool instructions
     const isToolModel = supportsTools;

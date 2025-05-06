@@ -53,9 +53,21 @@ interface GroqResponse {
 async function tavilySearch(query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> {
   console.log(`Tavily search for: "${query}" with depth: ${config.search_depth || 'basic'}`);
   
+  // Clean and validate the query
+  const cleanedQuery = query.trim();
+  if (!cleanedQuery) {
+    throw new Error('Search query cannot be empty');
+  }
+  
   // Extra validation for Tavily API key format
   if (!apiKey || !apiKey.trim()) {
-    throw new Error('Tavily API key is missing. Please check your environment variables.');
+    console.warn('Tavily API key is missing or empty. Using Groq only without web search results.');
+    // Return empty results rather than throwing an error to allow the system to continue with just Groq
+    return {
+      results: [],
+      query: cleanedQuery,
+      search_depth: config.search_depth || "basic"
+    };
   }
   
   if (!apiKey.startsWith('tvly-')) {
@@ -63,12 +75,6 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
   }
   
   try {
-    // Clean and validate the query
-    const cleanedQuery = query.trim();
-    if (!cleanedQuery) {
-      throw new Error('Search query cannot be empty');
-    }
-    
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: {
@@ -99,7 +105,13 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
         
         // Provide specific error messages for common error codes
         if (response.status === 401) {
-          errorMessage = 'Tavily API error: Invalid or expired API key. Please update your API key.';
+          console.warn('Tavily API authentication failed. Using Groq only without web search results.');
+          // Return empty results rather than throwing, so Groq can still provide some answer
+          return {
+            results: [],
+            query: cleanedQuery,
+            search_depth: config.search_depth || "basic"
+          };
         } else if (response.status === 429) {
           errorMessage = 'Tavily API error: Rate limit exceeded. Please try again later.';
         } else {
@@ -117,29 +129,41 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
   } catch (error) {
     // Add more detailed error information
     console.error('Tavily API call failed:', error);
-    throw error;
+    
+    // Instead of throwing, return empty results to allow Groq to still function
+    console.warn('Tavily search failed. Using Groq only without web search results.');
+    return {
+      results: [],
+      query: cleanedQuery,
+      search_depth: config.search_depth || "basic"
+    };
   }
 }
 
 // Function to perform Groq search
 async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string, modelPreference: string = 'auto'): Promise<{answer: string; model: string}> {
-  // Map modelPreference to actual Groq model
-  let model = "llama3-70b-8192"; // Default
+  // Map modelPreference to actual Groq models
+  // Using Compound Beta models as documented
+  let model = "compound-beta"; // Default
   if (modelPreference === 'fast') {
-    model = "mixtral-8x7b-32768"; // Faster but less comprehensive
+    model = "compound-beta-mini"; // Faster with single tool call
   } else if (modelPreference === 'comprehensive') {
-    model = "llama3-70b-8192"; // More comprehensive but slower
+    model = "compound-beta"; // Full-featured for comprehensive results
   }
   
   console.log(`Using Groq model: ${model} for synthesis`);
   
-  // Extract and format context from search results
-  const context = sources.map((source, index) => 
-    `Source ${index + 1}:\nTitle: ${source.title}\nURL: ${source.url}\nContent: ${source.content.substring(0, 1000)}\n`
-  ).join("\n");
+  // Create different prompts based on whether we have sources or not
+  let prompt: string;
   
-  // Create the prompt for Groq
-  const prompt = `You are a helpful search assistant that provides detailed, informative answers based on search results.
+  if (sources && sources.length > 0) {
+    // Extract and format context from search results
+    const context = sources.map((source, index) => 
+      `Source ${index + 1}:\nTitle: ${source.title}\nURL: ${source.url}\nContent: ${source.content.substring(0, 1000)}\n`
+    ).join("\n");
+    
+    // Prompt with sources
+    prompt = `You are a helpful search assistant that provides detailed, informative answers based on search results.
 
 Search Query: "${query}"
 
@@ -157,6 +181,23 @@ Instructions:
 7. Present a balanced view if there are conflicting perspectives in the sources.
 
 Your answer:`;
+  } else {
+    // If no sources available, create a prompt that acknowledges the limitation
+    prompt = `You are Lemur, an advanced search assistant.
+
+Search Query: "${query}"
+
+Important: External web search functionality is currently unavailable. Please generate a helpful response based on your built-in knowledge and acknowledge this limitation.
+
+Instructions:
+1. Provide the most helpful answer you can based on your built-in knowledge.
+2. Be clear about the limitations of your response without web search results.
+3. Use markdown formatting for better readability.
+4. If you don't have enough information to answer confidently, suggest alternative search queries or topics the user might explore.
+5. Adapt your response to be as relevant as possible to the query.
+
+Your answer:`;  
+  }
 
   // Make request to Groq API
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
