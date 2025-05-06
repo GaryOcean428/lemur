@@ -51,11 +51,13 @@ export interface SearchResult {
 
 export async function directGroqCompoundSearch(
   query: string, 
-  apiKey: string, 
+  groqApiKey: string, 
   modelPreference: string = 'auto',
   geo_location: string = 'AU',
   isContextual: boolean = false,
-  conversationContext: Array<{query: string; answer?: string; timestamp: number}> = []
+  conversationContext: Array<{query: string; answer?: string; timestamp: number}> = [],
+  filters: Record<string, any> = {},
+  tavilyApiKey: string | null = null
 ): Promise<{
   answer: string;
   model: string;
@@ -65,14 +67,14 @@ export async function directGroqCompoundSearch(
   searchResults?: SearchResult[];
 }> {
   try {
-    // Validate API key
-    if (!apiKey || apiKey.trim() === '') {
+    // Validate Groq API key
+    if (!groqApiKey || groqApiKey.trim() === '') {
       // More helpful error message with suggestion
       throw new Error('Missing Groq API key. Please make sure the GROQ_API_KEY environment variable is set.');
     }
     
-    // Check if API key seems valid (basic format check)
-    if (!apiKey.startsWith('gsk_')) {
+    // Check if Groq API key seems valid (basic format check)
+    if (!groqApiKey.startsWith('gsk_')) {
       console.warn('Warning: Groq API key does not have the expected format (should start with "gsk_"). API calls may fail.');
     }
 
@@ -108,45 +110,51 @@ export async function directGroqCompoundSearch(
     // Use different prompts for tool and non-tool models
     // First, fetch Tavily search results to provide context
     let searchContext = '';
-    try {
-      console.log('Prefetching Tavily search results for', query);
-      const searchApiUrl = 'https://api.tavily.com/search';
-      const searchHeaders = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`  // We should be passing the Tavily key here
-      };
-      
-      const searchRequestBody = {
-        query: query,
-        search_depth: "basic",
-        include_domains: filters?.include_domains || [],
-        exclude_domains: filters?.exclude_domains || [],
-        max_results: 5
-      };
-      
-      const searchResponse = await fetch(searchApiUrl, {
-        method: 'POST',
-        headers: searchHeaders,
-        body: JSON.stringify(searchRequestBody)
-      });
-      
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        if (searchData.results && searchData.results.length > 0) {
-          // Format search results as context for the model
-          searchContext = 'Here are some recent search results that may be helpful:\n\n';
-          searchData.results.forEach((result: any, index: number) => {
-            searchContext += `[${index + 1}]: ${result.title}\n`;
-            searchContext += `URL: ${result.url}\n`;
-            searchContext += `Content: ${result.content.substring(0, 300)}...\n\n`;
-          });
+    
+    // Try to fetch Tavily search results if we have a Tavily API key
+    if (tavilyApiKey) {
+      try {
+        console.log('Prefetching Tavily search results for', query);
+        const searchApiUrl = 'https://api.tavily.com/search';
+        const searchHeaders = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tavilyApiKey}`
+        };
+        
+        const searchRequestBody = {
+          query: query,
+          search_depth: "basic",
+          include_domains: filters?.include_domains || [],
+          exclude_domains: filters?.exclude_domains || [],
+          max_results: 5
+        };
+        
+        const searchResponse = await fetch(searchApiUrl, {
+          method: 'POST',
+          headers: searchHeaders,
+          body: JSON.stringify(searchRequestBody)
+        });
+        
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          if (searchData.results && searchData.results.length > 0) {
+            // Format search results as context for the model
+            searchContext = 'Here are some recent search results that may be helpful:\n\n';
+            searchData.results.forEach((result: any, index: number) => {
+              searchContext += `[${index + 1}]: ${result.title}\n`;
+              searchContext += `URL: ${result.url}\n`;
+              searchContext += `Content: ${result.content.substring(0, 300)}...\n\n`;
+            });
+          }
+        } else {
+          console.log('Tavily search failed, proceeding without search context');
         }
-      } else {
-        console.log('Tavily search failed, proceeding without search context');
+      } catch (error) {
+        console.error('Error fetching Tavily search results:', error);
+        // Continue without search context
       }
-    } catch (error) {
-      console.error('Error fetching Tavily search results:', error);
-      // Continue without search context
+    } else {
+      console.log('No Tavily API key provided, skipping prefetch');
     }
     
     const systemMessage = {
@@ -240,7 +248,7 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${groqApiKey}`
       },
       body: JSON.stringify(requestBody)
     });
