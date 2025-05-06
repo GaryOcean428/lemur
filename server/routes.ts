@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { directGroqCompoundSearch } from "./directCompound";
 import { storage } from "./storage";
 import { InsertUserPreferences, InsertUserTopicInterest } from "@shared/schema";
+import { searchCache, aiResponseCache, suggestionCache } from "./utils/cache";
 import fetch from "node-fetch";
 import Stripe from "stripe";
 
@@ -71,6 +72,25 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
     };
   }
   
+  // Generate cache key based on query and config
+  const cacheKey = {
+    query: cleanedQuery,
+    config: { ...config }, // Clone config to avoid references
+    type: 'tavily-search'
+  };
+  
+  // Check cache first before making API call
+  // Skip cache for time-sensitive searches (time_range=day)
+  const skipCache = config.time_range === 'day' || config.time_range === 'hour';
+  
+  if (!skipCache) {
+    const cachedResults = searchCache.get(cacheKey);
+    if (cachedResults) {
+      console.log(`Cache hit for Tavily search: "${cleanedQuery}"`);
+      return cachedResults as TavilySearchResponse;
+    }
+  }
+  
   // Detailed debug info about the API key
   console.log(`DEBUG: Tavily API key details:`);
   console.log(`- Length: ${apiKey.length}`);
@@ -135,6 +155,24 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
     }
 
     const results = await response.json() as TavilySearchResponse;
+    
+    // Cache results if they're valid and not time-sensitive
+    if (!skipCache && results && results.results && results.results.length > 0) {
+      // Determine appropriate TTL based on search depth and time range
+      let cacheTTL = 600; // Default 10 minutes
+      
+      if (config.search_depth === 'comprehensive') {
+        cacheTTL = 1800; // 30 minutes for comprehensive searches
+      } else if (config.time_range === 'week') {
+        cacheTTL = 3600; // 1 hour for weekly searches
+      } else if (config.time_range === 'month' || config.time_range === 'year') {
+        cacheTTL = 14400; // 4 hours for monthly/yearly searches
+      }
+      
+      searchCache.set(cacheKey, results, cacheTTL);
+      console.log(`Cached Tavily search results for "${cleanedQuery}" with TTL ${cacheTTL}s`);
+    }
+    
     return results;
   } catch (error) {
     // Add more detailed error information
@@ -165,6 +203,21 @@ async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: 
   
   console.log(`Using Groq model: ${model} for synthesis`);
   
+  // Create a cache key that incorporates the query, sources, and model
+  const cacheKey = {
+    query,
+    sourcesHash: sources ? hashSources(sources) : 'no-sources',
+    model,
+    type: 'groq-ai-answer'
+  };
+  
+  // Check cache first
+  const cachedAnswer = aiResponseCache.get(cacheKey);
+  if (cachedAnswer) {
+    console.log(`Cache hit for AI answer: "${query}" using model ${model}`);
+    return cachedAnswer;
+  }
+
   // Create different prompts based on whether we have sources or not
   let prompt: string;
   
@@ -211,39 +264,66 @@ Instructions:
 Your answer:`;  
   }
 
-  // Make request to Groq API
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: "system", content: "You are a helpful search assistant that provides detailed, informative answers based on search results." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.2,
-      max_tokens: 2000,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Groq API error ${response.status}: ${errorText}`);
-  }
-
-  const data: GroqResponse = await response.json();
+  try {
+    // Make request to Groq API
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: "You are a helpful search assistant that provides detailed, informative answers based on search results." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.2,
+        max_tokens: 2000,
+      }),
+    });
   
-  if (!data.choices || data.choices.length === 0) {
-    throw new Error("No response generated from Groq API");
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Groq API error ${response.status}: ${errorText}`);
+    }
   
-  return {
-    answer: data.choices[0].message.content,
-    model: data.model
-  };
+    const data = await response.json() as GroqResponse;
+    
+    if (!data.choices || data.choices.length === 0) {
+      throw new Error("No response generated from Groq API");
+    }
+    
+    const result = {
+      answer: data.choices[0].message.content,
+      model: data.model
+    };
+    
+    // Cache the result
+    const cacheTTL = model === 'compound-beta-mini' ? 900 : 1800; // 15 minutes for fast model, 30 minutes for others
+    aiResponseCache.set(cacheKey, result, cacheTTL);
+    console.log(`Cached AI answer for "${query}" using model ${model} with TTL ${cacheTTL}s`);
+    
+    return result;
+  } catch (error) {
+    console.error('Error during Groq API call:', error);
+    throw error;
+  }
+}
+
+// Helper function to create a hash of the sources array for cache keys
+function hashSources(sources: TavilySearchResult[]): string {
+  try {
+    // Create a simplified representation of sources for hashing
+    const simplifiedSources = sources.map(source => ({
+      url: source.url,
+      title: source.title.substring(0, 50) // Just use part of the title to avoid long strings
+    }));
+    return JSON.stringify(simplifiedSources);
+  } catch (e) {
+    // Fallback in case of error
+    return `sources-${sources.length}`;
+  }
 }
 
 // Function to get search suggestions
@@ -252,6 +332,13 @@ async function getSearchSuggestions(partialQuery: string): Promise<string[]> {
   // In a production environment, you would connect to a real suggestion API
   if (!partialQuery || partialQuery.length < 2) {
     return [];
+  }
+  
+  // Check cache first for this query
+  const cachedSuggestions = suggestionCache.get(partialQuery.toLowerCase());
+  if (cachedSuggestions) {
+    console.log(`Cache hit for search suggestions: "${partialQuery}"`);
+    return cachedSuggestions;
   }
   
   // Basic suggestions based on the query
@@ -269,11 +356,16 @@ async function getSearchSuggestions(partialQuery: string): Promise<string[]> {
   ];
   
   // Filter suggestions based on the query
-  return baseSuggestions
+  const suggestions = baseSuggestions
     .filter(suggestion => 
       suggestion.toLowerCase().includes(partialQuery.toLowerCase()))
     .concat([`${partialQuery} latest news`, `${partialQuery} research papers`])
     .slice(0, 7); // Return at most 7 suggestions
+    
+  // Cache the suggestions (short TTL for search suggestions - 5 minutes)
+  suggestionCache.set(partialQuery.toLowerCase(), suggestions, 300);
+  
+  return suggestions;
 }
 
 
