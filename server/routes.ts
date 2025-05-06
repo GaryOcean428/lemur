@@ -4,6 +4,15 @@ import { directGroqCompoundSearch } from "./directCompound";
 import { storage } from "./storage";
 import { InsertUserPreferences, InsertUserTopicInterest } from "@shared/schema";
 import { searchCache, aiResponseCache, suggestionCache } from "./utils/cache";
+import { 
+  ConversationContext, 
+  ConversationTurn, 
+  isLikelyFollowUp, 
+  addTurnToContext, 
+  createContextualPrompt,
+  getRelevantSourcesFromContext,
+  createContextualSystemMessage
+} from "./utils/context";
 import fetch from "node-fetch";
 import Stripe from "stripe";
 

@@ -163,11 +163,12 @@ class Cache<T> {
    */
   removeExpired(): void {
     const now = Date.now();
-    for (const [key, entry] of this.cache.entries()) {
+    // Use Array.from to convert iterator to array to avoid TSC errors
+    Array.from(this.cache.entries()).forEach(([key, entry]) => {
       if ((now - entry.timestamp) > entry.expiry) {
         this.cache.delete(key);
       }
-    }
+    });
   }
 
   /**
@@ -178,12 +179,13 @@ class Cache<T> {
     let oldestKey: string | undefined;
     let oldestTime = Infinity;
     
-    for (const [key, entry] of this.cache.entries()) {
+    // Use Array.from to convert iterator to array to avoid TSC errors
+    Array.from(this.cache.entries()).forEach(([key, entry]) => {
       if (entry.timestamp < oldestTime) {
         oldestKey = key;
         oldestTime = entry.timestamp;
       }
-    }
+    });
     
     return oldestKey;
   }
