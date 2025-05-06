@@ -12,7 +12,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUserSubscription(userId: number, tier: string, expiresAt?: Date): Promise<User>;
   incrementUserSearchCount(userId: number): Promise<User>;
-  updateStripeInfo(userId: number, customerId: string, subscriptionId: string): Promise<User>;
+  updateStripeInfo(userId: number, customerId: string, subscriptionId: string | null): Promise<User>;
   isFirstUser(): Promise<boolean>; // Check if this is the first user being created
   
   // Search history operations
@@ -78,13 +78,20 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateStripeInfo(userId: number, customerId: string, subscriptionId: string): Promise<User> {
+  async updateStripeInfo(userId: number, customerId: string, subscriptionId: string | null): Promise<User> {
+    // Create the update data object
+    const updateData: any = {
+      stripeCustomerId: customerId
+    };
+    
+    // Only add subscriptionId if it's not null
+    if (subscriptionId !== null) {
+      updateData.stripeSubscriptionId = subscriptionId;
+    }
+    
     const [updatedUser] = await db
       .update(users)
-      .set({
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: subscriptionId
-      })
+      .set(updateData)
       .where(eq(users.id, userId))
       .returning();
     

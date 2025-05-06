@@ -1077,9 +1077,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get or create customer
       let customerId = req.user.stripeCustomerId;
       
-      // Log available price ID for debugging
-      console.log(`Using price ID for ${tier} tier: ${priceId}`);
-      
       if (!customerId) {
         // Create customer, ensuring there's always a valid email
         const email = req.user.email || `${req.user.username}@example.com`;
@@ -1091,44 +1088,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         customerId = customer.id;
         console.log(`Created new Stripe customer with ID: ${customerId}`);
+        
+        // Update the customer ID in the database
+        await storage.updateStripeInfo(
+          req.user.id,
+          customer.id,
+          null
+        );
       } else {
         console.log(`Using existing Stripe customer: ${customerId}`);
       }
       
-      // Create subscription
-      const subscription = await stripe.subscriptions.create({
+      // For subscriptions, we need to create a SetupIntent instead of a PaymentIntent
+      // This will be used to collect the payment method that will be charged for the subscription
+      const setupIntent = await stripe.setupIntents.create({
         customer: customerId,
-        items: [{ price: priceId }],
-        payment_behavior: 'default_incomplete',
-        expand: ['latest_invoice.payment_intent']
+        payment_method_types: ['card'],
+        usage: 'off_session',
       });
       
-      // Update user in database
-      await storage.updateStripeInfo(
-        req.user.id,
-        customerId,
-        subscription.id
-      );
+      console.log(`Created setup intent with ID: ${setupIntent.id}`);
       
-      // Return subscription details
-      if (subscription.latest_invoice && 
-          typeof subscription.latest_invoice !== 'string' && 
-          subscription.latest_invoice.payment_intent && 
-          typeof subscription.latest_invoice.payment_intent !== 'string' &&
-          subscription.latest_invoice.payment_intent.client_secret) {
-        console.log(`Successfully created subscription with ID: ${subscription.id}`);
-        return res.json({
-          subscriptionId: subscription.id,
-          clientSecret: subscription.latest_invoice.payment_intent.client_secret
-        });
-      } else {
-        console.error("Missing expected payment_intent.client_secret in subscription response");
-        console.log("Subscription response structure issue");
-        return res.status(500).json({ 
-          message: "Payment setup incomplete", 
-          details: "Could not retrieve payment details from Stripe" 
-        });
-      }
+      // Return setup intent details
+      return res.json({
+        clientSecret: setupIntent.client_secret,
+        customerId,
+        setupIntentId: setupIntent.id,
+        tier
+      });
     } catch (error) {
       console.error("Error creating subscription:", error);
       res.status(500).json({ message: "Error creating subscription" });

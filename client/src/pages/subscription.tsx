@@ -34,7 +34,7 @@ if (isValidStripeKey) {
 // Only attempt to load Stripe with a valid key
 const stripePromise = isValidStripeKey ? loadStripe(stripeKey) : null;
 
-function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any }) {
+function CheckoutForm({ planType, user }: { planType: 'free' | 'basic' | 'pro', user: any }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -179,12 +179,12 @@ function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any
           } else {
             throw new Error(activateData.message || 'Could not activate subscription');
           }
-        } catch (activateError) {
-          console.error("Subscription activation error:", activateError);
-          setErrorMessage(activateError.message || "Could not activate subscription");
+        } catch (error: any) {
+          console.error("Subscription activation error:", error);
+          setErrorMessage(error.message || "Could not activate subscription");
           toast({
             title: "Subscription Error",
-            description: activateError.message || "Could not activate your subscription",
+            description: error.message || "Could not activate your subscription",
             variant: "destructive",
           });
           setIsProcessing(false);
@@ -262,7 +262,7 @@ function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any
 export default function SubscriptionPage() {
   const { user, isLoading } = useAuth();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [planType, setPlanType] = useState<'basic' | 'pro'>('pro');
+  const [planType, setPlanType] = useState<'free' | 'basic' | 'pro'>('pro');
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -310,7 +310,7 @@ export default function SubscriptionPage() {
   }
 
   // Handle plan selection with proper Stripe integration
-  const handleSelectPlan = async (type: 'basic' | 'pro') => {
+  const handleSelectPlan = async (type: 'free' | 'basic' | 'pro') => {
     setPlanType(type);
     
     if (!user) {
