@@ -96,9 +96,8 @@ export async function directGroqCompoundSearch(
     // Select the model based on preference, defaulting to compound-beta if not found
     const model = modelMap[normalizedPref] || "compound-beta";
     
-    // According to the API error, Groq models do not currently support explicit tool calling
-    // as we've implemented it. We should use the model without tools.
-    const supportsTools = false;
+    // Groq Compound Beta supports built-in tool calling with Tavily integration
+    const supportsTools = true;
     
     // For non-tool models (fast/mini), use a simpler system prompt without tool instructions
     const isToolModel = supportsTools;
