@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, varchar, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -47,6 +47,28 @@ export const searchFeedback = pgTable("search_feedback", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+// User Preferences for personalization
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  defaultRegion: varchar("default_region", { length: 10 }).default('global'),
+  preferredLanguage: varchar("preferred_language", { length: 10 }).default('en'),
+  contentPreferences: json("content_preferences").default({}),
+  searchFilters: json("search_filters").default({}),
+  aiModel: varchar("ai_model", { length: 30 }).default('auto'),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+});
+
+// User Topic Interests - for content personalization
+export const userTopicInterests = pgTable("user_topic_interests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  topic: varchar("topic", { length: 100 }).notNull(),
+  interestLevel: integer("interest_level").default(1), // 1-5 scale
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -79,6 +101,21 @@ export const insertSearchFeedbackSchema = createInsertSchema(searchFeedback).pic
   comment: true,
 });
 
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).pick({
+  userId: true,
+  defaultRegion: true,
+  preferredLanguage: true,
+  contentPreferences: true,
+  searchFilters: true,
+  aiModel: true,
+});
+
+export const insertUserTopicInterestSchema = createInsertSchema(userTopicInterests).pick({
+  userId: true,
+  topic: true,
+  interestLevel: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -91,3 +128,9 @@ export type SavedSearch = typeof savedSearches.$inferSelect;
 
 export type InsertSearchFeedback = z.infer<typeof insertSearchFeedbackSchema>;
 export type SearchFeedback = typeof searchFeedback.$inferSelect;
+
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+export type UserPreferences = typeof userPreferences.$inferSelect;
+
+export type InsertUserTopicInterest = z.infer<typeof insertUserTopicInterestSchema>;
+export type UserTopicInterest = typeof userTopicInterests.$inferSelect;

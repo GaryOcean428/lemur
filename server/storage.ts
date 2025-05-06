@@ -1,4 +1,4 @@
-import { users, type User, type InsertUser, searchHistory, type SearchHistory, type InsertSearchHistory, savedSearches, type SavedSearch, type InsertSavedSearch, searchFeedback, type SearchFeedback, type InsertSearchFeedback } from "@shared/schema";
+import { users, type User, type InsertUser, searchHistory, type SearchHistory, type InsertSearchHistory, savedSearches, type SavedSearch, type InsertSavedSearch, searchFeedback, type SearchFeedback, type InsertSearchFeedback, userPreferences, type UserPreferences, type InsertUserPreferences, userTopicInterests, type UserTopicInterest, type InsertUserTopicInterest } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 
@@ -26,6 +26,17 @@ export interface IStorage {
   // Search feedback operations
   createSearchFeedback(feedback: InsertSearchFeedback): Promise<SearchFeedback>;
   getSearchFeedbackBySearchId(searchId: number): Promise<SearchFeedback[]>;
+  
+  // User preferences operations
+  getUserPreferences(userId: number): Promise<UserPreferences | undefined>;
+  createUserPreferences(prefs: InsertUserPreferences): Promise<UserPreferences>;
+  updateUserPreferences(userId: number, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+  
+  // User topic interests operations
+  getUserTopicInterests(userId: number): Promise<UserTopicInterest[]>;
+  createUserTopicInterest(interest: InsertUserTopicInterest): Promise<UserTopicInterest>;
+  updateUserTopicInterest(id: number, interestLevel: number): Promise<UserTopicInterest>;
+  deleteUserTopicInterest(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -171,6 +182,78 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(searchFeedback)
       .where(eq(searchFeedback.searchId, searchId));
+  }
+  
+  // User preferences operations
+  async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
+    const [prefs] = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId));
+    return prefs || undefined;
+  }
+  
+  async createUserPreferences(prefs: InsertUserPreferences): Promise<UserPreferences> {
+    const [record] = await db
+      .insert(userPreferences)
+      .values(prefs)
+      .returning();
+    return record;
+  }
+  
+  async updateUserPreferences(userId: number, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    // Ensure we're not overwriting the userId
+    const updateData = { ...prefs };
+    delete updateData.userId;
+    
+    // Add last updated timestamp
+    const updatePayload = {
+      ...updateData,
+      lastUpdated: new Date()
+    };
+    
+    const [updatedPrefs] = await db
+      .update(userPreferences)
+      .set(updatePayload)
+      .where(eq(userPreferences.userId, userId))
+      .returning();
+    
+    return updatedPrefs;
+  }
+  
+  // User topic interests operations
+  async getUserTopicInterests(userId: number): Promise<UserTopicInterest[]> {
+    return await db
+      .select()
+      .from(userTopicInterests)
+      .where(eq(userTopicInterests.userId, userId))
+      .orderBy(userTopicInterests.interestLevel, 'desc');
+  }
+  
+  async createUserTopicInterest(interest: InsertUserTopicInterest): Promise<UserTopicInterest> {
+    const [record] = await db
+      .insert(userTopicInterests)
+      .values(interest)
+      .returning();
+    return record;
+  }
+  
+  async updateUserTopicInterest(id: number, interestLevel: number): Promise<UserTopicInterest> {
+    const [record] = await db
+      .update(userTopicInterests)
+      .set({
+        interestLevel,
+        updatedAt: new Date()
+      })
+      .where(eq(userTopicInterests.id, id))
+      .returning();
+    return record;
+  }
+  
+  async deleteUserTopicInterest(id: number): Promise<void> {
+    await db
+      .delete(userTopicInterests)
+      .where(eq(userTopicInterests.id, id));
   }
 }
 
