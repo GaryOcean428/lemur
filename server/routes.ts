@@ -53,33 +53,55 @@ interface GroqResponse {
 async function tavilySearch(query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> {
   console.log(`Tavily search for: "${query}" with depth: ${config.search_depth || 'basic'}`);
   
-  const response = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": apiKey,
-    },
-    body: JSON.stringify({
-      query: query,
-      search_depth: config.search_depth || "basic",
-      include_domains: config.include_domains || [],
-      exclude_domains: config.exclude_domains || [],
-      max_results: config.max_results || 15,
-      include_answer: false,
-      include_images: config.include_images !== false, // Default to true
-      include_raw_content: false,
-      geo_location: config.geo_location || null, // e.g. "AU" for Australia
-      time_range: config.time_range || null, // e.g. "day", "week", "month"
-      // Additional filter options can be added here
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Tavily API error ${response.status}: ${errorText}`);
+  // Extra validation for Tavily API key format
+  if (!apiKey || !apiKey.startsWith('tvly-')) {
+    throw new Error('Invalid Tavily API key format. The key should start with "tvly-"');
   }
+  
+  try {
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey.trim(), // Ensure no whitespace
+      },
+      body: JSON.stringify({
+        query: query,
+        search_depth: config.search_depth || "basic",
+        include_domains: config.include_domains || [],
+        exclude_domains: config.exclude_domains || [],
+        max_results: config.max_results || 15,
+        include_answer: false,
+        include_images: config.include_images !== false, // Default to true
+        include_raw_content: false,
+        geo_location: config.geo_location || null, // e.g. "AU" for Australia
+        time_range: config.time_range || null, // e.g. "day", "week", "month"
+        // Additional filter options can be added here
+      }),
+    });
 
-  return await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Tavily API error ${response.status}: ${errorText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    // Add more detailed error information
+    console.error('Tavily API call failed:', error);
+    
+    // For testing purposes, if Tavily fails, return mock data to allow testing other parts
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Using fallback search results (DEVELOPMENT MODE ONLY)');
+      return {
+        results: [],
+        query: query,
+        search_depth: config.search_depth || "basic"
+      };
+    }
+    
+    throw error;
+  }
 }
 
 // Function to perform Groq search
