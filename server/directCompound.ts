@@ -153,16 +153,37 @@ Format your response with clear section headings and a logical structure.
 Note: You're working with a limited model that doesn't have real-time search capabilities. Acknowledge when information might be outdated or when you don't have enough context to provide a complete answer.`
     };
 
-    // Prepare the user message
+    // Prepare conversation context and messages
+    const messages = [systemMessage];
+    
+    // Add conversation context for follow-up questions if available
+    if (isContextual && conversationContext.length > 0) {
+      // Add a context message summarizing previous conversation
+      let contextMessage = "Previous conversation context:\n";
+      conversationContext.forEach((ctx, index) => {
+        contextMessage += `User: ${ctx.query}\n`;
+        if (ctx.answer) {
+          contextMessage += `Assistant: ${ctx.answer.substring(0, 150)}${ctx.answer.length > 150 ? '...' : ''}\n`;
+        }
+      });
+      
+      messages.push({
+        role: "system",
+        content: `This is a follow-up question. Here is the conversation history: \n\n${contextMessage}\n\nPlease consider this context when answering the new question.`
+      });
+    }
+    
+    // Add the current user message
     const userMessage = {
       role: "user",
       content: query
     };
+    messages.push(userMessage);
 
     // Prepare API request body based on whether tools are supported
     const requestBody = supportsTools ? {
       model,
-      messages: [systemMessage, userMessage],
+      messages,
       temperature: 0.3,
       tools: [
         {
@@ -190,7 +211,7 @@ Note: You're working with a limited model that doesn't have real-time search cap
       tool_choice: "auto"
     } : {
       model,
-      messages: [systemMessage, userMessage],
+      messages,
       temperature: 0.3
     };
 
@@ -245,6 +266,17 @@ Note: You're working with a limited model that doesn't have real-time search cap
     let citation;
     const citationMap = new Map<string, Source>();
     
+    // Also track in-text citations like [1] or [2] to count usage frequency
+    const inTextCitationRegex = /\[([0-9]+)\](?![:\[])/g;
+    const citationUsage = new Map<string, number>();
+    
+    // Find all in-text citations and count them
+    let inTextMatch;
+    while ((inTextMatch = inTextCitationRegex.exec(answer)) !== null) {
+      const num = inTextMatch[1];
+      citationUsage.set(num, (citationUsage.get(num) || 0) + 1);
+    }
+    
     while ((citation = citationRegex.exec(answer)) !== null) {
       const number = citation[1];
       const url = citation[2];
@@ -260,6 +292,9 @@ Note: You're working with a limited model that doesn't have real-time search cap
         }
       }
       
+      // Get usage count, default to 1 if not found
+      const usageCount = citationUsage.get(number) || 1;
+      
       const source: Source = {
         title,
         url,
@@ -268,12 +303,12 @@ Note: You're working with a limited model that doesn't have real-time search cap
       
       citationMap.set(number, source);
       
-      // Also add to search results with placeholder content
+      // Also add to search results with placeholder content and usage count
       searchResultsFromText.push({
         title,
         url,
-        content: "Content extracted from citation reference " + number,
-        score: 1.0
+        content: `Source ${number} cited ${usageCount} time${usageCount !== 1 ? 's' : ''} in the answer`,
+        score: usageCount // Use citation frequency as relevance score
       });
     }
     

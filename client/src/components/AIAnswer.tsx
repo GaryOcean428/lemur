@@ -27,19 +27,19 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
   function renderMarkdown(text: string): string {
     // Step 1: Process citations to make them clickable with better pattern matching
     let processedText = text
-      // Handle [Source X] pattern citation links
+      // Handle [Source X] pattern citation links with visual enhancement
       .replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">${match}</a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}">${match}</a>`;
         }
         return match;
       })
-      // Handle [X] pattern citation links
+      // Handle [X] pattern citation links with visual enhancement
       .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">${match}</a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}">${match}</a>`;
         }
         return match;
       })
@@ -52,7 +52,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         );
         
         if (sourceIndex >= 0) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">(Source: ${sourceTitle})</a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-1 py-0.5 rounded-md font-medium hover:bg-green-100 dark:hover:bg-green-800/30 transition-colors" title="${sources[sourceIndex].title}">(Source: ${sourceTitle})</a>`;
         }
         return match;
       })
@@ -65,7 +65,20 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         );
         
         if (sourceIndex >= 0) {
-          return `according to <a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">${sourceName}</a>`;
+          return `according to <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}">${sourceName}</a>`;
+        }
+        return match;
+      })
+      // Add explicit citation indicators for source metadata
+      .replace(/\bfrom ([\w\s\-\.]+)\b/gi, (match, sourceName) => {
+        // Find source by domain or title (partial match)
+        const sourceIndex = sources.findIndex(source => 
+          source.title.toLowerCase().includes(sourceName.toLowerCase()) || 
+          (source.domain && source.domain.toLowerCase().includes(sourceName.toLowerCase()))
+        );
+        
+        if (sourceIndex >= 0) {
+          return `from <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}">${sourceName}</a>`;
         }
         return match;
       });
@@ -237,32 +250,61 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
           </div>
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
             <ol className="text-sm space-y-3">
-              {sources.map((source, index) => (
-                <li key={index} className="pb-2 border-b border-gray-100 dark:border-gray-800 last:border-0 last:pb-0">
-                  <div className="flex items-start gap-3">
-                    <div className="flex justify-center items-center w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-800/50 text-purple-700 dark:text-purple-300 text-xs font-semibold">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <a 
-                        id={`source-${index + 1}`}
-                        href={source.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="font-medium text-primary dark:text-primary-light hover:underline"
-                      >
-                        {source.title}
-                      </a>
-                      {source.domain && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
-                          <span className="inline-block w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-700 mr-1.5"></span>
-                          {source.domain}
+              {sources.map((source, index) => {
+                // Count how many times this source is referenced in the answer
+                // This is a quick approximation based on domain and title occurrences
+                const titleMatches = (answer.match(new RegExp(source.title.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi')) || []).length;
+                const domainMatches = source.domain ? (answer.match(new RegExp(source.domain.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi')) || []).length : 0;
+                const bracketMatches = (answer.match(new RegExp(`\\[${index + 1}\\]`, 'g')) || []).length;
+                
+                // Calculate citation importance based on various matching methods
+                const citationCount = bracketMatches + Math.min(titleMatches, 3) + Math.min(domainMatches, 2);
+                
+                // Determine importance level for visual cues
+                const importanceLevel = citationCount === 0 ? 'low' : 
+                                      citationCount === 1 ? 'medium' : 'high';
+                
+                // Set color and style based on importance level
+                const importanceStyle = {
+                  low: "bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400",
+                  medium: "bg-blue-100 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300",
+                  high: "bg-purple-100 dark:bg-purple-800/50 text-purple-700 dark:text-purple-300 ring-2 ring-purple-200 dark:ring-purple-800/50"
+                };
+                
+                return (
+                  <li key={index} className="pb-2 border-b border-gray-100 dark:border-gray-800 last:border-0 last:pb-0">
+                    <div className="flex items-start gap-3">
+                      <div className={`flex justify-center items-center w-6 h-6 rounded-full ${importanceStyle[importanceLevel]} text-xs font-semibold transition-all duration-200`}>
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between">
+                          <a 
+                            id={`source-${index + 1}`}
+                            href={source.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="font-medium text-primary dark:text-primary-light hover:underline"
+                          >
+                            {source.title}
+                          </a>
+                          {citationCount > 0 && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${importanceStyle[importanceLevel]} font-medium ml-2`}>
+                              {citationCount === 1 ? '1 citation' : `${citationCount} citations`}
+                            </span>
+                          )}
                         </div>
-                      )}
+                        {source.domain && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                            <span className="inline-block w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-700 mr-1.5"></span>
+                            {source.domain}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ol>
           </div>
         </div>

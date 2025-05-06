@@ -626,7 +626,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               groqApiKey,
               preferredModel,
               filters.geo_location || null,
-              conversationContext.length > 0 // Flag to indicate if this is a contextual search
+              conversationContext.length > 0, // Flag to indicate if this is a contextual search
+              req.session.conversationContext || [] // Pass conversation context for better contextual responses
             );
             
             // Store the generated answer in the conversation context for future follow-up queries
@@ -866,7 +867,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             groqApiKey,
             preferredModel,
             filters.geo_location || null,
-            conversationContext.length > 0
+            conversationContext.length > 0,
+            req.session.conversationContext || [] // Pass conversation context for better contextual responses
           );
           
           // Store the generated answer in the conversation context
