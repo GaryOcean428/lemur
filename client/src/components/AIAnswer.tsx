@@ -17,6 +17,9 @@ export default function AIAnswer({ answer, sources, model, contextual = false }:
   const [followUpQuery, setFollowUpQuery] = useState('');
   const [showFollowUpInput, setShowFollowUpInput] = useState(false);
   
+  // Check if this is a limit reached message
+  const isLimitReached = model === 'limit-reached';
+  
   // Basic markdown rendering function for improved readability
   function renderMarkdown(text: string): string {
     // Step 1: Process citations to make them clickable

@@ -78,7 +78,21 @@ export async function performDirectSearch(query: string, isFollowUp: boolean = f
         
         // Special handling for subscription limit errors
         if (response.status === 403 && errorData.limitReached) {
-          throw new Error(`403 Subscription limit reached: ${errorMessage}`);
+          // Return a friendly user message instead of an error
+          return {
+            ai: {
+              answer: errorData.authRequired 
+                ? "You've reached your free search limit. Please sign in or create an account to continue searching." 
+                : "You've reached your subscription limit. Please upgrade your subscription to continue searching.",
+              sources: [],
+              model: "limit-reached",
+              contextual: false
+            },
+            traditional: [],
+            searchType: "direct",
+            limitReached: true,
+            authRequired: !!errorData.authRequired
+          } as SearchResults;
         }
       } catch (parseError) {
         // If parsing fails, fall back to text from the cloned response
@@ -179,7 +193,21 @@ export async function performSearch(query: string, searchType: string = 'all', f
         
         // Special handling for subscription limit errors
         if (response.status === 403 && errorData.limitReached) {
-          throw new Error(`403 Subscription limit reached: ${errorMessage}`);
+          // Return a friendly user message instead of an error
+          return {
+            ai: {
+              answer: errorData.authRequired 
+                ? "You've reached your free search limit. Please sign in or create an account to continue searching." 
+                : "You've reached your subscription limit. Please upgrade your subscription to continue searching.",
+              sources: [],
+              model: "limit-reached",
+              contextual: false
+            },
+            traditional: [],
+            searchType: "all",
+            limitReached: true,
+            authRequired: !!errorData.authRequired
+          } as SearchResults;
         }
       } catch (parseError) {
         // If parsing fails, fall back to text from the cloned response
