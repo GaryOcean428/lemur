@@ -93,8 +93,9 @@ export async function directGroqCompoundSearch(
     // Select the model based on preference, defaulting to compound-beta if not found
     const model = modelMap[normalizedPref] || "compound-beta";
     
-    // compound-beta supports tool calling, compound-beta-mini supports only one tool call
-    const supportsTools = model === "compound-beta";
+    // According to the API error, the compound-beta models may not support tool calling yet
+    // Set to false for now until we have more information
+    const supportsTools = false;
     
     // For non-tool models (fast/mini), use a simpler system prompt without tool instructions
     const isToolModel = supportsTools;

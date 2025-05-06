@@ -271,6 +271,81 @@ import { setupAuth } from "./auth";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes and middleware
   setupAuth(app);
+  
+  // Test endpoint for Tavily and Groq integration
+  app.get("/api/test-integration", async (req, res) => {
+    try {
+      // Check API keys
+      const tavilyApiKey = process.env.TAVILY_API_KEY || "";
+      const groqApiKey = process.env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY || "";
+      
+      // Validate both API keys
+      const groqKeyValid = groqApiKey.trim().length > 0;
+      const tavilyKeyValid = tavilyApiKey.trim().length > 0 && tavilyApiKey.startsWith('tvly-');
+      
+      // Test results
+      const testResults: {
+        groqKeyPresent: boolean;
+        tavilyKeyPresent: boolean;
+        tavilyKeyFormat: boolean;
+        integrationStatus: string;
+        tavilyDirectTest?: {
+          success: boolean;
+          resultCount: number;
+        };
+        groqCompoundTest?: {
+          success: boolean;
+          model: string;
+          searchToolsUsed: boolean;
+          sourcesCount: number;
+        };
+        error?: string;
+      } = {
+        groqKeyPresent: groqKeyValid,
+        tavilyKeyPresent: tavilyKeyValid,
+        tavilyKeyFormat: tavilyApiKey.startsWith('tvly-'),
+        integrationStatus: 'untested'
+      };
+      
+      // Only proceed with full integration test if both keys are present
+      if (groqKeyValid && tavilyKeyValid) {
+        try {
+          // Test Tavily direct API
+          const tavilyResponse = await tavilySearch("latest AI news", tavilyApiKey, { search_depth: "basic" });
+          testResults.tavilyDirectTest = {
+            success: true,
+            resultCount: tavilyResponse.results.length
+          };
+          
+          // Test Groq compound-beta with search
+          const directResponse = await directGroqCompoundSearch("What are the latest developments in quantum computing?", groqApiKey, "auto", "US", false);
+          
+          // Check if search tools were used
+          const searchToolsUsed = Boolean(directResponse.search_tools_used && 
+                                 directResponse.search_tools_used.length > 0 && 
+                                 directResponse.search_tools_used[0].type === 'function');
+          
+          testResults.groqCompoundTest = {
+            success: true,
+            model: directResponse.model,
+            searchToolsUsed: searchToolsUsed,
+            sourcesCount: directResponse.sources ? directResponse.sources.length : 0
+          };
+          
+          testResults.integrationStatus = searchToolsUsed ? 'fully_operational' : 'partial';
+        } catch (error: any) {
+          testResults.integrationStatus = 'failed';
+          testResults.error = error.message || 'Unknown error';
+        }
+      }
+      
+      res.json(testResults);
+    } catch (error: any) {
+      console.error('Integration test error:', error);
+      res.status(500).json({ error: 'Integration test failed', message: error.message || 'Unknown error' });
+    }
+  });
+  
   // Search suggestions endpoint
   app.get("/api/suggestions", async (req, res) => {
     try {
