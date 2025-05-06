@@ -1262,7 +1262,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // This endpoint is now handled by the /api/change-subscription endpoint above
+  // Activate subscription after payment method has been set up
+  app.post("/api/activate-subscription", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
+    
+    const { planType, setupIntentId } = req.body;
+    
+    if (!planType || !['basic', 'pro'].includes(planType)) {
+      return res.status(400).json({ success: false, message: "Invalid plan type" });
+    }
+    
+    if (!setupIntentId) {
+      return res.status(400).json({ success: false, message: "Missing setup intent ID" });
+    }
+    
+    if (!stripe) {
+      return res.status(500).json({ success: false, message: "Stripe not configured" });
+    }
+    
+    try {
+      // Verify the setup intent was successful
+      const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+      
+      if (setupIntent.status !== 'succeeded') {
+        return res.status(400).json({
+          success: false,
+          message: "Payment method setup was not completed successfully"
+        });
+      }
+      
+      // If user already has a subscription, update it
+      if (req.user.stripeSubscriptionId) {
+        // Get existing subscription
+        const subscription = await stripe.subscriptions.retrieve(req.user.stripeSubscriptionId);
+        
+        // Get price ID for the new plan
+        const priceId = planType === 'basic' ? 
+          process.env.STRIPE_BASIC_PRICE_ID : 
+          process.env.STRIPE_PRO_PRICE_ID;
+        
+        if (!priceId) {
+          return res.status(500).json({
+            success: false,
+            message: "Stripe price ID not configured for this tier"
+          });
+        }
+        
+        // Update subscription with new price
+        await stripe.subscriptions.update(subscription.id, {
+          items: [{
+            id: subscription.items.data[0].id,
+            price: priceId,
+          }],
+          payment_behavior: 'default_incomplete',
+          proration_behavior: 'create_prorations',
+          default_payment_method: setupIntent.payment_method as string,
+        });
+      } else {
+        // Create a new subscription with the setup payment method
+        const priceId = planType === 'basic' ? 
+          process.env.STRIPE_BASIC_PRICE_ID : 
+          process.env.STRIPE_PRO_PRICE_ID;
+        
+        if (!priceId) {
+          return res.status(500).json({
+            success: false,
+            message: "Stripe price ID not configured for this tier"
+          });
+        }
+        
+        // Create subscription with the payment method from the setup intent
+        const subscription = await stripe.subscriptions.create({
+          customer: req.user.stripeCustomerId,
+          items: [{ price: priceId }],
+          default_payment_method: setupIntent.payment_method as string,
+          expand: ['latest_invoice'],
+        });
+        
+        // Update user's subscription info in database
+        await storage.updateStripeInfo(
+          req.user.id,
+          req.user.stripeCustomerId,
+          subscription.id
+        );
+      }
+      
+      // Calculate expiration date (30 days from now)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+      
+      // Update user subscription tier in the database
+      const updatedUser = await storage.updateUserSubscription(req.user.id, planType, expiresAt);
+      
+      return res.json({
+        success: true,
+        tier: planType,
+        user: updatedUser,
+        message: `Your ${planType} subscription has been activated!`
+      });
+    } catch (error) {
+      console.error("Error activating subscription:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error activating subscription",
+        error: error.message
+      });
+    }
+  });
 
   // Create HTTP server
   const httpServer = createServer(app);

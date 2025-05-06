@@ -154,17 +154,42 @@ function CheckoutForm({ planType, user }: { planType: 'basic' | 'pro', user: any
           variant: "destructive",
         });
         setIsProcessing(false);
-      } else if (paymentIntent) {
-        // Payment succeeded directly without redirect
-        console.log('Payment succeeded with status:', paymentIntent.status);
-        toast({
-          title: "Payment Successful",
-          description: "Your subscription has been activated!"
-        });
-        // Redirect to success page
-        setTimeout(() => {
-          setLocation('/subscription/success');
-        }, 2000);
+      } else if (setupIntent) {
+        // Setup succeeded directly without redirect
+        console.log('Setup intent succeeded with status:', setupIntent.status);
+        
+        // Now activate the subscription with the setup intent
+        try {
+          const activateResponse = await apiRequest('POST', '/api/activate-subscription', {
+            planType,
+            setupIntentId: setupIntent.id
+          });
+          
+          const activateData = await activateResponse.json();
+          
+          if (activateData.success) {
+            toast({
+              title: "Subscription Active",
+              description: "Your subscription has been activated!"
+            });
+            // Redirect to home page
+            setTimeout(() => {
+              setLocation('/');
+            }, 2000);
+          } else {
+            throw new Error(activateData.message || 'Could not activate subscription');
+          }
+        } catch (activateError) {
+          console.error("Subscription activation error:", activateError);
+          setErrorMessage(activateError.message || "Could not activate subscription");
+          toast({
+            title: "Subscription Error",
+            description: activateError.message || "Could not activate your subscription",
+            variant: "destructive",
+          });
+          setIsProcessing(false);
+          return;
+        }
       } else {
         // Payment requires additional action handled by Stripe.js (like 3D Secure)
         console.log('Payment requires additional actions');
