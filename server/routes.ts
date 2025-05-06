@@ -83,11 +83,12 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
   }
   
   try {
+    // Use Bearer token authentication as it's the correct method
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-API-Key": apiKey.trim(), // Ensure no whitespace
+        "Authorization": `Bearer ${apiKey.trim()}`, // Use Bearer token auth
       },
       body: JSON.stringify({
         query: cleanedQuery,
@@ -289,8 +290,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Tavily API key length: ${tavilyApiKey.length}`);
       console.log(`Tavily API key first 8 chars: ${tavilyApiKey.substring(0, 8)}...`);
       
-      // Make a direct request to Tavily API
-      const response = await fetch("https://api.tavily.com/search", {
+      // Try multiple authorization methods to see what works
+      console.log('Trying Tavily API with X-API-Key header...');
+      let response = await fetch("https://api.tavily.com/search", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -302,6 +304,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           max_results: 3
         }),
       });
+      
+      // If that didn't work, try with Bearer token
+      if (response.status === 401) {
+        console.log('X-API-Key method failed, trying with Bearer token...');
+        response = await fetch("https://api.tavily.com/search", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${tavilyApiKey.trim()}`,
+          },
+          body: JSON.stringify({
+            query: "Test query from Lemur",
+            search_depth: "basic",
+            max_results: 3
+          }),
+        });
+      }
       
       // Return full details to help diagnose the issue
       const responseBody = await response.text();
