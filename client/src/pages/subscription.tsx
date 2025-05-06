@@ -283,6 +283,7 @@ export default function SubscriptionPage() {
     );
   }
 
+  // We use direct API calls instead of the Stripe-based implementation
   const handleSelectPlan = async (type: 'basic' | 'pro') => {
     setPlanType(type);
     
@@ -295,42 +296,31 @@ export default function SubscriptionPage() {
       return;
     }
     
-    setIsLoadingPayment(true);
-    
+    // For demo purposes, we'll use the direct API call approach
     try {
-      const response = await apiRequest('POST', '/api/create-subscription', { planType: type });
+      const response = await apiRequest('POST', '/api/change-subscription', { planType: type });
       const data = await response.json();
       
-      // Handle developer account auto-subscription
-      if (data.isDeveloperAccount) {
+      if (data.success) {
         toast({
-          title: "Subscription Successful",
-          description: "As a developer, your account has been automatically upgraded without payment.",
-          variant: "default",
+          title: `${type.charAt(0).toUpperCase() + type.slice(1)} Plan Activated`,
+          description: `You're now on the ${type} plan with ${type === 'basic' ? '100' : '300'} searches per month.`
         });
-        
-        // Reload to get updated user data
-        window.location.href = '/';
-        return;
-      }
-      
-      if (data.clientSecret) {
-        setClientSecret(data.clientSecret);
+        // Redirect to home page
+        setTimeout(() => setLocation('/'), 2000);
       } else {
         toast({
-          title: "Payment Setup Error",
-          description: "Could not initialize payment. Please try again or contact support.",
+          title: "Subscription Error",
+          description: data.message || "Could not change subscription. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Could not initialize payment",
+        description: error.message || `Could not activate ${type} plan`,
         variant: "destructive",
       });
-    } finally {
-      setIsLoadingPayment(false);
     }
   };
 
@@ -444,12 +434,39 @@ export default function SubscriptionPage() {
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => handleSelectPlan('basic')} 
+              onClick={() => {
+                // Use the same approach as free tier - direct API call
+                apiRequest('POST', '/api/change-subscription', { planType: 'basic' })
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.success) {
+                      toast({
+                        title: "Basic Plan Activated",
+                        description: "You're now on the Basic plan with 100 searches per month."
+                      });
+                      // Redirect to home page
+                      setTimeout(() => setLocation('/'), 2000);
+                    } else if (data.requiresPayment) {
+                      // This would normally go to payment flow
+                      toast({
+                        title: "Payment Required",
+                        description: "Payment processing is temporarily disabled in this demo.",
+                        variant: "destructive"
+                      });
+                    }
+                  })
+                  .catch(error => {
+                    toast({
+                      title: "Error",
+                      description: error.message || "Could not activate Basic plan",
+                      variant: "destructive",
+                    });
+                  });
+              }} 
               variant={planType === 'basic' ? "default" : "outline"}
               className="w-full"
-              disabled={isLoadingPayment}
             >
-              {planType === 'basic' ? 'Selected' : 'Select Basic'}
+              Select Basic
             </Button>
           </CardFooter>
         </Card>
@@ -470,47 +487,45 @@ export default function SubscriptionPage() {
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => handleSelectPlan('pro')} 
+              onClick={() => {
+                // Use the same approach as free tier - direct API call
+                apiRequest('POST', '/api/change-subscription', { planType: 'pro' })
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.success) {
+                      toast({
+                        title: "Pro Plan Activated",
+                        description: "You're now on the Pro plan with 300 searches and full model access."
+                      });
+                      // Redirect to home page
+                      setTimeout(() => setLocation('/'), 2000);
+                    } else if (data.requiresPayment) {
+                      // This would normally go to payment flow
+                      toast({
+                        title: "Payment Required",
+                        description: "Payment processing is temporarily disabled in this demo.",
+                        variant: "destructive"
+                      });
+                    }
+                  })
+                  .catch(error => {
+                    toast({
+                      title: "Error",
+                      description: error.message || "Could not activate Pro plan",
+                      variant: "destructive",
+                    });
+                  });
+              }}
               variant={planType === 'pro' ? "default" : "outline"}
               className="w-full"
-              disabled={isLoadingPayment}
             >
-              {planType === 'pro' ? 'Selected' : 'Select Pro'}
+              Select Pro
             </Button>
           </CardFooter>
         </Card>
       </div>
       
-      {isLoadingPayment ? (
-        <Card>
-          <CardContent className="flex justify-center items-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-3">Preparing payment form...</p>
-          </CardContent>
-        </Card>
-      ) : clientSecret ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Complete Your Subscription</CardTitle>
-            <CardDescription>
-              You're subscribing to our {planType === 'pro' ? 'Pro' : 'Basic'} plan
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Elements 
-              stripe={stripePromise} 
-              options={{ 
-                clientSecret,
-                appearance: { theme: 'stripe' },
-                // Customize options to make sure the element appears and is activated
-                loader: 'always',
-              }}
-            >
-              <CheckoutForm planType={planType} user={user} />
-            </Elements>
-          </CardContent>
-        </Card>
-      ) : null}
+      {/* Payment processing section is disabled in this demo version */}
     </div>
   );
 }
