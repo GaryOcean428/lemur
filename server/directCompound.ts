@@ -196,9 +196,21 @@ Note: You're working with a limited model that doesn't have real-time search cap
     console.log('Executed tools count:', executedTools.length);
     if (executedTools.length > 0) {
       console.log('First tool type:', executedTools[0].type);
-      console.log('First tool input:', JSON.stringify(executedTools[0].input).substring(0, 100) + '...');
-      console.log('First tool output structure:', typeof executedTools[0].output, 
-        Array.isArray(executedTools[0].output) ? executedTools[0].output.length + ' items' : 'not an array');
+      
+      // Safely log tool input with null check
+      if (executedTools[0].input) {
+        console.log('First tool input:', JSON.stringify(executedTools[0].input).substring(0, 100) + '...');
+      } else {
+        console.log('First tool input: undefined or null');
+      }
+      
+      // Safely log tool output with null check
+      if (executedTools[0].output !== undefined) {
+        console.log('First tool output structure:', typeof executedTools[0].output, 
+          Array.isArray(executedTools[0].output) ? executedTools[0].output.length + ' items' : 'not an array');
+      } else {
+        console.log('First tool output: undefined or null');
+      }
     }
     
     return {

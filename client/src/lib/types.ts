@@ -26,4 +26,7 @@ export interface TraditionalResult {
 export interface SearchResults {
   ai: AIAnswer;
   traditional: TraditionalResult[];
+  authRequired?: boolean; // Indicates if authentication is required (for limit reached scenarios)
+  limitReached?: boolean; // Indicates if user has reached their search limit
+  searchType?: string; // Indicates which search method was used (direct, traditional)
 }

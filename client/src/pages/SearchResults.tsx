@@ -60,6 +60,13 @@ export default function SearchResults() {
   useEffect(() => {
     setIsLoading(isLoading);
   }, [isLoading, setIsLoading]);
+  
+  // Handle authRequired flag from API responses
+  useEffect(() => {
+    if (data && 'authRequired' in data && data.authRequired) {
+      setAuthRequired(true);
+    }
+  }, [data]);
 
   if (error) {
     let errorMessage = "An error occurred while fetching search results. Please try again."; 
