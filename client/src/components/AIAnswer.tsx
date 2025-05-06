@@ -1,21 +1,24 @@
 import { Source } from "@/lib/types";
 import DOMPurify from 'dompurify';
 import { useState } from 'react';
-import { useLocation } from 'wouter';
-import { MessageCircleMore } from 'lucide-react';
+import { useLocation, Link } from 'wouter';
+import { MessageCircleMore, LogIn, ArrowUpCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 interface AIAnswerProps {
   answer: string;
   sources: Source[];
   model: string;
   contextual?: boolean; // Indicates if this is a contextual follow-up answer
+  authRequired?: boolean; // Indicates if authentication is required (for limit reached scenarios)
 }
 
-export default function AIAnswer({ answer, sources, model, contextual = false }: AIAnswerProps) {
+export default function AIAnswer({ answer, sources, model, contextual = false, authRequired = false }: AIAnswerProps) {
   const [, setLocation] = useLocation();
   const [followUpQuery, setFollowUpQuery] = useState('');
   const [showFollowUpInput, setShowFollowUpInput] = useState(false);
+  const { user } = useAuth();
   
   // Check if this is a limit reached message
   const isLimitReached = model === 'limit-reached';
@@ -98,7 +101,9 @@ export default function AIAnswer({ answer, sources, model, contextual = false }:
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl shadow-md dark:shadow-gray-800/30 p-6 mb-6 border border-gray-100 dark:border-gray-800">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-semibold text-[hsl(var(--neutral))] dark:text-white/90">AI-Generated Answer</h3>
+        <h3 className="text-xl font-semibold text-[hsl(var(--neutral))] dark:text-white/90">
+          {isLimitReached ? 'Search Limit Reached' : 'AI-Generated Answer'}
+        </h3>
         {contextual && (
           <span className="text-xs px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200 font-medium">
             Contextual Follow-up
@@ -111,8 +116,8 @@ export default function AIAnswer({ answer, sources, model, contextual = false }:
         dangerouslySetInnerHTML={{ __html: html }}
       />
       
-      {/* Follow-up question section */}
-      {!showFollowUpInput ? (
+      {/* Follow-up question section - only show for regular answers, not limit reached */}
+      {!isLimitReached && !showFollowUpInput ? (
         <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
           <Button 
             variant="outline" 
@@ -123,7 +128,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false }:
             Ask a follow-up question
           </Button>
         </div>
-      ) : (
+      ) : !isLimitReached && showFollowUpInput ? (
         <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
             <form onSubmit={(e) => { e.preventDefault(); handleFollowUpSubmit(); }}>
@@ -142,66 +147,96 @@ export default function AIAnswer({ answer, sources, model, contextual = false }:
             </form>
           </div>
         </div>
-      )}
+      ) : null}
       
-      <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
-        <h4 className="text-sm font-semibold text-[hsl(var(--neutral-muted))] mb-2">Sources:</h4>
-        <ol className="text-sm space-y-1">
-          {sources.map((source, index) => (
-            <li key={index}>
-              <a 
-                id={`source-${index + 1}`}
-                href={source.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="citation-link hover:underline"
+      {isLimitReached && (
+        <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
+          <div className="flex flex-col space-y-3">
+            {authRequired ? (
+              <Button 
+                className="w-full flex items-center justify-center gap-2"
+                onClick={() => setLocation('/auth')}
               >
-                [{index + 1}] {source.title}
-              </a>
-            </li>
-          ))}
-        </ol>
-      </div>
+                <LogIn className="h-4 w-4" />
+                Sign in to continue
+              </Button>
+            ) : (
+              <Button 
+                className="w-full flex items-center justify-center gap-2"
+                onClick={() => setLocation('/subscription')}
+              >
+                <ArrowUpCircle className="h-4 w-4" />
+                Upgrade your subscription
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!isLimitReached && sources.length > 0 && (
+        <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
+          <h4 className="text-sm font-semibold text-[hsl(var(--neutral-muted))] mb-2">Sources:</h4>
+          <ol className="text-sm space-y-1">
+            {sources.map((source, index) => (
+              <li key={index}>
+                <a 
+                  id={`source-${index + 1}`}
+                  href={source.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="citation-link hover:underline"
+                >
+                  [{index + 1}] {source.title}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
       
       <div className="mt-6 flex justify-between">
         <div className="text-xs text-[hsl(var(--neutral-muted))]">
-          Powered by {model === 'llama-3.3-70b-versatile' ? 'Groq Llama 3.3 70B Versatile' : 
-                      model === 'llama-4-scout-17b-16e-instruct' ? 'Groq Llama 4 Scout 17B Instruct' : 
-                      `Groq ${model}`}
+          {isLimitReached ? 'Lemure Search' : 
+            model === 'llama-3.3-70b-versatile' ? 'Powered by Groq Llama 3.3 70B Versatile' : 
+            model === 'llama-4-scout-17b-16e-instruct' ? 'Powered by Groq Llama 4 Scout 17B Instruct' : 
+            `Powered by Groq ${model}`
+          }
         </div>
-        <div className="flex space-x-2">
-          <button 
-            className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors"
-            onClick={() => handleFeedback('like')}
-            aria-label="Like this answer"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 10v12"/>
-              <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
-            </svg>
-          </button>
-          <button 
-            className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors"
-            onClick={() => handleFeedback('dislike')}
-            aria-label="Dislike this answer"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 14V2"/>
-              <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>
-            </svg>
-          </button>
-          <button 
-            className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors"
-            onClick={() => handleFeedback('share')}
-            aria-label="Share this answer"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-              <polyline points="16 6 12 2 8 6"/>
-              <line x1="12" x2="12" y1="2" y2="15"/>
-            </svg>
-          </button>
-        </div>
+        {!isLimitReached && (
+          <div className="flex space-x-2">
+            <button 
+              className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors"
+              onClick={() => handleFeedback('like')}
+              aria-label="Like this answer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 10v12"/>
+                <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
+              </svg>
+            </button>
+            <button 
+              className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors"
+              onClick={() => handleFeedback('dislike')}
+              aria-label="Dislike this answer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 14V2"/>
+                <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>
+              </svg>
+            </button>
+            <button 
+              className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors"
+              onClick={() => handleFeedback('share')}
+              aria-label="Share this answer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" x2="12" y1="2" y2="15"/>
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
