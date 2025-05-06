@@ -1205,6 +1205,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Creating subscription with price ID:', finalPriceId);
       let subscription;
       try {
+        // Create a product and price if we're using a numeric price value
+        if (finalPriceId.startsWith('price_test_')) {
+          // Extract amount from the test price ID - format is price_test_basic_999 or price_test_pro_2999
+          const priceMatch = finalPriceId.match(/price_test_(basic|pro)_(\d+)/);
+          if (!priceMatch) {
+            throw new Error('Invalid test price ID format');
+          }
+          
+          const planName = priceMatch[1]; // 'basic' or 'pro'
+          const amountCents = parseInt(priceMatch[2]); // Amount in cents
+          
+          // Create a product
+          const product = await stripe.products.create({
+            name: `${planName.charAt(0).toUpperCase() + planName.slice(1)} Plan`,
+            description: planName === 'pro' ? 'Unlimited searches with advanced features' : 'Up to 100 searches per month'
+          });
+          
+          // Create a price for this product
+          const price = await stripe.prices.create({
+            unit_amount: amountCents,
+            currency: 'usd',
+            recurring: { interval: 'month' },
+            product: product.id
+          });
+          
+          console.log(`Created actual Stripe price: ${price.id} for amount $${(amountCents/100).toFixed(2)}`);
+          finalPriceId = price.id; // Use the actual Stripe price ID
+        }
+        
         subscription = await stripe.subscriptions.create({
           customer: customerId,
           items: [{ price: finalPriceId }],
