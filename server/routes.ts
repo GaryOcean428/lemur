@@ -159,6 +159,8 @@ async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: 
     model = "compound-beta-mini"; // Faster with lower latency
   } else if (modelPreference === 'comprehensive') {
     model = "llama-3.3-70b"; // High quality reasoning with Llama 3.3 70B
+  } else if (modelPreference === 'maverick') {
+    model = "llama-4-maverick"; // Advanced reasoning with Llama 4 Maverick
   }
   
   console.log(`Using Groq model: ${model} for synthesis`);

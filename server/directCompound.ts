@@ -87,7 +87,8 @@ export async function directGroqCompoundSearch(
     const modelMap: Record<string, string> = {
       "auto": "compound-beta", // Balanced performance and quality
       "fast": "compound-beta-mini", // Faster with lower latency
-      "comprehensive": "llama-3.3-70b" // High quality, advanced reasoning (Llama 3.3 70B)
+      "comprehensive": "llama-3.3-70b", // High quality, advanced reasoning (Llama 3.3 70B)
+      "maverick": "llama-4-maverick" // Advanced reasoning with Llama 4 Maverick
     };
     
     // Normalize the preference to lowercase for consistent matching
