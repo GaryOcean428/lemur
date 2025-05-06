@@ -11,28 +11,31 @@ import { Redis } from '@upstash/redis';
 let redis: Redis | undefined;
 
 try {
-  // Check if we have direct Redis URL
-  if (process.env.REDIS_URL) {
-    redis = new Redis({
-      url: process.env.REDIS_URL,
-      token: process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN,
-    });
-  } 
-  // Otherwise check for KV environment variables
-  else if (process.env.KV_URL) {
-    redis = new Redis({
-      url: process.env.KV_URL,
-      token: process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN,
-    });
+  // For debugging purposes
+  console.log('Redis initialization checking environment variables:');
+  // Don't log the full values for security, just check their existence and format
+  console.log('- UPSTASH_REDIS_REST_URL exists:', !!process.env.UPSTASH_REDIS_REST_URL);
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    console.log('- UPSTASH_REDIS_REST_URL starts with https://', process.env.UPSTASH_REDIS_REST_URL.startsWith('https://'));
   }
-  // Fall back to using REST API directly
-  else if (process.env.KV_REST_API_URL && (process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN)) {
+  console.log('- UPSTASH_REDIS_REST_TOKEN exists:', !!process.env.UPSTASH_REDIS_REST_TOKEN);
+  
+  // For Upstash Redis, we need to check if we have both URL and token
+  // Upstash URLs must start with https://
+  if (process.env.UPSTASH_REDIS_REST_URL && 
+      process.env.UPSTASH_REDIS_REST_URL.startsWith('https://') && 
+      process.env.UPSTASH_REDIS_REST_TOKEN) {
+    // This is the correct format for Upstash Redis REST API
     redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN,
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
     });
-  } else {
-    console.warn('No Redis/KV configuration found. Redis caching will be disabled.');
+    console.log('Upstash Redis client initialized with REST API');
+  }
+  // Fall back to memory-only cache with warning
+  else {
+    console.warn('No valid Upstash Redis configuration found. Redis caching will be disabled.');
+    console.warn('Please ensure UPSTASH_REDIS_REST_URL begins with "https://" and UPSTASH_REDIS_REST_TOKEN is set.');
   }
 
   if (redis) {
