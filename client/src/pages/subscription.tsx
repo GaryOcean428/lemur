@@ -105,7 +105,10 @@ function CheckoutForm({ planType, user }: { planType: 'free' | 'basic' | 'pro', 
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!stripe || !elements) {
+    // Check if we're in development mode (using client secret "dev_secret")
+    const isDevMode = clientSecret === "dev_secret";
+    
+    if (!isDevMode && (!stripe || !elements)) {
       // Stripe.js hasn't loaded yet. Make sure to disable form submission until loaded.
       console.error("Stripe or Elements not available");
       toast({
@@ -121,6 +124,42 @@ function CheckoutForm({ planType, user }: { planType: 'free' | 'basic' | 'pro', 
     try {
       console.log('Attempting to confirm subscription...');
       
+      // Development mode - bypass Stripe payment processing
+      if (isDevMode) {
+        console.log('[DEV MODE] Processing subscription without actual payment');
+        
+        try {
+          const activateResponse = await apiRequest('POST', '/api/activate-subscription', {
+            planType,
+            setupIntentId: `dev_setup_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+          });
+          
+          const activateData = await activateResponse.json();
+          
+          if (activateData.success) {
+            toast({
+              title: "Development Mode",
+              description: "Your subscription has been activated without payment in development mode."
+            });
+            setTimeout(() => setLocation('/'), 2000);
+          } else {
+            throw new Error(activateData.message || 'Could not activate subscription in development mode');
+          }
+          return;
+        } catch (error: any) {
+          console.error("Dev mode subscription error:", error);
+          setErrorMessage(error.message);
+          toast({
+            title: "Subscription Error",
+            description: error.message,
+            variant: "destructive",
+          });
+          setIsProcessing(false);
+          return;
+        }
+      }
+      
+      // Real Stripe payment processing for production mode
       // First, verify all elements are complete
       const { error: elementsError } = await elements.submit();
       if (elementsError) {
@@ -168,9 +207,13 @@ function CheckoutForm({ planType, user }: { planType: 'free' | 'basic' | 'pro', 
           const activateData = await activateResponse.json();
           
           if (activateData.success) {
+            const message = activateData.devMode 
+              ? "Development mode: Your subscription has been activated without charging your card." 
+              : "Your subscription has been activated!";
+            
             toast({
               title: "Subscription Active",
-              description: "Your subscription has been activated!"
+              description: message
             });
             // Redirect to home page
             setTimeout(() => {
