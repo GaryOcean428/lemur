@@ -31,16 +31,37 @@ export interface GroqCompoundResponse {
  * @param geo_location Geographic location for search results (e.g., "AU" for Australia)
  * @returns Object containing the answer, model used, and search tool usage information
  */
+interface Source {
+  title: string;
+  url: string;
+  domain: string;
+}
+
+export interface SearchResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+  published_date?: string;
+  image?: {
+    url: string;
+    alt?: string;
+  };
+}
+
 export async function directGroqCompoundSearch(
   query: string, 
   apiKey: string, 
   modelPreference: string = 'auto',
-  geo_location: string = 'AU'
+  geo_location: string = 'AU',
+  isContextual: boolean = false
 ): Promise<{
   answer: string;
   model: string;
   contextual?: boolean;
   search_tools_used?: any[];
+  sources?: Source[];
+  searchResults?: SearchResult[];
 }> {
   try {
     // Validate API key
@@ -58,21 +79,25 @@ export async function directGroqCompoundSearch(
     // Note: compound-beta-mini doesn't support tool calling,
     // so we need different handling based on whether tools are needed
     
-    // Model selection map
+    // The compound-beta models were initially expected to support tool calling,
+    // but there appear to be issues with their availability or capabilities.
+    // Let's use standard models that are more reliably available.
+    
+    // Model selection map - using established Groq models that are known to be stable
     const modelMap: Record<string, string> = {
-      "auto": "compound-beta",
-      "fast": "compound-beta-mini",
-      "comprehensive": "compound-beta"
+      "auto": "llama3-70b-8192", // Default to Llama 3 for auto
+      "fast": "mixtral-8x7b-32768", // Faster but less comprehensive
+      "comprehensive": "llama3-70b-8192" // More comprehensive but slower
     };
     
     // Normalize the preference to lowercase for consistent matching
     const normalizedPref = modelPreference.toLowerCase();
     
-    // Select the model based on preference, defaulting to compound-beta if not found
-    const model = modelMap[normalizedPref] || "compound-beta";
+    // Select the model based on preference, defaulting to llama3 if not found
+    const model = modelMap[normalizedPref] || "llama3-70b-8192";
     
-    // Check if we're using a model that supports tools
-    const supportsTools = model === "compound-beta";
+    // Currently no Groq models reliably support tool calling, so set to false
+    const supportsTools = false;
     
     // For non-tool models (fast/mini), use a simpler system prompt without tool instructions
     const isToolModel = supportsTools;
@@ -128,45 +153,51 @@ Note: You're working with a limited model that doesn't have real-time search cap
       content: query
     };
 
-    // Make the API request to Groq Compound Beta
+    // Prepare API request body based on whether tools are supported
+    const requestBody = supportsTools ? {
+      model,
+      messages: [systemMessage, userMessage],
+      temperature: 0.3,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "search",
+            description: "Search the web for relevant information based on user query",
+            parameters: {
+              type: "object",
+              properties: {
+                query: {
+                  type: "string",
+                  description: "The search query to use for finding information"
+                },
+                region: {
+                  type: "string",
+                  description: "The region to focus search results on, e.g., AU for Australia"
+                }
+              },
+              required: ["query"]
+            }
+          }
+        }
+      ],
+      tool_choice: "auto"
+    } : {
+      model,
+      messages: [systemMessage, userMessage],
+      temperature: 0.3
+    };
+
+    console.log(`Making API request with${supportsTools ? '' : 'out'} tools to Groq API`);
+    
+    // Make the API request to Groq
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({
-        model,
-        messages: [systemMessage, userMessage],
-        temperature: 0.3,
-        // Only add tools for models that support them (compound-beta but not compound-beta-mini)
-        ...(supportsTools ? {
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "search",
-                description: "Search the web for relevant information based on user query",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    query: {
-                      type: "string",
-                      description: "The search query to use for finding information"
-                    },
-                    region: {
-                      type: "string",
-                      description: "The region to focus search results on, e.g., AU for Australia"
-                    }
-                  },
-                  required: ["query"]
-                }
-              }
-            }
-          ],
-          tool_choice: "auto"
-        } : {})
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
@@ -213,10 +244,37 @@ Note: You're working with a limited model that doesn't have real-time search cap
       }
     }
     
+    // Process search results if available
+    let sources: Source[] = [];
+    let searchResults: SearchResult[] = [];
+    
+    if (executedTools.length > 0 && executedTools[0].type === 'function' && 
+        executedTools[0].output && Array.isArray(executedTools[0].output.results)) {
+      // Extract search results from tool output
+      searchResults = executedTools[0].output.results.map((result: any) => ({
+        title: result.title || '',
+        url: result.url || '',
+        content: result.content || result.snippet || '',
+        score: result.score || 1.0,
+        published_date: result.published_date,
+        image: result.image
+      }));
+      
+      // Generate sources from search results
+      sources = searchResults.map((result) => ({
+        title: result.title,
+        url: result.url,
+        domain: new URL(result.url).hostname.replace('www.', '')
+      }));
+    }
+    
     return {
       answer: data.choices[0].message.content,
       model: data.model,
-      search_tools_used: executedTools
+      contextual: isContextual,
+      search_tools_used: executedTools,
+      sources: sources,
+      searchResults: searchResults
     };
   } catch (error) {
     console.error("Error calling Groq Compound Beta API:", error);

@@ -54,11 +54,21 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
   console.log(`Tavily search for: "${query}" with depth: ${config.search_depth || 'basic'}`);
   
   // Extra validation for Tavily API key format
-  if (!apiKey || !apiKey.startsWith('tvly-')) {
-    throw new Error('Invalid Tavily API key format. The key should start with "tvly-"');
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error('Tavily API key is missing. Please check your environment variables.');
+  }
+  
+  if (!apiKey.startsWith('tvly-')) {
+    console.warn('Warning: Tavily API key does not have the expected format (should start with "tvly-"). API calls may fail.');
   }
   
   try {
+    // Clean and validate the query
+    const cleanedQuery = query.trim();
+    if (!cleanedQuery) {
+      throw new Error('Search query cannot be empty');
+    }
+    
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: {
@@ -66,7 +76,7 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
         "X-API-Key": apiKey.trim(), // Ensure no whitespace
       },
       body: JSON.stringify({
-        query: query,
+        query: cleanedQuery,
         search_depth: config.search_depth || "basic",
         include_domains: config.include_domains || [],
         exclude_domains: config.exclude_domains || [],
@@ -81,25 +91,32 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Tavily API error ${response.status}: ${errorText}`);
+      let errorMessage = `Tavily API error ${response.status}`;
+      
+      try {
+        const errorBody = await response.text();
+        console.error('Tavily API error details:', errorBody);
+        
+        // Provide specific error messages for common error codes
+        if (response.status === 401) {
+          errorMessage = 'Tavily API error: Invalid or expired API key. Please update your API key.';
+        } else if (response.status === 429) {
+          errorMessage = 'Tavily API error: Rate limit exceeded. Please try again later.';
+        } else {
+          errorMessage = `Tavily API error ${response.status}: ${errorBody}`;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse Tavily error response:', parseError);
+      }
+      
+      throw new Error(errorMessage);
     }
 
-    return await response.json();
+    const results = await response.json() as TavilySearchResponse;
+    return results;
   } catch (error) {
     // Add more detailed error information
     console.error('Tavily API call failed:', error);
-    
-    // For testing purposes, if Tavily fails, return mock data to allow testing other parts
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('Using fallback search results (DEVELOPMENT MODE ONLY)');
-      return {
-        results: [],
-        query: query,
-        search_depth: config.search_depth || "basic"
-      };
-    }
-    
     throw error;
   }
 }
