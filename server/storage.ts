@@ -227,7 +227,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(userTopicInterests)
       .where(eq(userTopicInterests.userId, userId))
-      .orderBy(userTopicInterests.interestLevel, 'desc');
+      .orderBy(sql`${userTopicInterests.interestLevel} DESC`);
   }
   
   async createUserTopicInterest(interest: InsertUserTopicInterest): Promise<UserTopicInterest> {

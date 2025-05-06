@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { directGroqCompoundSearch } from "./directCompound";
 import { storage } from "./storage";
+import { InsertUserPreferences, InsertUserTopicInterest } from "@shared/schema";
 import fetch from "node-fetch";
 import Stripe from "stripe";
 
@@ -1363,6 +1364,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Error activating subscription",
         details: error instanceof Error ? error.message : "Unknown error"
       });
+    }
+  });
+
+  // User Preferences API endpoints
+  // Get user preferences
+  app.get("/api/user/preferences", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const userId = req.user.id;
+      let preferences = await storage.getUserPreferences(userId);
+      
+      // If no preferences exist yet, create default preferences
+      if (!preferences) {
+        const defaultPrefs: InsertUserPreferences = {
+          userId,
+          defaultRegion: 'global',
+          preferredLanguage: 'en',
+          contentPreferences: {},
+          searchFilters: {},
+          aiModel: 'auto'
+        };
+        
+        preferences = await storage.createUserPreferences(defaultPrefs);
+      }
+      
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error retrieving user preferences:", error);
+      res.status(500).json({ message: "Error retrieving user preferences" });
+    }
+  });
+  
+  // Update user preferences
+  app.post("/api/user/preferences", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const userId = req.user.id;
+      const updates = req.body;
+      
+      // Check if preferences exist
+      let preferences = await storage.getUserPreferences(userId);
+      
+      if (!preferences) {
+        // Create new preferences
+        const newPrefs: InsertUserPreferences = {
+          userId,
+          ...updates
+        };
+        preferences = await storage.createUserPreferences(newPrefs);
+      } else {
+        // Update existing preferences
+        preferences = await storage.updateUserPreferences(userId, updates);
+      }
+      
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error updating user preferences:", error);
+      res.status(500).json({ message: "Error updating user preferences" });
+    }
+  });
+  
+  // Topic interests endpoints
+  // Get user topic interests
+  app.get("/api/user/topics", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const userId = req.user.id;
+      const topics = await storage.getUserTopicInterests(userId);
+      res.json(topics);
+    } catch (error) {
+      console.error("Error retrieving user topics:", error);
+      res.status(500).json({ message: "Error retrieving user topics" });
+    }
+  });
+  
+  // Add a topic interest
+  app.post("/api/user/topics", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const userId = req.user.id;
+      const { topic, interestLevel } = req.body;
+      
+      if (!topic) {
+        return res.status(400).json({ message: "Topic is required" });
+      }
+      
+      const newInterest: InsertUserTopicInterest = {
+        userId,
+        topic,
+        interestLevel: interestLevel || 3 // Default to medium interest
+      };
+      
+      const created = await storage.createUserTopicInterest(newInterest);
+      res.status(201).json(created);
+    } catch (error) {
+      console.error("Error creating topic interest:", error);
+      res.status(500).json({ message: "Error creating topic interest" });
+    }
+  });
+  
+  // Update a topic interest
+  app.put("/api/user/topics/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const topicId = parseInt(req.params.id);
+      const { interestLevel } = req.body;
+      
+      if (isNaN(topicId) || !interestLevel) {
+        return res.status(400).json({ message: "Valid topic ID and interest level are required" });
+      }
+      
+      const updated = await storage.updateUserTopicInterest(topicId, interestLevel);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating topic interest:", error);
+      res.status(500).json({ message: "Error updating topic interest" });
+    }
+  });
+  
+  // Delete a topic interest
+  app.delete("/api/user/topics/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const topicId = parseInt(req.params.id);
+      
+      if (isNaN(topicId)) {
+        return res.status(400).json({ message: "Valid topic ID is required" });
+      }
+      
+      await storage.deleteUserTopicInterest(topicId);
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting topic interest:", error);
+      res.status(500).json({ message: "Error deleting topic interest" });
     }
   });
 
