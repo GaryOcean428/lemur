@@ -29,6 +29,11 @@ import {
   generateCacheKey,
   isRedisAvailable
 } from "./utils/redisCache";
+import {
+  parallelLimit,
+  parallelWithCallback,
+  parallelTaskGroups
+} from "./utils/parallelProcessing";
 import fetch from "node-fetch";
 import Stripe from "stripe";
 
@@ -789,7 +794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Perform searches based on the requested search type
+      // Prepare for parallel processing of search tasks
       let traditional: TavilySearchResponse | null = null;
       let ai: { answer: string; model: string; sources: TavilySearchResult[] } | null = null;
       
@@ -799,69 +804,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
         preferredModel = 'fast';
       }
       
-      // Perform traditional search if requested
-      if (searchType === 'all' || searchType === 'traditional') {
-        traditional = await tavilySearch(query, tavilyApiKey, filters);
+      // Load conversation context for follow-up queries
+      let conversationContext: string[] = [];
+      if (req.query.isFollowUp === 'true' && req.session.conversationContext) {
+        // Format previous queries for context
+        conversationContext = req.session.conversationContext.map(
+          (ctx: any) => `User: ${ctx.query}${ctx.answer ? `\nAssistant: ${ctx.answer}` : ''}`
+        );
       }
       
-      // Perform AI search if requested and user has access
+      // Define task groups for parallel execution
+      const searchTasks: Record<string, (() => Promise<any>)[]> = {
+        tavily: [],
+        groq: []
+      };
+      
+      // Add Tavily search task if needed
+      if (searchType === 'all' || searchType === 'traditional') {
+        searchTasks.tavily.push(async () => {
+          console.log('Starting Tavily search task');
+          return await tavilySearch(query, tavilyApiKey, filters);
+        });
+      }
+      
+      // Prepare for AI search if requested
       if (searchType === 'all' || searchType === 'ai') {
-        // Use direct compound approach for unified search
-        try {
-          // Load conversation context for follow-up queries
-          let conversationContext: string[] = [];
-          if (req.query.isFollowUp === 'true' && req.session.conversationContext) {
-            // Format previous queries for context
-            conversationContext = req.session.conversationContext.map(
-              (ctx: any) => `User: ${ctx.query}${ctx.answer ? `\nAssistant: ${ctx.answer}` : ''}`
-            );
-          }
+        // For follow-up queries with context, enhance the prompt
+        let enhancedQuery = query;
+        if (conversationContext.length > 0) {
+          enhancedQuery = `Previous conversation:\n${conversationContext.join('\n\n')}\n\nCurrent query: ${query}`;
+        }
+        
+        // For free/anonymous tier, use direct Groq without tool calling
+        if (useLimitedAIResponse) {
+          console.log('Using limited AI response with model: compound-beta-mini');
           
-          // For follow-up queries with context, enhance the prompt
-          let enhancedQuery = query;
-          if (conversationContext.length > 0) {
-            enhancedQuery = `Previous conversation:\n${conversationContext.join('\n\n')}\n\nCurrent query: ${query}`;
-          }
-          
-          // For free/anonymous tier, we use direct Groq without tool calling
-          if (useLimitedAIResponse) {
-            console.log('Using limited AI response with model: compound-beta-mini');
+          // Add a task that depends on Tavily search results
+          searchTasks.groq.push(async () => {
+            console.log('Starting limited Groq search task');
+            // Get Tavily results if we don't have them yet
+            let tavilyResults: TavilySearchResult[] = [];
             
-            // First get search results from Tavily
-            if (!traditional) {
+            if (traditional) {
+              tavilyResults = traditional.results;
+            } else if (searchTasks.tavily.length > 0) {
+              // Wait for Tavily task to complete if it's running in parallel
+              const tavilySearchPromise = searchTasks.tavily[0]();
+              traditional = await tavilySearchPromise;
+              tavilyResults = traditional.results;
+            } else {
+              // If no Tavily task was queued, run it now
               traditional = await tavilySearch(query, tavilyApiKey, filters);
+              tavilyResults = traditional.results;
             }
             
-            // Then use Groq to synthesize an answer
-            const groqResult = await groqSearch(query, traditional.results, groqApiKey, preferredModel);
+            // Generate AI answer using Groq
+            const groqResult = await groqSearch(query, tavilyResults, groqApiKey, preferredModel);
             
             // Extract sources from Tavily results
-            const sources = traditional.results.slice(0, 5).map(result => ({
+            const sources = tavilyResults.slice(0, 5).map(result => ({
               title: result.title,
               url: result.url,
               domain: new URL(result.url).hostname.replace('www.', '')
             }));
             
-            ai = {
+            return {
               answer: groqResult.answer,
               model: groqResult.model,
               sources: sources
             };
-          } else {
-            // Pro and basic tiers get access to full model features with tool calling
-            console.log('Using enhanced AI response with model: compound-beta');
-            
+          });
+        } else {
+          // Pro and basic tiers get access to full model features with tool calling
+          console.log('Using enhanced AI response with model: compound-beta');
+          
+          // Add task for direct compound search
+          searchTasks.groq.push(async () => {
+            console.log('Starting enhanced Groq Compound search task');
             // Get direct search results using Groq's built-in Tavily integration
-            const directResult = await directGroqCompoundSearch(
+            return await directGroqCompoundSearch(
               query,
               groqApiKey,
               preferredModel,
               filters.geo_location || null,
               conversationContext.length > 0, // Flag to indicate if this is a contextual search
-              req.session.conversationContext || [], // Pass conversation context for better contextual responses
+              req.session.conversationContext || [], // Pass conversation context
               filters, // Pass search filters
               tavilyApiKey // Pass Tavily API key
             );
+          });
+        }
+      }
+      
+      try {
+        // Execute tasks in parallel with dependencies (Groq may depend on Tavily)
+        const dependencies = searchTasks.groq.length > 0 && searchTasks.tavily.length > 0 && useLimitedAIResponse
+          ? { groq: ['tavily'] } // Groq depends on Tavily for limited response
+          : {}; // No dependencies for other cases
+        
+        console.log(`Executing search tasks: Tavily (${searchTasks.tavily.length}), Groq (${searchTasks.groq.length})`);
+        
+        // Execute tasks with concurrency of 2
+        const results = await parallelTaskGroups(searchTasks, dependencies, 2);
+        
+        // Process results
+        if (results.tavily && results.tavily.length > 0) {
+          traditional = results.tavily[0];
+        }
+        
+        if (results.groq && results.groq.length > 0) {
+          const groqResult = results.groq[0];
+          
+          if (useLimitedAIResponse) {
+            // For limited response mode
+            ai = groqResult;
+          } else {
+            // For enhanced mode with direct compound
+            const directResult = groqResult;
             
             // Store the generated answer in the conversation context for future follow-up queries
             if (req.session.conversationContext && req.session.conversationContext.length > 0) {
@@ -884,14 +943,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               };
             }
           }
-        } catch (error) {
-          console.error("Error in AI search:", error);
-          ai = {
-            answer: "I encountered an error while processing your search. Please try again or refine your query.",
-            model: "error",
-            sources: []
-          };
         }
+      } catch (error) {
+        console.error("Error in parallel search execution:", error);
+        // Provide a fallback response on error
+        ai = {
+          answer: "I encountered an error while processing your search. Please try again or refine your query.",
+          model: "error",
+          sources: []
+        };
       }
       
       // Format traditional search results for the response
