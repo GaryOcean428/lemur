@@ -70,6 +70,14 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
     };
   }
   
+  // Detailed debug info about the API key
+  console.log(`DEBUG: Tavily API key details:`);
+  console.log(`- Length: ${apiKey.length}`);
+  console.log(`- First 8 chars: ${apiKey.substring(0, 8)}...`);
+  console.log(`- Starts with 'tvly-': ${apiKey.startsWith('tvly-')}`);
+  console.log(`- Contains whitespace: ${apiKey.includes(' ')}`);
+  console.log(`- Has quotes: ${apiKey.includes('"') || apiKey.includes("'")}`);
+  
   if (!apiKey.startsWith('tvly-')) {
     console.warn('Warning: Tavily API key does not have the expected format (should start with "tvly-"). API calls may fail.');
   }
@@ -271,6 +279,52 @@ import { setupAuth } from "./auth";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes and middleware
   setupAuth(app);
+  
+  // Test endpoint for Tavily API specifically
+  app.get("/api/test-tavily", async (req, res) => {
+    try {
+      const tavilyApiKey = process.env.TAVILY_API_KEY || "";
+      
+      // Log details about the key
+      console.log(`Tavily API key length: ${tavilyApiKey.length}`);
+      console.log(`Tavily API key first 8 chars: ${tavilyApiKey.substring(0, 8)}...`);
+      
+      // Make a direct request to Tavily API
+      const response = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": tavilyApiKey.trim(),
+        },
+        body: JSON.stringify({
+          query: "Test query from Lemur",
+          search_depth: "basic",
+          max_results: 3
+        }),
+      });
+      
+      // Return full details to help diagnose the issue
+      const responseBody = await response.text();
+      
+      res.json({
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: responseBody,
+        apiKeyInfo: {
+          length: tavilyApiKey.length,
+          startsWithPrefix: tavilyApiKey.startsWith('tvly-'),
+          containsSpaces: tavilyApiKey.includes(' '),
+          containsNewlines: tavilyApiKey.includes('\n'),
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Test failed',
+        message: error.message || 'Unknown error'
+      });
+    }
+  });
   
   // Test endpoint for Tavily and Groq integration
   app.get("/api/test-integration", async (req, res) => {
