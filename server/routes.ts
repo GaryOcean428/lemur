@@ -420,6 +420,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Function to apply user preferences to search filters
+  async function applyUserPreferencesToSearch(userId: number, filters: Record<string, any>, requestedModel?: string): Promise<{filters: Record<string, any>, preferredModel: string}> {
+    let preferredModel = requestedModel || 'auto';
+    
+    // Get user preferences if available
+    const userPreferences = await storage.getUserPreferences(userId);
+    
+    // Apply user preferences to the search if available
+    if (userPreferences) {
+      // Use preferred model from user settings if not explicitly specified in request
+      if (!requestedModel && userPreferences.aiModel) {
+        preferredModel = userPreferences.aiModel;
+      }
+      
+      // Apply default geo location if not in request
+      if (!filters.geo_location && userPreferences.defaultRegion && userPreferences.defaultRegion !== 'global') {
+        filters.geo_location = userPreferences.defaultRegion;
+      }
+      
+      // Apply any saved search filters from user preferences
+      if (userPreferences.searchFilters) {
+        // Merge user's saved filters with request filters, prioritizing request filters
+        Object.entries(userPreferences.searchFilters).forEach(([key, value]) => {
+          if (!filters[key] && value) {
+            filters[key] = value;
+          }
+        });
+      }
+    }
+    
+    return { filters, preferredModel };
+  }
+
   // Search suggestions endpoint
   app.get("/api/search/suggestions", async (req, res) => {
     try {
@@ -438,6 +471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Main search endpoint - supports both AI and traditional search
   app.get("/api/search", async (req, res) => {
+    let userPreferences = null;
     try {
       const query = req.query.q as string;
       const searchType = req.query.type as string || 'all'; // 'all', 'ai', or 'traditional'
@@ -702,6 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Direct search endpoint - primarily for mobile and external API access
   app.get("/api/direct-search", async (req, res) => {
+    let userPreferences = null;
     try {
       const query = req.query.q as string;
       const isFollowUp = req.query.isFollowUp === 'true';
