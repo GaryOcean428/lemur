@@ -67,13 +67,49 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false);
-        } else {
+        // Add retries for database operations with exponential backoff
+        let retries = 3;
+        let user = null;
+        let lastError = null;
+        
+        while (retries > 0 && !user) {
+          try {
+            user = await storage.getUserByUsername(username);
+            // If we got here, the database query succeeded
+            break;
+          } catch (err) {
+            // Log the error but don't fail yet, we'll retry
+            console.log(`Database error in getUserByUsername, retries left: ${retries}`, err);
+            lastError = err;
+            retries--;
+            // Wait with exponential backoff before retrying
+            const delay = Math.min(100 * Math.pow(2, 3 - retries), 2000);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+        
+        // If we still have no user after retries, handle the error or not found case
+        if (!user) {
+          if (lastError) {
+            console.error("Database error after retries:", lastError);
+            return done(lastError);
+          }
+          return done(null, false, { message: 'Invalid username' });
+        }
+        
+        // Check the password once we have a user
+        try {
+          const isValidPassword = await comparePasswords(password, user.password);
+          if (!isValidPassword) {
+            return done(null, false, { message: 'Invalid password' });
+          }
           return done(null, user);
+        } catch (passwordError) {
+          console.error("Password verification error:", passwordError);
+          return done(passwordError);
         }
       } catch (error) {
+        console.error("Unexpected error in authentication:", error);
         return done(error);
       }
     }),
@@ -82,12 +118,40 @@ export function setupAuth(app: Express) {
   passport.serializeUser((user, done) => done(null, user.id));
   
   passport.deserializeUser(async (id: number, done) => {
-    try {
-      const user = await storage.getUser(id);
-      done(null, user);
-    } catch (error) {
-      done(error, null);
+    // Add retries for database operations with exponential backoff
+    let retries = 3;
+    let user = null;
+    let lastError = null;
+    
+    while (retries > 0 && !user) {
+      try {
+        user = await storage.getUser(id);
+        if (user) {
+          return done(null, user);
+        } else {
+          // User not found case - might be deleted or invalid session
+          console.log(`User with id ${id} not found in deserializeUser`);
+          return done(null, false);
+        }
+      } catch (err) {
+        // Log the error but don't fail yet, we'll retry
+        console.log(`Database error in deserializeUser, retries left: ${retries}`, err);
+        lastError = err;
+        retries--;
+        // Wait with exponential backoff before retrying
+        const delay = Math.min(100 * Math.pow(2, 3 - retries), 2000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
+    
+    // If we still have no user after retries and it was due to an error
+    if (lastError) {
+      console.error("Database error in deserializeUser after retries:", lastError);
+      return done(lastError, null);
+    }
+    
+    // If we got here, the user wasn't found but no error occurred
+    return done(null, false);
   });
 
   app.post("/api/register", async (req, res, next) => {
