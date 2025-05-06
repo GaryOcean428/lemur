@@ -85,16 +85,16 @@ export async function directGroqCompoundSearch(
     // Model selection map
     // Using the latest Groq models as documented
     const modelMap: Record<string, string> = {
-      "auto": "llama3-70b-8192", // Balanced performance and quality (Llama 3.1)
-      "fast": "llama3-8b-8192", // Faster with lower latency (Llama 3.1 small)
-      "comprehensive": "llama4-8b-8192" // High quality, advanced reasoning (Llama 4)
+      "auto": "compound-beta", // Balanced performance and quality
+      "fast": "compound-beta-mini", // Faster with lower latency
+      "comprehensive": "llama-3.3-70b" // High quality, advanced reasoning (Llama 3.3 70B)
     };
     
     // Normalize the preference to lowercase for consistent matching
     const normalizedPref = modelPreference.toLowerCase();
     
-    // Select the model based on preference, defaulting to llama3-70b-8192 if not found
-    const model = modelMap[normalizedPref] || "llama3-70b-8192";
+    // Select the model based on preference, defaulting to compound-beta if not found
+    const model = modelMap[normalizedPref] || "compound-beta";
     
     // Groq's Llama models support built-in tool calling with Tavily integration
     const supportsTools = true;
@@ -103,7 +103,7 @@ export async function directGroqCompoundSearch(
     const isToolModel = supportsTools;
     
     // Log which model was selected
-    console.log(`Using Groq Llama model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
+    console.log(`Using Groq model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
 
     // Create the system message with search preferences
     // Use different prompts for tool and non-tool models

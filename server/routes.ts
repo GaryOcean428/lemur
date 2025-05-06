@@ -153,12 +153,12 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
 // Function to perform Groq search
 async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string, modelPreference: string = 'auto'): Promise<{answer: string; model: string}> {
   // Map modelPreference to actual Groq models
-  // Using Llama models as documented
-  let model = "llama3-70b-8192"; // Default balanced model
+  // Using the correct Groq models as documented
+  let model = "compound-beta"; // Default balanced model
   if (modelPreference === 'fast') {
-    model = "llama3-8b-8192"; // Faster with lower latency
+    model = "compound-beta-mini"; // Faster with lower latency
   } else if (modelPreference === 'comprehensive') {
-    model = "llama4-8b-8192"; // High quality reasoning
+    model = "llama-3.3-70b"; // High quality reasoning with Llama 3.3 70B
   }
   
   console.log(`Using Groq model: ${model} for synthesis`);
@@ -391,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             resultCount: tavilyResponse.results.length
           };
           
-          // Test Groq Llama model with search
+          // Test Groq model with search
           const directResponse = await directGroqCompoundSearch("What are the latest developments in quantum computing?", groqApiKey, "auto", "US", false);
           
           // Check if search tools were used
@@ -640,7 +640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // For free/anonymous tier, we use direct Groq without tool calling
           if (useLimitedAIResponse) {
-            console.log('Using limited AI response with model: llama3-8b-8192');
+            console.log('Using limited AI response with model: compound-beta-mini');
             
             // First get search results from Tavily
             if (!traditional) {
@@ -663,8 +663,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               sources: sources
             };
           } else {
-            // Pro and basic tiers get access to full Llama model features with tool calling
-            console.log('Using enhanced AI response with model: llama3-70b-8192');
+            // Pro and basic tiers get access to full model features with tool calling
+            console.log('Using enhanced AI response with model: compound-beta');
             
             // Get direct search results using Groq's built-in Tavily integration
             const directResult = await directGroqCompoundSearch(
