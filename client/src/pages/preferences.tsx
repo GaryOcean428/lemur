@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,7 +41,7 @@ interface UserTopic {
 export default function PreferencesPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   
   // State for new topic
@@ -50,9 +50,9 @@ export default function PreferencesPage() {
   // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate("/auth");
+      setLocation("/auth");
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, setLocation]);
   
   // Fetch user preferences
   const { data: preferences, isLoading: prefsLoading } = useQuery<UserPreferences>({

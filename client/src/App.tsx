@@ -24,6 +24,7 @@ import DataProcessingPage from "@/pages/data-processing";
 import ContactPage from "@/pages/contact";
 import HelpPage from "@/pages/help";
 import APIPage from "@/pages/api";
+import PreferencesPage from "@/pages/preferences";
 import SubscriptionPage from "@/pages/subscription";
 import SubscriptionSuccessPage from "@/pages/subscription-success";
 import ManageSubscriptionPage from "@/pages/manage-subscription";
@@ -43,6 +44,11 @@ function Router() {
       <Route path="/about" component={AboutPage} />
       <Route path="/tools" component={ToolsPage} />
       <Route path="/settings" component={SettingsPage} />
+      
+      {/* User pages */}
+      <Route path="/preferences">
+        <ProtectedRoute path="/preferences" component={PreferencesPage} />
+      </Route>
       
       {/* Legal pages */}
       <Route path="/privacy" component={PrivacyPage} />

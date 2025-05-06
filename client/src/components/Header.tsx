@@ -39,6 +39,11 @@ export default function Header() {
           <Link href="/settings" className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
             Settings
           </Link>
+          {user && (
+            <Link href="/preferences" className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
+              Preferences
+            </Link>
+          )}
           
           <ThemeToggle />
           
@@ -111,6 +116,11 @@ export default function Header() {
             <Link href="/settings" className="py-2 text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
               Settings
             </Link>
+            {user && (
+              <Link href="/preferences" className="py-2 text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
+                Preferences
+              </Link>
+            )}
             
             <div className="py-2 flex items-center">
               <span className="mr-2">Theme:</span>
