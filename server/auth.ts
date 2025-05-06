@@ -102,7 +102,6 @@ export function setupAuth(app: Express) {
       const isDeveloperUser = req.body.email?.endsWith('@replit.com') || 
                             req.body.email?.endsWith('@example.com') || 
                             req.body.username === 'GaryOcean' || 
-                            req.body.username === 'TestUser' || 
                             await storage.isFirstUser();
       
       const user = await storage.createUser({
@@ -155,8 +154,7 @@ export function setupAuth(app: Express) {
           if (req.user && req.user.subscriptionTier === 'free') {
             const isDeveloperUser = req.user.email?.endsWith('@replit.com') || 
                                   req.user.email?.endsWith('@example.com') ||
-                                  req.user.username === 'GaryOcean' ||
-                                  req.user.username === 'TestUser';
+                                  req.user.username === 'GaryOcean';
             
             if (isDeveloperUser) {
               // Update to Pro tier with 1 year expiration
