@@ -420,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Search suggestions endpoint
-  app.get("/api/suggestions", async (req, res) => {
+  app.get("/api/search/suggestions", async (req, res) => {
     try {
       const query = req.query.q as string;
       if (!query) {

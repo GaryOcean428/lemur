@@ -23,7 +23,8 @@ export async function fetchSearchSuggestions(query: string): Promise<string[]> {
       return [];
     }
     
-    return await response.json();
+    const data = await response.json();
+    return data.suggestions;
   } catch (error) {
     console.error("Error in fetchSearchSuggestions:", error);
     return [];
