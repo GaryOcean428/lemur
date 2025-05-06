@@ -1053,26 +1053,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priceId = process.env.STRIPE_PRO_PRICE_ID;
       }
       
+      // Need a valid Stripe price ID, can't continue without one
       if (!priceId) {
-        // For testing purposes, create a product and price
-        const testPrice = tier === 'basic' ? 9.99 : 29.99;
-        console.log(`Creating test product and price for ${tier} tier at $${testPrice}`);
-        
-        const product = await stripe.products.create({
-          name: `Lemur Search ${tier.charAt(0).toUpperCase() + tier.slice(1)} Plan`,
-          description: tier === 'basic' 
-            ? 'Up to 100 searches per month with enhanced features'
-            : 'Up to 300 searches per month with all premium features'
+        console.error(`No price ID found for tier: ${tier}`);
+        return res.status(400).json({ 
+          message: "Stripe price ID not configured for this tier",
+          details: "Please contact the administrator to set up proper Stripe price IDs"
         });
-        
-        const price = await stripe.prices.create({
-          product: product.id,
-          unit_amount: Math.round(testPrice * 100), // Convert to cents
-          currency: 'usd',
-          recurring: { interval: 'month' }
-        });
-        
-        priceId = price.id;
       }
       
       // Get or create customer

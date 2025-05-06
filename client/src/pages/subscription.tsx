@@ -400,7 +400,7 @@ export default function SubscriptionPage() {
             <Button 
               onClick={() => {
                 // Direct API call for free tier
-                apiRequest('POST', '/api/create-subscription', { tier: 'free' })
+                apiRequest('POST', '/api/change-subscription', { planType: 'free' })
                   .then(response => response.json())
                   .then(data => {
                     if (data.success) {
