@@ -162,19 +162,71 @@ export function getRelevantSourcesFromContext(context?: ConversationContext): Ar
 /**
  * Creates a system message that incorporates conversation context for the AI
  * @param context Conversation context
+ * @param isFirstTurn Whether this is the first query in a new conversation
  * @returns A system message that guides the AI in providing contextual responses
  */
-export function createContextualSystemMessage(context?: ConversationContext): string {
-  if (!context || !context.turns || context.turns.length <= 1) {
-    return "You are a helpful search assistant that provides detailed, informative answers based on search results.";
+export function createContextualSystemMessage(context?: ConversationContext, isFirstTurn: boolean = false): string {
+  if (!context || !context.turns || context.turns.length <= 1 || isFirstTurn) {
+    return `You are Lemur, a helpful search assistant that provides detailed, accurate answers based on search results.
+
+For each response:
+1. Synthesize information coherently
+2. Cite sources using [Source X] notation
+3. Format in clear paragraphs with markdown
+4. Include a "Sources" section at the end
+5. Present balanced views on controversial topics
+6. Only make claims supported by the sources
+7. Acknowledge when information is incomplete or uncertain
+
+Your goal is to provide the most helpful, accurate answer possible based on the search results provided.`;
   }
   
-  return `You are a helpful search assistant that provides detailed, informative answers based on search results.
+  // Create a formatted summary of the previous conversation, including sources when available
+  const previousTurns = context.turns
+    .slice(1, MAX_CONTEXT_TURNS) // Skip the current query, which is already at index 0
+    .map((turn, idx) => {
+      let turnSummary = `User: ${turn.query}\n`;
+      if (turn.answer) {
+        turnSummary += `Assistant: ${turn.answer.substring(0, 300)}`;
+        if (turn.answer.length > 300) turnSummary += '...';
+      } else {
+        turnSummary += 'Assistant: [No response]';
+      }
+      
+      // Add source information if available
+      if (turn.sources && turn.sources.length > 0) {
+        const sourcesInfo = turn.sources
+          .slice(0, 3) // Limit to first 3 sources to avoid context length issues
+          .map((source, i) => `[Source ${i+1}]: ${source.title} (${source.url})`)
+          .join('\n');
+        
+        turnSummary += `\n\nSources used:\n${sourcesInfo}`;
+      }
+      
+      // Add model info if available
+      if (turn.model) {
+        turnSummary += `\n\nModel used: ${turn.model}`;
+      }
+      
+      return turnSummary;
+    })
+    .join('\n\n');
+  
+  // Create a more detailed system message for follow-up questions
+  return `You are Lemur, a helpful search assistant with perfect memory of this conversation.
 
-The user has been asking a series of related questions. Here's the conversation so far:
-${context.turns.slice(0, MAX_CONTEXT_TURNS - 1)
-  .map((turn, idx) => `User: ${turn.query}\nYou: ${turn.answer ? turn.answer.substring(0, 200) + (turn.answer.length > 200 ? '...' : '') : '[No response]'}`)
-  .join('\n\n')}
+This is a follow-up question in an ongoing conversation. Here's the detailed conversation history:
 
-Please consider this conversation history when answering the user's next question. Maintain continuity and avoid repeating information already provided, unless the user is specifically asking for clarification.`;
+${previousTurns}
+
+Guidelines for your response:
+1. Provide a response that directly builds on the conversation so far
+2. Reference information from previous turns when relevant
+3. Prioritize new search results when they provide more current or relevant information
+4. Maintain a coherent narrative across the entire conversation
+5. Cite sources using [Source X] notation and include a sources section
+6. Format your answer using markdown for readability
+7. If you previously couldn't answer something but now have the information, acknowledge this
+
+Your response should be thorough but focused specifically on the user's latest question in context.`;
 }
