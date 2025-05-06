@@ -481,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Parse search filters if provided
-      const filters: Record<string, any> = {};
+      let filters: Record<string, any> = {};
       if (req.query.time_range) filters.time_range = req.query.time_range;
       if (req.query.geo_location) filters.geo_location = req.query.geo_location;
       if (req.query.include_domains) filters.include_domains = (req.query.include_domains as string).split(',');
@@ -513,6 +513,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId = req.user.id;
         userTier = req.user.subscriptionTier;
         userSearchCount = req.user.searchCount;
+        
+        // Apply user preferences to search
+        const { filters: enhancedFilters, preferredModel: userPreferredModel } = await applyUserPreferencesToSearch(
+          userId, 
+          filters, 
+          preferredModel
+        );
+        
+        // Update our filters and model with user preferences
+        filters = enhancedFilters;
+        preferredModel = userPreferredModel;
         
         // Pro users get 300 searches with full features
         if (userTier === 'pro') {
@@ -746,7 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Parse search filters if provided
-      const filters: Record<string, any> = {};
+      let filters: Record<string, any> = {};
       if (req.query.time_range) filters.time_range = req.query.time_range;
       if (req.query.geo_location) filters.geo_location = req.query.geo_location;
       if (req.query.include_domains) filters.include_domains = (req.query.include_domains as string).split(',');
@@ -773,6 +784,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId = req.user.id;
         userTier = req.user.subscriptionTier;
         userSearchCount = req.user.searchCount;
+        
+        // Apply user preferences to search
+        const { filters: enhancedFilters, preferredModel: userPreferredModel } = await applyUserPreferencesToSearch(
+          userId, 
+          filters, 
+          preferredModel
+        );
+        
+        // Update our filters and model with user preferences
+        filters = enhancedFilters;
+        preferredModel = userPreferredModel;
         
         // Pro users get 300 searches with full features
         if (userTier === 'pro') {
