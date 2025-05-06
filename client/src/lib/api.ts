@@ -41,7 +41,7 @@ export async function performDirectSearch(query: string, isFollowUp: boolean = f
     
     // Add follow-up parameter if applicable
     if (isFollowUp) {
-      url += `&followUp=true`;
+      url += `&isFollowUp=true`;
     }
     
     // Add filter parameters if provided

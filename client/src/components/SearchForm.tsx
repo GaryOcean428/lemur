@@ -80,7 +80,7 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
     // Proceed with search, include follow-up parameter if applicable
     let searchUrl = `/search?q=${encodeURIComponent(trimmedQuery)}`;
     if (isFollowUp) {
-      searchUrl += '&followUp=true';
+      searchUrl += '&isFollowUp=true';
     }
     setLocation(searchUrl);
   };
@@ -100,7 +100,7 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
     // Proceed with search, include follow-up parameter if applicable
     let searchUrl = `/search?q=${encodeURIComponent(suggestion)}`;
     if (isFollowUp) {
-      searchUrl += '&followUp=true';
+      searchUrl += '&isFollowUp=true';
     }
     setLocation(searchUrl);
   };

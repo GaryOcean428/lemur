@@ -20,7 +20,7 @@ export default function SearchResults() {
   // Get the search query from URL
   const params = new URLSearchParams(window.location.search);
   const query = params.get("q") || "";
-  const isFollowUp = params.get("followUp") === "true";
+  const isFollowUp = params.get("isFollowUp") === "true";
 
   // If no query, redirect to home
   if (!query) {
