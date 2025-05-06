@@ -140,6 +140,13 @@ When responding to search queries, follow these guidelines:
 4. Provide balanced viewpoints on controversial topics
 5. Adapt content to be contextually relevant for users in ${geo_location}
 
+IMPORTANT CITATION FORMAT: 
+For any factual information, include numbered references at the end of your response in this format:
+[1]: https://example.com "Title of Source"
+[2]: https://anotherexample.com "Another Source Title"
+
+Refer to these sources in-text using the number in brackets, for example: [1]
+
 Format your response with clear section headings and a logical structure.
 
 Note: You're working with a limited model that doesn't have real-time search capabilities. Acknowledge when information might be outdated or when you don't have enough context to provide a complete answer.`
@@ -223,6 +230,62 @@ Note: You're working with a limited model that doesn't have real-time search cap
     
     // Debug logging for tools - this helps diagnose what's being returned
     console.log('Executed tools count:', executedTools.length);
+    
+    // Try to extract search information from the response text
+    // This works even if executed_tools aren't returned properly
+    let searchResultsFromText: SearchResult[] = [];
+    let sourcesFromText: Source[] = [];
+    
+    // Look for search result patterns in the content
+    const answer = data.choices[0].message.content;
+    
+    // Check if there are citations in markdown format [1]: https://example.com
+    const citationRegex = /\[([0-9]+)\]:\s*(https?:\/\/[^\s]+)\s*(?:"([^"]+)")?/g;
+    let citation;
+    const citationMap = new Map<string, Source>();
+    
+    while ((citation = citationRegex.exec(answer)) !== null) {
+      const number = citation[1];
+      const url = citation[2];
+      let title = citation[3] || "";
+      
+      // If no title, extract domain as title
+      if (!title) {
+        try {
+          const domain = new URL(url).hostname.replace('www.', '');
+          title = domain.charAt(0).toUpperCase() + domain.slice(1);
+        } catch (e) {
+          title = "Reference " + number;
+        }
+      }
+      
+      const source: Source = {
+        title,
+        url,
+        domain: new URL(url).hostname.replace('www.', '')
+      };
+      
+      citationMap.set(number, source);
+      
+      // Also add to search results with placeholder content
+      searchResultsFromText.push({
+        title,
+        url,
+        content: "Content extracted from citation reference " + number,
+        score: 1.0
+      });
+    }
+    
+    // Convert the map to an array for sources
+    sourcesFromText = Array.from(citationMap.values());
+    
+    // If we found sources directly in the text, prefer those
+    const finalSources = sourcesFromText.length > 0 ? sourcesFromText : [];
+    
+    // Log what was found for debugging
+    console.log('Sources extracted from text:', finalSources.length);
+    
+    // Also inspect executedTools if available
     if (executedTools.length > 0) {
       console.log('First tool type:', executedTools[0].type);
       
@@ -237,6 +300,33 @@ Note: You're working with a limited model that doesn't have real-time search cap
       if (executedTools[0].output !== undefined) {
         console.log('First tool output structure:', typeof executedTools[0].output, 
           Array.isArray(executedTools[0].output) ? executedTools[0].output.length + ' items' : 'not an array');
+        
+        // Try to extract search results from tool output if it's an object with results
+        if (typeof executedTools[0].output === 'object' && 
+            executedTools[0].output !== null && 
+            'results' in executedTools[0].output && 
+            Array.isArray(executedTools[0].output.results)) {
+          
+          console.log('Found search results in tool output');
+          const results = executedTools[0].output.results;
+          
+          // Extract search results
+          searchResultsFromText = results.map((result: any) => ({
+            title: result.title || '',
+            url: result.url || '',
+            content: result.content || result.snippet || '',
+            score: result.score || 1.0,
+            published_date: result.published_date,
+            image: result.image
+          }));
+          
+          // Generate sources from search results
+          sourcesFromText = searchResultsFromText.map((result) => ({
+            title: result.title,
+            url: result.url,
+            domain: new URL(result.url).hostname.replace('www.', '')
+          }));
+        }
       } else {
         console.log('First tool output: undefined or null');
       }
@@ -266,13 +356,17 @@ Note: You're working with a limited model that doesn't have real-time search cap
       }));
     }
     
+    // Combine information from all sources (tools and text extraction)
+    const combinedSearchResults = searchResults.length > 0 ? searchResults : searchResultsFromText;
+    const combinedSources = sources.length > 0 ? sources : finalSources;
+    
     return {
       answer: data.choices[0].message.content,
       model: data.model,
       contextual: isContextual,
       search_tools_used: executedTools,
-      sources: sources,
-      searchResults: searchResults
+      sources: combinedSources,
+      searchResults: combinedSearchResults
     };
   } catch (error) {
     console.error("Error calling Groq Compound Beta API:", error);
