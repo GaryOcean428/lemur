@@ -20,9 +20,10 @@ interface SearchTabsProps {
   query: string;
   isLoading: boolean;
   isFollowUp?: boolean;
+  authRequired?: boolean; // Indicates if authentication is required (for limit reached scenarios)
 }
 
-export default function SearchTabs({ data, query, isLoading, isFollowUp = false }: SearchTabsProps) {
+export default function SearchTabs({ data, query, isLoading, isFollowUp = false, authRequired = false }: SearchTabsProps) {
   // Access the search store
   const { 
     activeTab, 
@@ -182,6 +183,7 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false 
                     sources={activeTabData.ai.sources}
                     model={activeTabData.ai.model}
                     contextual={isFollowUp}
+                    authRequired={authRequired}
                   />
                 )}
               </div>
@@ -196,6 +198,7 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false 
                 sources={activeTabData.ai.sources}
                 model={activeTabData.ai.model}
                 contextual={isFollowUp}
+                authRequired={authRequired}
               />
             )}
           </TabsContent>
