@@ -1283,7 +1283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Complete timing
-      completeApiTiming(timingId, { success: true });
+      completeApiTiming(timingId, true);
       
       // Return results
       res.json({
@@ -1352,7 +1352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const extractionResult = await tavilyExtractContent(url, tavilyApiKey);
       
       // Complete timing
-      completeApiTiming(timingId, { success: true });
+      completeApiTiming(timingId, true);
       
       // Record cache hit/miss
       recordCacheResult('content_extraction', false);
