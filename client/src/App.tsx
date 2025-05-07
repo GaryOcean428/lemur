@@ -28,6 +28,7 @@ import PreferencesPage from "@/pages/preferences";
 import SubscriptionPage from "@/pages/subscription";
 import SubscriptionSuccessPage from "@/pages/subscription-success";
 import ManageSubscriptionPage from "@/pages/manage-subscription";
+import DeepResearchPage from "@/pages/deep-research";
 
 function Router() {
   return (
@@ -70,6 +71,11 @@ function Router() {
       </Route>
       <Route path="/manage-subscription">
         <ProtectedRoute path="/manage-subscription" component={ManageSubscriptionPage} />
+      </Route>
+      
+      {/* Research pages */}
+      <Route path="/deep-research">
+        <ProtectedRoute path="/deep-research" component={DeepResearchPage} />
       </Route>
       
       {/* 404 page - must be last */}

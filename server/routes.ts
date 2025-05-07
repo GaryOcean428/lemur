@@ -1295,7 +1295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user_tier: userTier
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Deep research error:', error);
       res.status(500).json({
         error: 'deep_research_error',
@@ -1355,7 +1355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       completeApiTiming(timingId, true);
       
       // Record cache hit/miss
-      recordCacheResult('content_extraction', false);
+      recordCacheResult(false);
       
       // Add to search history if user is authenticated
       if (req.isAuthenticated()) {
@@ -1379,7 +1379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: extractionResult.metadata || {}
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Content extraction error:', error);
       res.status(500).json({
         error: 'extraction_error',
