@@ -151,7 +151,7 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
         include_answer: false,
         include_images: config.include_images !== false, // Default to true
         include_raw_content: false,
-        geo_location: config.geo_location || null, // e.g. "AU" for Australia
+        geo_location: config.geo_location ? config.geo_location.toUpperCase() : null, // e.g. "AU" for Australia
         time_range: config.time_range || null, // e.g. "day", "week", "month"
         // Additional filter options can be added here
       }),
@@ -888,7 +888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               query,
               groqApiKey,
               preferredModel,
-              filters.geo_location || null,
+              filters.geo_location ? filters.geo_location.toUpperCase() : null, // Ensure proper format
               conversationContext.length > 0, // Flag to indicate if this is a contextual search
               req.session.conversationContext || [], // Pass conversation context
               filters, // Pass search filters
