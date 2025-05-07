@@ -50,6 +50,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
 
 // Import Tavily search interfaces from the dedicated module
 import { tavilySearch, TavilySearchResult, TavilySearchResponse } from './tavilySearch';
+import { tavilyDeepResearch, tavilyExtractContent, TavilyDeepResearchResponse } from './utils/tavilyDeepResearch';
 
 // Define Groq response interfaces
 interface GroqChoice {
@@ -1184,6 +1185,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error saving search feedback:", error);
       res.status(500).json({ message: "Error saving search feedback" });
+    }
+  });
+  
+  // Advanced research endpoint for Pro users
+  app.post("/api/deep-research", async (req, res) => {
+    try {
+      // Start timing for telemetry
+      const timingId = startApiTiming('/api/deep-research');
+      
+      // Get query and parameters
+      const { query, options = {} } = req.body;
+      
+      if (!query || typeof query !== 'string' || query.trim() === '') {
+        return res.status(400).json({ 
+          error: 'Invalid query',
+          message: 'A valid research query is required'
+        });
+      }
+      
+      // Get user and check subscription tier
+      let userId = null;
+      let userTier = 'anonymous';
+      
+      if (req.isAuthenticated()) {
+        userId = req.user.id;
+        userTier = req.user.subscriptionTier || 'free';
+      }
+      
+      // Check if user is authorized to use this feature
+      if (userTier !== 'pro' && userTier !== 'developer') {
+        // Create log entry for unauthorized attempt
+        logEvent('unauthorized_deep_research_attempt', {
+          userId,
+          userTier,
+          query: query.substring(0, 100)
+        });
+        
+        return res.status(403).json({
+          error: 'subscription_required',
+          message: 'Deep research is a Pro tier feature. Please upgrade your subscription to access advanced research capabilities.',
+          userTier,
+          requiredTier: 'pro'
+        });
+      }
+      
+      // Get API key
+      const tavilyApiKey = process.env.TAVILY_API_KEY;
+      if (!tavilyApiKey) {
+        console.error('Tavily API key missing for deep research');
+        return res.status(500).json({
+          error: 'configuration_error',
+          message: 'Server configuration error: Missing Tavily API key'
+        });
+      }
+      
+      // Apply user preferences
+      const userPrefs = userId ? await storage.getUserPreferences(userId) : null;
+      const defaultRegion = userPrefs?.defaultRegion || 'global';
+      const regionCode = normalizeRegionCode(defaultRegion) || null;
+      
+      // Build research parameters
+      const researchParams = {
+        max_results: options.max_results || 10,
+        topic_keywords: options.topic_keywords || [],
+        include_domains: options.include_domains || [],
+        exclude_domains: options.exclude_domains || [],
+        time_range: options.time_range || 'month',
+        geo_location: regionCode || undefined,
+        include_raw_content: true,
+        crawl_depth: options.crawl_depth || 'medium',
+        extract_content: true,
+        generate_summary: true
+      };
+      
+      console.log(`Starting deep research for query: "${query}"`);
+      console.log(`Research parameters:`, JSON.stringify(researchParams));
+      
+      // Perform deep research
+      const researchResults = await tavilyDeepResearch(query, tavilyApiKey, researchParams);
+      
+      // Record search in history if authenticated
+      if (userId) {
+        await storage.createSearchHistory({
+          userId,
+          query,
+          results: researchResults,
+          searchType: 'deep_research',
+          createdAt: new Date()
+        });
+      }
+      
+      // Complete timing
+      completeApiTiming(timingId);
+      
+      // Return results
+      res.json({
+        query,
+        results: researchResults.results,
+        topic_clusters: researchResults.topic_clusters,
+        research_summary: researchResults.research_summary,
+        estimated_analysis_depth: researchResults.estimated_analysis_depth,
+        user_tier: userTier
+      });
+      
+    } catch (error) {
+      console.error('Deep research error:', error);
+      res.status(500).json({
+        error: 'deep_research_error',
+        message: error.message || 'An error occurred during deep research'
+      });
+    }
+  });
+  
+  // Extract detailed content from URL (Pro users)
+  app.post("/api/extract-content", async (req, res) => {
+    try {
+      // Start timing
+      const timingId = startApiTiming('/api/extract-content');
+      
+      // Get URL from request
+      const { url } = req.body;
+      
+      if (!url || typeof url !== 'string' || url.trim() === '') {
+        return res.status(400).json({
+          error: 'invalid_url',
+          message: 'A valid URL is required'
+        });
+      }
+      
+      // Get user and check subscription tier
+      let userTier = 'anonymous';
+      
+      if (req.isAuthenticated()) {
+        userTier = req.user.subscriptionTier || 'free';
+      }
+      
+      // Check if user is authorized to use this feature
+      if (userTier !== 'pro' && userTier !== 'developer') {
+        return res.status(403).json({
+          error: 'subscription_required',
+          message: 'Content extraction is a Pro tier feature. Please upgrade your subscription to access this feature.',
+          userTier,
+          requiredTier: 'pro'
+        });
+      }
+      
+      // Get API key
+      const tavilyApiKey = process.env.TAVILY_API_KEY;
+      if (!tavilyApiKey) {
+        console.error('Tavily API key missing for content extraction');
+        return res.status(500).json({
+          error: 'configuration_error',
+          message: 'Server configuration error: Missing Tavily API key'
+        });
+      }
+      
+      // Extract content
+      console.log(`Extracting content from URL: ${url}`);
+      const extractionResult = await tavilyExtractContent(url, tavilyApiKey);
+      
+      // Complete timing
+      completeApiTiming(timingId);
+      
+      // Record cache hit/miss
+      recordCacheResult('content_extraction', false);
+      
+      // Return results
+      res.json({
+        url: extractionResult.url,
+        title: extractionResult.title,
+        content: extractionResult.content,
+        metadata: extractionResult.metadata || {}
+      });
+      
+    } catch (error) {
+      console.error('Content extraction error:', error);
+      res.status(500).json({
+        error: 'extraction_error',
+        message: error.message || 'An error occurred during content extraction'
+      });
     }
   });
 

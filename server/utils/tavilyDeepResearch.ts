@@ -129,13 +129,13 @@ export async function tavilyDeepResearch(
     }
     
     return results;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Tavily Deep Research API call failed:', error);
     // Return minimal response with error information
     return {
       results: [],
       query: cleanedQuery,
-      research_summary: `Error performing deep research: ${error.message}`
+      research_summary: `Error performing deep research: ${error.message || 'Unknown error'}`
     };
   }
 }
@@ -211,13 +211,13 @@ export async function tavilyExtractContent(
     console.log(`Cached Tavily extract results for "${url}"`);
     
     return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Tavily Extract API call failed:', error);
     return {
       url: url,
       title: 'Error',
       content: '',
-      error: `Failed to extract content: ${error.message}`
+      error: `Failed to extract content: ${error.message || 'Unknown error'}`
     };
   }
 }
