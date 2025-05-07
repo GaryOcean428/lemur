@@ -86,7 +86,7 @@ export default function DeepResearchPanel() {
     setResearchResults(null);
     
     try {
-      const response = await apiRequest<DeepResearchResponse>('POST', '/api/deep-research', {
+      const response = await apiRequest('POST', '/api/deep-research', {
         query: query.trim(),
         options: {
           crawl_depth: 'medium',
@@ -136,7 +136,7 @@ export default function DeepResearchPanel() {
     setExtractedContent(null);
     
     try {
-      const response = await apiRequest<UrlContentResponse>('POST', '/api/extract-content', {
+      const response = await apiRequest('POST', '/api/extract-content', {
         url: extractUrl.trim()
       });
       

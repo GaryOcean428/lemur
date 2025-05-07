@@ -40,9 +40,17 @@ export default function Header() {
             Settings
           </Link>
           {user && (
-            <Link href="/preferences" className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
-              Preferences
-            </Link>
+            <>
+              <Link href="/preferences" className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
+                Preferences
+              </Link>
+              
+              {(user.subscriptionTier === 'pro' || user.subscriptionTier === 'developer') && (
+                <Link href="/deep-research" className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
+                  Advanced Research
+                </Link>
+              )}
+            </>
           )}
           
           <ThemeToggle />
@@ -117,9 +125,17 @@ export default function Header() {
               Settings
             </Link>
             {user && (
-              <Link href="/preferences" className="py-2 text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
-                Preferences
-              </Link>
+              <>
+                <Link href="/preferences" className="py-2 text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
+                  Preferences
+                </Link>
+                
+                {(user.subscriptionTier === 'pro' || user.subscriptionTier === 'developer') && (
+                  <Link href="/deep-research" className="py-2 text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
+                    Advanced Research
+                  </Link>
+                )}
+              </>
             )}
             
             <div className="py-2 flex items-center">
