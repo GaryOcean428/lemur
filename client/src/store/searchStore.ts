@@ -199,6 +199,7 @@ export const useSearchStore = create<SearchState>((set) => ({
       all: false,
       ai: false,
       web: false,
+      research: false,
       images: false,
       videos: false,
       news: false,

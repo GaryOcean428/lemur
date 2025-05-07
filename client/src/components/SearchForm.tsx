@@ -149,7 +149,7 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
         <div className="mb-3 flex justify-end">
           <DeepResearchToggle 
             enabled={deepResearchEnabled} 
-            onToggle={setDeepResearchEnabled} 
+            onChange={setDeepResearchEnabled} 
           />
         </div>
         
