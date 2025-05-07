@@ -21,6 +21,7 @@ export default function SearchResults() {
   const params = new URLSearchParams(window.location.search);
   const query = params.get("q") || "";
   const isFollowUp = params.get("isFollowUp") === "true";
+  const deepResearch = params.get("deepResearch") === "true";
 
   // If no query, redirect to home
   if (!query) {
@@ -33,10 +34,16 @@ export default function SearchResults() {
   
   // Fetch search results with the optimal search method
   const { data, isLoading, error } = useQuery({
-    queryKey: [useDirectSearch ? '/api/direct-search' : '/api/search', query, filters, isFollowUp],
+    queryKey: [useDirectSearch ? '/api/direct-search' : '/api/search', query, filters, isFollowUp, deepResearch],
     queryFn: () => {
-      // Try direct search first for better performance
-      if (useDirectSearch) {
+      // Deep research is only for pro users and follows a different path
+      if (deepResearch && (user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'developer')) {
+        // If deep research is enabled, we use the regular search API with the deepResearch parameter
+        return performSearch(query, 'all', filters, deepResearch);
+      }
+      // Otherwise use normal search flow
+      else if (useDirectSearch) {
+        // Try direct search first for better performance
         return performDirectSearch(query, isFollowUp, filters)
           .catch(error => {
             console.error("Direct search failed, falling back to traditional search:", error);

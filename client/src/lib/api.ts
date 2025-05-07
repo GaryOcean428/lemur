@@ -116,10 +116,20 @@ export async function performDirectSearch(query: string, isFollowUp: boolean = f
   }
 }
 
-export async function performSearch(query: string, searchType: string = 'all', filters?: SearchFilters | null): Promise<SearchResults> {
+export async function performSearch(
+  query: string, 
+  searchType: string = 'all', 
+  filters?: SearchFilters | null, 
+  deepResearch: boolean = false
+): Promise<SearchResults> {
   try {
     // Build URL with query parameter and search type
     let url = `/api/search?q=${encodeURIComponent(query)}&type=${encodeURIComponent(searchType)}`;
+    
+    // Add deep research parameter if specified
+    if (deepResearch) {
+      url += `&deepResearch=true`;
+    }
     
     // Add filter parameters if provided
     if (filters) {

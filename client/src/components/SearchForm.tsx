@@ -145,6 +145,14 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
   return (
     <>
       <form ref={formRef} onSubmit={handleSubmit} className="w-full relative">
+        {/* Deep Research Toggle UI */}
+        <div className="mb-3 flex justify-end">
+          <DeepResearchToggle 
+            enabled={deepResearchEnabled} 
+            onToggle={setDeepResearchEnabled} 
+          />
+        </div>
+        
         <div className="relative flex items-center rounded-full border shadow-sm overflow-hidden bg-white dark:bg-gray-800 dark:border-gray-700">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10"></div>
           <input 
