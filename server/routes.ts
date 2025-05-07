@@ -532,6 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const query = req.query.q as string;
       const searchType = req.query.type as string || 'all'; // 'all', 'ai', or 'traditional'
+      const deepResearch = req.query.deepResearch === 'true'; // Check if deep research mode is enabled
       
       if (!query) {
         return res.status(400).json({ message: "Query parameter is required" });
@@ -660,6 +661,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.session.conversationContext = req.session.conversationContext.slice(-5);
         }
       }
+      
+      // Check if we should use Deep Research mode - only available for pro tier
+      if (deepResearch) {
+        // Verify the user has pro tier (required for deep research)
+        if (userTier !== 'pro') {
+          return res.status(403).json({
+            message: "Deep Research is a Pro tier feature. Please upgrade your subscription to access deep research capabilities.",
+            limitReached: false,
+            requiresUpgrade: true
+          });
+        }
+        
+        // Start timing for telemetry
+        const timingId = startApiTiming('deep-research');
+        
+        // Set up research parameters
+        const researchParams = {
+          search_depth: 'advanced',
+          max_results: 15, // Increased results for deep research
+          include_answer: true,
+          include_raw_content: true, // Get full content where available
+          include_domains: filters.include_domains,
+          exclude_domains: filters.exclude_domains,
+          time_range: filters.time_range || null,
+          geo_location: filters.geo_location || null
+        };
+        
+        console.log(`Starting deep research for query: "${query}"`);
+        console.log(`Research parameters:`, JSON.stringify(researchParams));
+        
+        // Perform deep research
+        const researchResults = await tavilyDeepResearch(query, tavilyApiKey, researchParams);
+        
+        // Record search in history if authenticated
+        if (userId) {
+          await storage.createSearchHistory({
+            userId,
+            query,
+            timestamp: new Date()
+          });
+          
+          // Save the full research results to the saved searches for retrieval later
+          await storage.saveSearch({
+            userId,
+            query,
+            results: researchResults,
+            savedAt: new Date()
+          });
+        }
+        
+        // Complete timing
+        completeApiTiming(timingId, true);
+        
+        // Return results
+        return res.json({
+          query,
+          deepResearch: true,
+          research: researchResults,
+          searchType: searchType
+        });
+      }
+      
+      // Standard search flow continues below for non-deep research requests
       
       // Prepare for parallel processing of search tasks
       let traditional: TavilySearchResponse | null = null;
