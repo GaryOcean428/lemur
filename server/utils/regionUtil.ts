@@ -2,7 +2,9 @@
  * Region utilities for Lemur search engine
  * 
  * This module provides utilities for working with region codes and
- * ensuring consistent application of regional preferences.
+ * ensuring consistent application of regional preferences across all search methods.
+ * Includes functions for region validation, normalization, code mapping, and
+ * generating region-specific instructions for AI models.
  */
 
 /**
@@ -35,7 +37,8 @@ export function normalizeRegionCode(regionCode: string | null | undefined): stri
 export function isValidRegionCode(regionCode: string): boolean {
   // List of supported region codes for search
   const validRegionCodes = [
-    'US', 'EU', 'ASIA', 'AU', 'UK', 'CA', 'GLOBAL'
+    'US', 'EU', 'ASIA', 'AU', 'UK', 'GB', 'CA', 'GLOBAL',
+    'NZ', 'IN', 'DE', 'FR', 'JP', 'BR' // Additional supported regions
   ];
   
   return validRegionCodes.includes(regionCode);
@@ -49,22 +52,47 @@ export function isValidRegionCode(regionCode: string): boolean {
  */
 export function mapRegionToCode(region: string): string {
   const regionMap: Record<string, string> = {
+    // North America
     'us': 'US',
     'usa': 'US',
     'america': 'US',
     'united states': 'US',
+    'ca': 'CA',
+    'canada': 'CA',
+    
+    // Europe
     'eu': 'EU',
     'europe': 'EU',
+    'uk': 'GB',
+    'united kingdom': 'GB',
+    'great britain': 'GB',
+    'de': 'DE',
+    'germany': 'DE',
+    'deutschland': 'DE',
+    'fr': 'FR',
+    'france': 'FR',
+    
+    // Asia-Pacific
+    'asia': 'ASIA',
     'au': 'AU',
     'aus': 'AU',
     'australia': 'AU',
-    'asia': 'ASIA',
-    'uk': 'GB',
-    'united kingdom': 'GB',
-    'ca': 'CA',
-    'canada': 'CA',
+    'nz': 'NZ',
+    'new zealand': 'NZ',
+    'jp': 'JP',
+    'japan': 'JP',
+    'in': 'IN',
+    'india': 'IN',
+    
+    // South America
+    'br': 'BR',
+    'brazil': 'BR',
+    'brasil': 'BR',
+    
+    // Global
     'global': 'GLOBAL',
-    'worldwide': 'GLOBAL'
+    'worldwide': 'GLOBAL',
+    'international': 'GLOBAL'
   };
   
   const normalizedRegion = region.trim().toLowerCase();
@@ -98,4 +126,49 @@ export function enforceRegionPreference(filters: Record<string, any>, userRegion
   console.log(`Enforced region preference: ${regionCode} for search`);
   
   return updatedFilters;
+}
+
+/**
+ * Generates region-specific instructions for the AI model based on region code
+ * Used to customize the AI system prompt for providing regionally relevant results
+ * 
+ * @param regionCode ISO country code (2-letter)
+ * @returns Detailed instruction text for regional relevance
+ */
+export function getRegionalInstructionForCode(regionCode: string): string {
+  // Common instruction pattern for all regions
+  const defaultInstruction = `The user is in the ${regionCode} region. Prioritize content, services, and context relevant to this region.`;
+  
+  // Handle specific regions with tailored instructions
+  switch (regionCode) {
+    case 'AU':
+      return 'The user is in AUSTRALIA. Always prioritize Australian content, services, prices in AUD, and local context. Mention specifically when results are from Australia.';
+    case 'US':
+      return 'The user is in the UNITED STATES. Prioritize American content, services, prices in USD, and ensure results are relevant to US contexts. Mention when information is specific to the US.';
+    case 'GB':
+    case 'UK':
+      return 'The user is in the UNITED KINGDOM. Prioritize British content, services, prices in GBP, and ensure results are relevant to UK contexts. Mention when information is specific to the UK.';
+    case 'CA':
+      return 'The user is in CANADA. Prioritize Canadian content, services, prices in CAD, and ensure results are relevant to Canadian contexts. Mention when information is specific to Canada.';
+    case 'NZ':
+      return 'The user is in NEW ZEALAND. Prioritize New Zealand content, services, prices in NZD, and ensure results are relevant to NZ contexts. Mention when information is specific to New Zealand.';
+    case 'IN':
+      return 'The user is in INDIA. Prioritize Indian content, services, prices in INR, and ensure results are relevant to Indian contexts. Mention when information is specific to India.';
+    case 'DE':
+      return 'The user is in GERMANY. Prioritize German content, services, prices in EUR, and ensure results are relevant to German contexts. Mention when information is specific to Germany.';
+    case 'FR':
+      return 'The user is in FRANCE. Prioritize French content, services, prices in EUR, and ensure results are relevant to French contexts. Mention when information is specific to France.';
+    case 'JP':
+      return 'The user is in JAPAN. Prioritize Japanese content, services, prices in JPY, and ensure results are relevant to Japanese contexts. Mention when information is specific to Japan.';
+    case 'BR':
+      return 'The user is in BRAZIL. Prioritize Brazilian content, services, prices in BRL, and ensure results are relevant to Brazilian contexts. Mention when information is specific to Brazil.';
+    case 'EU':
+      return 'The user is in EUROPE. Prioritize European content, services, prices in EUR, and ensure results are relevant to European contexts. Mention when information is specific to Europe.';
+    case 'ASIA':
+      return 'The user is in ASIA. Prioritize Asian content, services, and ensure results are relevant to Asian contexts. Consider regional differences across Asian countries.';
+    case 'GLOBAL':
+      return 'The user has selected GLOBAL scope. Provide a balanced international perspective without regional bias. Present information that is globally applicable.';
+    default:
+      return defaultInstruction;
+  }
 }

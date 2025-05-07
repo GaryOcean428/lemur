@@ -6,7 +6,9 @@
  */
 
 import { validateGroqModel, mapModelPreference, supportsToolCalling, APPROVED_MODELS } from "./utils/modelValidation";
-import { normalizeRegionCode, enforceRegionPreference } from "./utils/regionUtil";
+import { normalizeRegionCode, enforceRegionPreference, getRegionalInstructionForCode } from "./utils/regionUtil";
+
+// Using getRegionalInstructionForCode imported from regionUtil.ts
 
 export interface GroqCompoundResponse {
   id: string;
@@ -192,7 +194,7 @@ When responding to search queries, follow these guidelines:
 5. CRITICALLY IMPORTANT: Results must be contextually relevant for users in ${regionCode} location
 
 REGIONAL RELEVANCE INSTRUCTION:
-${regionCode === 'AU' ? 'The user is in AUSTRALIA. Always prioritize Australian content, services, prices in AUD, and local context. Mention specifically when results are from Australia.' : `The user is in the ${regionCode} region. Prioritize regional content and context.`}
+${getRegionalInstructionForCode(regionCode)}
 
 IMPORTANT CITATION FORMAT: 
 For any factual information from the search results provided, include numbered references at the end of your response in this format:
