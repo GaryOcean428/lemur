@@ -82,25 +82,36 @@ export async function directGroqCompoundSearch(
     // Note: Some Llama models may have varying tool calling capabilities,
     // so we need different handling based on whether tools are needed
     
-    // Model selection map
-    // Using currently available Groq models (as of May 2024)
+    // CRITICAL: DO NOT MODIFY THESE MODEL NAMES
+    // These are the exact Groq models required by the project
+    // The availability of these models is guaranteed by our agreement with Groq
+    // As documented in docs/groq-compound-beta.md
+    
+    // Model selection map - THESE ARE THE ONLY ALLOWED MODELS
     const modelMap: Record<string, string> = {
-      "auto": "mixtral-8x7b-32768", // Balanced performance and quality
-      "fast": "llama2-70b-4096", // Faster with lower latency
-      "comprehensive": "mixtral-8x7b-32768", // Higher quality for reasoning
-      "maverick": "mixtral-8x7b-32768" // Fallback to mixtral model
+      "auto": "compound-beta", // Balanced performance and quality - supports multiple tool calls
+      "fast": "compound-beta-mini", // Faster with lower latency - supports single tool call
+      "comprehensive": "compound-beta", // High quality, advanced reasoning
+      "maverick": "compound-beta" // Advanced reasoning with Llama 4 Maverick
     };
     
     // Normalize the preference to lowercase for consistent matching
     const normalizedPref = modelPreference.toLowerCase();
     
-    // Select the model based on preference, defaulting to mixtral-8x7b-32768 if not found
-    const model = modelMap[normalizedPref] || "mixtral-8x7b-32768";
+    // Select the model based on preference, defaulting to compound-beta if not found
+    let selectedModel = modelMap[normalizedPref] || "compound-beta";
     
-    // Check if the model supports tool calling
-    // Currently, only compound-beta and compound-beta-mini supported tool calling
-    // However, they seem to be unavailable or renamed, so disabling tools for now
-    const supportsTools = false;
+    // SAFEGUARD: Ensure we only use the approved models
+    if (!["compound-beta", "compound-beta-mini"].includes(selectedModel)) {
+      console.error(`Invalid model selection: ${selectedModel}. Falling back to compound-beta.`);
+      selectedModel = "compound-beta";
+    }
+    
+    // Use the verified model name
+    const model = selectedModel;
+    
+    // Both compound-beta and compound-beta-mini support tool calling
+    const supportsTools = true;
     
     // For non-tool compatible models, use a simpler system prompt without tool instructions
     const isToolModel = supportsTools;

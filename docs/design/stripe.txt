@@ -1,0 +1,148 @@
+# Dynamic payment methods
+
+Simplify your payment methods code by dynamically ordering and displaying payment methods.
+
+Dynamic payment methods is part of the [default Stripe integration](https://stripe.com/blog/dynamic-payment-methods) and enables you to configure payment methods settings from the [Dashboard](https://dashboard.stripe.com/settings/payment_methods)—no code required. When you use dynamic payment methods in an [Element](https://docs.stripe.com/payments/payment-element.md), [Checkout](https://docs.stripe.com/payments/checkout.md), Payment Links, or Hosted Invoice Page integration, Stripe handles the logic for dynamically displaying the most relevant eligible payment methods to each customer to maximize conversion. Dynamic payment methods also unlocks [customization features](https://docs.stripe.com/payments/payment-methods/dynamic-payment-methods.md#customization-features) to help you customize and experiment with payment methods.
+
+Use dynamic payment methods to:
+
+* Turn on and manage most payment methods in the Dashboard
+* Eliminate the need to specify eligibility requirements for individual payment methods
+* Apply Stripe’s [AI models](#ai-models) based on nearly 100 signals to dynamically determine which payment methods are eligible and how to display them in order for every checkout session
+* Set rules when payment methods are shown to buyers
+* Run A/B Tests for new payment methods before rolling them out to buyers
+
+## Integration options 
+
+Use [Checkout](https://docs.stripe.com/payments/accept-a-payment.md?platform=web&ui=stripe-hosted) or [Payment Element](https://docs.stripe.com/payments/accept-a-payment.md?platform=web&ui=elements) with dynamic payment methods to have Stripe handle the logic for displaying eligible payment methods in your frontend for each transaction. If you have a platform account, follow our [Connect integration](https://docs.stripe.com/connect/dynamic-payment-methods.md).
+
+### Migrate to dynamic payment methods
+
+If you list payment methods manually in an existing integration and want to manage payment methods in your [Dashboard](https://dashboard.stripe.com/settings/payment_methods), remove [payment_method_types](https://docs.stripe.com/api/payment_intents/object.md#payment_intent_object-payment_method_types) from your integration code.
+
+In your Checkout integration, remove [payment_method_types](https://docs.stripe.com/api/payment_intents/object.md#payment_intent_object-payment_method_types).
+
+```bash
+curl https://api.stripe.com/v1/checkout/sessions \
+  -u sk_test_4eC39HqLyjWDarjtT1zdp7dc: \
+  -d success_url="https://example.com/success" \
+  -d cancel_url="https://example.com/cancel" \
+  -d "line_items[0][price]"=price_H5ggYwtDq4fbrJ \
+  -d "line_items[0][quantity]"=2 \
+  -d “payment_method_types[]”=bancontact\
+  -d “payment_method_types[]”=card\
+  -d “payment_method_types[]”=eps\
+  -d “payment_method_types[]”=ideal\
+  -d “payment_method_types[]”=p24\
+  -d “payment_method_types[]”=sepa_debit\
+  ...
+  -d mode=payment
+```
+
+In your Payment Element integration, remove [payment_method_types](https://docs.stripe.com/api/payment_intents/object.md#payment_intent_object-payment_method_types).
+
+```bash
+curl https://api.stripe.com/v1/payment_intents \
+  -u sk_test_4eC39HqLyjWDarjtT1zdp7dc: \
+  -d amount=1099 \
+  -d currency=eur \
+  -d “payment_method_types[]”=bancontact\
+  -d “payment_method_types[]”=card\
+  -d “payment_method_types[]”=eps\
+  -d “payment_method_types[]”=ideal\
+  -d “payment_method_types[]”=p24\
+  -d “payment_method_types[]”=sepa_debit\
+  ...
+```
+
+If your integration uses an API version prior to [2023-08-16](https://docs.stripe.com/upgrades.md#2023-08-16), you must replace [payment_method_types](https://docs.stripe.com/api/payment_intents/object.md#payment_intent_object-payment_method_types) with [automatic_payment_methods](https://docs.stripe.com/api/payment_intents/object.md#payment_intent_object-automatic_payment_methods). You can [view your API version and the latest upgrade in the Dashboard](https://docs.stripe.com/upgrades.md#view-your-api-version-and-the-latest-upgrade-in-the-dashboard).
+
+```bash
+curl https://api.stripe.com/v1/payment_intents \
+  -u sk_test_4eC39HqLyjWDarjtT1zdp7dc: \
+  -d amount=1099 \
+  -d currency=eur \
+  -d "automatic_payment_methods[enabled]"=true
+  -d “payment_method_types[]”=bancontact\
+  -d “payment_method_types[]”=card\
+  -d “payment_method_types[]”=eps\
+  -d “payment_method_types[]”=ideal\
+  -d “payment_method_types[]”=p24\
+  -d “payment_method_types[]”=sepa_debit\
+  ...
+```
+
+## Dashboard-based customization features 
+
+Access the following features with dynamic payment methods to control how and when payment methods render.
+
+| Feature                                                                                                          | Description                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [Payment method rules](https://docs.stripe.com/payments/payment-method-rules.md)                                 | Customize how you display payment methods by setting targeting parameters based on amount or the buyer’s location.                                                                                           |
+| [A/B test payment methods](https://docs.stripe.com/payments/a-b-testing.md)                                      | Turn on payment methods for a percentage of traffic, run an experiment, and see the resulting impact on conversion rate, average order value, and shift in volume from other payment methods.                |
+| [Payment method configurations](https://docs.stripe.com/payments/payment-method-configurations.md)               | Create different sets of payment methods for different checkout scenarios using complex logic, such as only showing specific payment methods for one-time purchases and another set for recurring purchases. |
+| [Embed the Payment methods settings component](https://docs.stripe.com/connect/embed-payment-method-settings.md) | Embed a payment method settings page directly into your website to allow your users to manage their payment methods.                                                                                         |
+
+## How dynamic payment methods work 
+
+This section doesn’t cover Apple Pay and Google Pay, because they use [different criteria](https://docs.stripe.com/testing/wallets.md).
+
+Review this section to understand the criteria that Stripe uses to eligible payment methods, decide whether to hide or show them, and in what order. If a specific payment method isn’t appearing in your payment flow, one or more of these criteria might not be met.
+
+### Dashboard settings
+
+View the available payment methods in your [Stripe Dashboard](https://dashboard.stripe.com/test/settings/payment_methods). Only payment methods that you enabled can be shown to your customers.
+
+If a payment method isn’t listed in your Dashboard settings, it’s either not supported by Stripe or not supported in the country where your account is registered. For example, PayNow is only available to Stripe accounts in Singapore.
+
+Learn more about [country support](https://docs.stripe.com/payments/payment-methods/payment-method-support.md#country-currency-support).
+
+When using Stripe Connect with Direct Charges or `on_behalf_of`, the settings of the connected account determines the available payment methods. You can configure them in your [connect settings](https://dashboard.stripe.com/test/settings/payment_methods/connected_accounts).
+
+### Product support
+
+Several Stripe products allow you to charge customers, such as Checkout Sessions and Payment Element. Not all payment methods are available in all products. For example, Bacs Direct Debit isn’t available in the Mobile Payment Element. Some payment methods, such as Swish, don’t support recurring payments.
+
+Learn more about [product support](https://docs.stripe.com/payments/payment-methods/payment-method-support.md#product-support).
+
+### Presentment currency
+
+Stripe supports over [135 presentment currencies](https://docs.stripe.com/currencies.md#presentment-currencies), but most payment methods only support a subset of these. For example, ACH Direct Debit is only available for payments in USD currency.
+
+Learn more about [currency support](https://docs.stripe.com/payments/payment-methods/payment-method-support.md#country-currency-support).
+
+### Charge amount
+
+On top of the general [minimum and maximum amount](https://docs.stripe.com/currencies.md#minimum-and-maximum-charge-amounts) Stripe supports, some payment methods have their own minimum and maximum. For example, SEPA Direct Debit is only available for payments below 10,000 EUR.
+
+The final amount, including tax and discounts, is the amount used to determine available payment methods.
+
+To learn more, go to the a payment method’s overview page.
+
+### API support
+
+Some payment methods, such as TWINT, can’t be set up for future usage. When you set `setup_future_usage`, some payment methods are automatically filtered out.
+
+Similarly, some payment methods, such as iDEAL, don’t support [manual capture](https://docs.stripe.com/payments/place-a-hold-on-a-payment-method.md). When you set `capture_method: manual`, some payment methods are automatically filtered out.
+
+Learn more about [API support](https://docs.stripe.com/payments/payment-methods/payment-method-support.md#additional-api-supportability).
+
+### Customer’s country
+
+A customer’s country impacts which payment methods are available on the payment page, because most payment methods are available in a predefined number of countries. For example, BLIK is only available for customers in Poland.
+
+Learn more about [country support](https://docs.stripe.com/payments/payment-methods/payment-method-support.md#country-currency-support).
+
+### Other considerations
+
+The following features can also impact the availability of some payment methods:
+
+- [Payment method configuration](https://docs.stripe.com/payments/payment-method-configurations.md), to customize the payment method shown.
+- [Payment method rules](https://docs.stripe.com/payments/payment-method-rules.md), to show or hide a payment method based on conditions, such as the amount and currencies.
+- [A/B testing](https://docs.stripe.com/payments/a-b-testing.md), to temporarily show or hide a payment method to see its impact on conversion rates.
+
+### AI models 
+
+For every checkout session, the AI models in the Optimized Checkout Suite dynamically determine how eligible payment methods are displayed, including their order. These models incorporate nearly 100 on-session signals—such as real-time payment method uptime and popularity among similar customers—as well as broader network signals, like preferred payment methods used by similar businesses. The AI models work alongside any payment method logic you add in code or any rules you set up in the dashboard.
+
+Our AI models use an exploration-exploitation framework, delivering proven strategies while continuously testing new approaches. As a result, payment method ordering quickly adapts to changing customer expectations and systematically improves over time.
