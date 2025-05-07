@@ -36,6 +36,7 @@ export type SearchTabType =
   | "all"      // AI + Web (default, side-by-side on large screens)
   | "ai"       // AI only
   | "web"      // Web results only
+  | "research" // Deep research results (Pro users only)
   | "images"   // Image search results
   | "videos"   // Video search results
   | "news"     // News results
@@ -120,6 +121,7 @@ export const useSearchStore = create<SearchState>((set) => ({
     all: null,
     ai: null,
     web: null,
+    research: null,
     images: null,
     videos: null,
     news: null,
@@ -134,6 +136,7 @@ export const useSearchStore = create<SearchState>((set) => ({
     all: false,
     ai: false,
     web: false,
+    research: false,
     images: false,
     videos: false,
     news: false,
@@ -178,6 +181,7 @@ export const useSearchStore = create<SearchState>((set) => ({
       all: false,
       ai: false,
       web: false,
+      research: false,
       images: false,
       videos: false,
       news: false,

@@ -14,6 +14,7 @@ import ShoppingResults from "./search-tabs/ShoppingResults";
 import SocialResults from "./search-tabs/SocialResults";
 import MapsResults from "./search-tabs/MapsResults";
 import AcademicResults from "./search-tabs/AcademicResults";
+import DeepResearchResults from "./DeepResearchResults";
 
 interface SearchTabsProps {
   data: SearchResults | undefined;
@@ -82,6 +83,9 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
   
   // Use the result for the active tab
   const activeTabData = results[activeTab] || data;
+  
+  // Check if deep research results are available
+  const hasDeepResearch = data && data.deepResearch && data.research;
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -96,6 +100,12 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
           <TabsTrigger value="web" className="data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-white">
             Web
           </TabsTrigger>
+          {/* Show Deep Research tab only when results are available */}
+          {hasDeepResearch && (
+            <TabsTrigger value="research" className="data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-white">
+              Research
+            </TabsTrigger>
+          )}
           <TabsTrigger value="images" className="data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-white">
             Images
           </TabsTrigger>
@@ -283,6 +293,14 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
           <TabsContent value="academic" className="mt-0">
             <AcademicResults query={query} />
           </TabsContent>
+          
+          {/* Deep Research tab - only shown when deep research results are available */}
+          {hasDeepResearch && (
+            <TabsContent value="research" className="mt-0">
+              <h2 className="text-xl font-semibold dark:text-white mb-4">Advanced Research Results</h2>
+              <DeepResearchResults research={data.research} />
+            </TabsContent>
+          )}
         </div>
       )}
     </Tabs>
