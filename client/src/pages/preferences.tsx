@@ -206,7 +206,7 @@ export default function PreferencesPage() {
       
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Search Preferences</h1>
+          <h1 className="text-3xl font-bold mb-2">User Settings</h1>
           <p className="text-muted-foreground">Customize your search experience on Lemur</p>
         </div>
         

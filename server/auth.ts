@@ -193,19 +193,42 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
+    // Add basic validation for the request body
+    if (!req.body.username || !req.body.password) {
+      return res.status(400).json({ 
+        message: "Missing credentials", 
+        details: "Both username and password are required"
+      });
+    }
+    
     passport.authenticate("local", (err: any, user: SelectUser | false, info: any) => {
       if (err) {
         console.error("Authentication error:", err);
-        return res.status(500).json({ message: "Authentication error" });
+        return res.status(500).json({ 
+          message: "Authentication system error", 
+          details: "There was a problem with the authentication system. Please try again later."
+        });
       }
       if (!user) {
-        return res.status(401).json({ message: "Invalid username or password" });
+        // Provide more helpful error messages based on info
+        const errorMessage = info?.message || "Invalid username or password";
+        const errorDetails = "Please check your credentials and try again. If you don't have an account, you can register for one.";
+        
+        console.log(`Failed login attempt for username: ${req.body.username}`);
+        
+        return res.status(401).json({ 
+          message: errorMessage,
+          details: errorDetails
+        });
       }
       
       req.login(user, async (loginErr) => {
         if (loginErr) {
           console.error("Login error:", loginErr);
-          return res.status(500).json({ message: "Login error" });
+          return res.status(500).json({ 
+            message: "Login session error", 
+            details: "Your credentials were valid, but there was a problem creating your session. Please try again."
+          });
         }
         
         // Clear anonymous search count when user logs in
