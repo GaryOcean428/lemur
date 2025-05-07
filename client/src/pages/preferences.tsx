@@ -236,9 +236,14 @@ export default function PreferencesPage() {
                           <SelectContent>
                             <SelectItem value="global">Global</SelectItem>
                             <SelectItem value="us">United States</SelectItem>
+                            <SelectItem value="uk">United Kingdom</SelectItem>
+                            <SelectItem value="ca">Canada</SelectItem>
+                            <SelectItem value="au">Australia</SelectItem>
                             <SelectItem value="eu">Europe</SelectItem>
                             <SelectItem value="asia">Asia</SelectItem>
-                            <SelectItem value="au">Australia</SelectItem>
+                            <SelectItem value="latam">Latin America</SelectItem>
+                            <SelectItem value="africa">Africa</SelectItem>
+                            <SelectItem value="oceania">Oceania</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

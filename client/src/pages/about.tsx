@@ -43,16 +43,16 @@ export default function AboutPage() {
               Advanced AI Models
             </CardTitle>
             <CardDescription>
-              Powered by Groq's cutting-edge Llama models
+              Powered by Groq's Compound Beta technology
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 dark:text-gray-400">
-              Our search engine leverages Llama 3.3 and Llama 4 Scout models via Groq's API, automatically selecting the most appropriate model based on query complexity to provide accurate, relevant, and detailed answers.
+              Our search engine leverages Groq's Compound Beta models, automatically selecting the most appropriate model based on query complexity to provide accurate, relevant, and detailed answers with integrated search capabilities.
             </p>
             <div className="mt-4 flex gap-2">
-              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">llama-3.3-70b-versatile</Badge>
-              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">llama-4-scout-17b-16e-instruct</Badge>
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">compound-beta</Badge>
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">compound-beta-mini</Badge>
             </div>
           </CardContent>
         </Card>
@@ -86,8 +86,17 @@ export default function AboutPage() {
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 dark:text-gray-400">
-              Lemur delivers search results with regional awareness, balancing global information with locally relevant content. Searches are optimized for Australian users while maintaining comprehensive global coverage.
+              Lemur delivers search results with extensive regional awareness, balancing global information with locally relevant content. Searches are optimized for users across multiple regions including US, UK, Canada, Australia, Europe, Asia, and more, providing region-specific content and context while maintaining comprehensive global coverage.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">US</Badge>
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">UK</Badge>
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">Canada</Badge>
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">Australia</Badge>
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">Europe</Badge>
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">Asia</Badge>
+              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30">Global</Badge>
+            </div>
           </CardContent>
         </Card>
       </div>
