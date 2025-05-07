@@ -197,8 +197,6 @@ export default function PreferencesPage() {
   
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
-      
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">User Settings</h1>
@@ -435,8 +433,6 @@ export default function PreferencesPage() {
           </Tabs>
         )}
       </main>
-      
-      <Footer />
     </div>
   );
 }
