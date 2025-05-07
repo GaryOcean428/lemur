@@ -4,6 +4,7 @@
  */
 
 import { SearchResult } from '../directCompound';
+import { validateGroqModel, APPROVED_MODELS } from './modelValidation';
 
 /**
  * Makes an API request to Tavily's search API
@@ -88,7 +89,7 @@ export async function tavilySearchRequest(
 export async function groqChatRequest(
   messages: Array<{role: string; content: string}>,
   groqApiKey: string,
-  model: string = "llama3-70b-8192",
+  model: string = "compound-beta", // Default to compound-beta
   temperature: number = 0.3,
   tools?: any[],
   toolChoice: string = "auto"
@@ -102,6 +103,13 @@ export async function groqChatRequest(
     if (!groqApiKey.startsWith('gsk_')) {
       console.warn('Warning: Groq API key does not have the expected format (should start with "gsk_"). API calls may fail.');
     }
+    
+    // Use the centralized model validation utility to ensure correct models
+    model = validateGroqModel(model);
+    
+    // Log the validated model choice
+    console.log(`Using validated Groq model: ${model} (from the APPROVED_MODELS list)`);
+    
     
     // Prepare API request body based on whether tools are provided
     const requestBody = tools ? {

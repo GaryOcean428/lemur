@@ -4,6 +4,7 @@ import { directGroqCompoundSearch } from "./directCompound";
 import { storage } from "./storage";
 import { InsertUserPreferences, InsertUserTopicInterest } from "@shared/schema";
 import { searchCache, aiResponseCache, suggestionCache } from "./utils/cache";
+import { validateGroqModel, mapModelPreference, APPROVED_MODELS } from "./utils/modelValidation";
 import { 
   ConversationContext, 
   ConversationTurn, 
@@ -220,18 +221,16 @@ async function tavilySearch(query: string, apiKey: string, config: Record<string
 
 // Function to perform Groq search
 async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string, modelPreference: string = 'auto'): Promise<{answer: string; model: string}> {
-  // Map modelPreference to actual Groq models
-  // Using the correct Groq models as documented
-  let model = "compound-beta"; // Default balanced model
-  if (modelPreference === 'fast') {
-    model = "compound-beta-mini"; // Faster with lower latency
-  } else if (modelPreference === 'comprehensive') {
-    model = "llama-3.3-70b"; // High quality reasoning with Llama 3.3 70B
-  } else if (modelPreference === 'maverick') {
-    model = "llama-4-maverick"; // Advanced reasoning with Llama 4 Maverick
-  }
+  // Use our centralized model validation utilities to ensure only approved models are used
   
-  console.log(`Using Groq model: ${model} for synthesis`);
+  // Map the user-friendly model preference to an actual Groq model name
+  let model = mapModelPreference(modelPreference);
+  
+  // Validate the model to ensure it's one of the approved models
+  // This is a safeguard against code modifications that might use incorrect models
+  model = validateGroqModel(model);
+  
+  console.log(`Using validated Groq model: ${model} for synthesis`);
   
   // Create a cache key that incorporates the query, sources, and model
   const cacheKey = {
