@@ -624,8 +624,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Apply default geo location if not in request
-      if (!filters.geo_location && userPreferences.defaultRegion && userPreferences.defaultRegion !== 'global') {
-        filters.geo_location = userPreferences.defaultRegion;
+      if (userPreferences.defaultRegion && userPreferences.defaultRegion !== 'global') {
+        // Force geo_location from user preferences for consistency, even if provided in request
+        const regionCode = userPreferences.defaultRegion.toUpperCase();
+        filters.geo_location = regionCode;
+        console.log(`Applied region preference from user settings: ${regionCode}`);
       }
       
       // Apply any saved search filters from user preferences
@@ -1170,7 +1173,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             query,
             groqApiKey,
             preferredModel,
-            filters.geo_location || null,
+            // Ensure geo_location is correctly passed and log for debugging
+            filters.geo_location ? filters.geo_location.toUpperCase() : null,
             conversationContext.length > 0,
             req.session.conversationContext || [], // Pass conversation context for better contextual responses
             filters, // Pass search filters
