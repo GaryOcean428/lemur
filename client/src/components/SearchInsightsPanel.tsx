@@ -1,17 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetDescription, 
-  SheetHeader, 
-  SheetTitle 
-} from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, Search, Database, Globe, BookOpen, Brain, Loader2 } from 'lucide-react';
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { useEffect, useState } from 'react';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle2, Clock, Database, FlaskConical, Loader2, Search, ServerCrash, Waves } from 'lucide-react';
 
-interface SearchStep {
+export interface SearchStep {
   id: string;
   label: string;
   status: 'pending' | 'active' | 'completed' | 'error';
@@ -19,7 +14,7 @@ interface SearchStep {
   timestamp: Date;
 }
 
-interface SearchInsightsPanelProps {
+export interface SearchInsightsPanelProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   query: string;
@@ -28,251 +23,266 @@ interface SearchInsightsPanelProps {
 
 export default function SearchInsightsPanel({ 
   isOpen, 
-  onOpenChange, 
+  onOpenChange,
   query,
   isDeepResearch
 }: SearchInsightsPanelProps) {
-  const [steps, setSteps] = useState<SearchStep[]>([]);
-  const [progress, setProgress] = useState(0);
-  const [sources, setSourceCount] = useState(0);
-  
-  // Generate search steps based on the search type
-  useEffect(() => {
-    if (isOpen) {
-      const basicSteps: SearchStep[] = [
-        {
-          id: 'initialize',
-          label: 'Initializing search',
-          status: 'completed',
-          details: `Processing query: "${query}"`,
-          timestamp: new Date()
-        },
-        {
-          id: 'web-search',
-          label: 'Searching web sources',
-          status: 'active',
-          details: 'Finding relevant information across the web',
-          timestamp: new Date()
-        },
-        {
-          id: 'process-results',
-          label: 'Processing results',
-          status: 'pending',
-          details: 'Analyzing and ranking search findings',
-          timestamp: new Date()
-        },
-        {
-          id: 'generate-answer',
-          label: 'Generating AI answer',
-          status: 'pending',
-          details: 'Synthesizing answer from search results',
-          timestamp: new Date()
-        }
-      ];
-      
-      // Add extra steps for deep research
-      const deepResearchSteps: SearchStep[] = [
-        {
-          id: 'extract-content',
-          label: 'Extracting detailed content',
-          status: 'pending',
-          details: 'Performing in-depth content extraction from sources',
-          timestamp: new Date()
-        },
-        {
-          id: 'analyze-topics',
-          label: 'Analyzing topic clusters',
-          status: 'pending',
-          details: 'Identifying related topics and concepts',
-          timestamp: new Date()
-        },
-        {
-          id: 'generate-summary',
-          label: 'Generating research summary',
-          status: 'pending',
-          details: 'Creating comprehensive research overview',
-          timestamp: new Date()
-        }
-      ];
-      
-      // Combine steps based on search type
-      setSteps(isDeepResearch ? [...basicSteps, ...deepResearchSteps] : basicSteps);
-      
-      // Simulate progress for demo purposes
-      // In a real implementation, this would be updated based on server events/websockets
-      let currentStep = 0;
-      const totalSteps = isDeepResearch ? basicSteps.length + deepResearchSteps.length : basicSteps.length;
-      
-      const interval = setInterval(() => {
-        if (currentStep < totalSteps) {
-          setSteps(prevSteps => {
-            const newSteps = [...prevSteps];
-            
-            // Mark current step as completed
-            if (currentStep > 0) {
-              newSteps[currentStep - 1] = {
-                ...newSteps[currentStep - 1],
-                status: 'completed'
-              };
-            }
-            
-            // Set next step as active
-            if (currentStep < totalSteps) {
-              newSteps[currentStep] = {
-                ...newSteps[currentStep],
-                status: 'active'
-              };
-            }
-            
-            return newSteps;
-          });
-          
-          // Increment source count randomly to simulate finding sources
-          if (currentStep === 1) {
-            const sourceInterval = setInterval(() => {
-              setSourceCount(prev => {
-                const increment = Math.floor(Math.random() * 3) + 1;
-                return prev + increment;
-              });
-            }, 800);
-            
-            // Clear source interval after 5 seconds
-            setTimeout(() => clearInterval(sourceInterval), 5000);
-          }
-          
-          // Update progress percentage
-          setProgress(Math.min(100, Math.round((currentStep / totalSteps) * 100)));
-          currentStep++;
-        } else {
-          // All steps completed
-          setProgress(100);
-          clearInterval(interval);
-        }
-      }, isDeepResearch ? 2000 : 1200); // Slower for deep research
-      
-      return () => {
-        clearInterval(interval);
-      };
-    } else {
-      // Reset when closed
-      setSteps([]);
-      setProgress(0);
-      setSourceCount(0);
+  // Search steps for regular search
+  const standardSearchSteps: SearchStep[] = [
+    {
+      id: 'init',
+      label: 'Search initialization',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'web',
+      label: 'Web search retrieval',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'ai',
+      label: 'AI answer generation',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'citations',
+      label: 'Citation verification',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'final',
+      label: 'Results assembly',
+      status: 'pending',
+      timestamp: new Date()
     }
-  }, [isOpen, query, isDeepResearch]);
+  ];
+
+  // More detailed steps for deep research
+  const deepResearchSteps: SearchStep[] = [
+    {
+      id: 'init',
+      label: 'Research initialization',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'research-query',
+      label: 'Research query formulation',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'web-deep',
+      label: 'Comprehensive web search',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'academic',
+      label: 'Academic sources retrieval',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'content-analysis',
+      label: 'Content extraction & analysis',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'source-evaluation',
+      label: 'Source quality evaluation',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'topic-clustering',
+      label: 'Topic analysis & clustering',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'synthesis',
+      label: 'Information synthesis',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'summary',
+      label: 'Research summary generation',
+      status: 'pending',
+      timestamp: new Date()
+    },
+    {
+      id: 'final',
+      label: 'Results assembly',
+      status: 'pending',
+      timestamp: new Date()
+    }
+  ];
+
+  // Choose steps based on whether it's deep research or not
+  const [steps, setSteps] = useState<SearchStep[]>(isDeepResearch ? deepResearchSteps : standardSearchSteps);
   
-  // Icon mapping for steps
-  const getStepIcon = (stepId: string) => {
-    switch (stepId) {
-      case 'initialize':
+  // Auto-advance steps when the panel is open
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    // Reset steps when query changes
+    setSteps(prev => 
+      prev.map(step => ({...step, status: 'pending', timestamp: new Date()}))
+    );
+    
+    // Simulate step progress for demonstration
+    let currentStep = 0;
+    const totalSteps = steps.length;
+    
+    // Update first step immediately
+    setSteps(prev => {
+      const newSteps = [...prev];
+      if (newSteps[0]) {
+        newSteps[0] = {...newSteps[0], status: 'active', timestamp: new Date()};
+      }
+      return newSteps;
+    });
+    
+    const interval = setInterval(() => {
+      // Mark current step as completed and next as active
+      setSteps(prev => {
+        const newSteps = [...prev];
+        
+        // Complete current step
+        if (newSteps[currentStep]) {
+          newSteps[currentStep] = {...newSteps[currentStep], status: 'completed', timestamp: new Date()};
+        }
+        
+        // Activate next step
+        currentStep++;
+        if (currentStep < totalSteps && newSteps[currentStep]) {
+          newSteps[currentStep] = {...newSteps[currentStep], status: 'active', timestamp: new Date()};
+        }
+        
+        return newSteps;
+      });
+      
+      // Stop when all steps are completed
+      if (currentStep >= totalSteps - 1) {
+        clearInterval(interval);
+      }
+    }, isDeepResearch ? 1200 : 700); // Slower progression for deep research
+    
+    return () => clearInterval(interval);
+  }, [isOpen, query, isDeepResearch, steps.length]);
+  
+  // Get the currently active step
+  const activeStep = steps.find(step => step.status === 'active');
+  
+  // Helper function to get appropriate icon for step
+  const getStepIcon = (step: SearchStep) => {
+    switch (step.id) {
+      case 'init':
+        return <Waves className="h-4 w-4" />;
+      case 'web':
+      case 'web-deep':
+        return <Search className="h-4 w-4" />;
+      case 'ai':
+        return <FlaskConical className="h-4 w-4" />;
+      case 'academic':
         return <Database className="h-4 w-4" />;
-      case 'web-search':
-        return <Globe className="h-4 w-4" />;
-      case 'process-results':
-        return <Search className="h-4 w-4" />;
-      case 'generate-answer':
-        return <Brain className="h-4 w-4" />;
-      case 'extract-content':
-        return <BookOpen className="h-4 w-4" />;
-      case 'analyze-topics':
-        return <Search className="h-4 w-4" />;
-      case 'generate-summary':
-        return <BookOpen className="h-4 w-4" />;
+      case 'topic-clustering':
+      case 'synthesis':
+      case 'summary':
+        return <Waves className="h-4 w-4" />;
       default:
-        return <Search className="h-4 w-4" />;
+        return step.status === 'active' ? 
+          <Loader2 className="h-4 w-4 animate-spin" /> :
+          step.status === 'completed' ? 
+            <CheckCircle2 className="h-4 w-4" /> : 
+            step.status === 'error' ?
+              <ServerCrash className="h-4 w-4" /> :
+              <Clock className="h-4 w-4" />;
     }
   };
-  
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[400px] sm:w-[540px] p-0">
-        <SheetHeader className="p-6 border-b">
-          <SheetTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-primary" />
-            Search Insights
-          </SheetTitle>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Search Insights</SheetTitle>
           <SheetDescription>
-            Watching Lemur work on your {isDeepResearch ? 'deep research' : 'search'} query
+            Live activity for your "{query.length > 30 ? query.substring(0, 30) + '...' : query}" search
           </SheetDescription>
         </SheetHeader>
         
-        <div className="p-6 pb-2 border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-primary/10 hover:bg-primary/20 transition-colors">
-                {progress}% Complete
-              </Badge>
-              
-              {sources > 0 && (
-                <Badge variant="outline" className="bg-secondary/10 hover:bg-secondary/20 transition-colors">
-                  {sources} Sources
-                </Badge>
-              )}
-            </div>
-            
-            <Badge variant={isDeepResearch ? "secondary" : "default"}>
+        <Separator className="my-4" />
+        
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-sm font-medium">Search Type:</h3>
+            <Badge variant={isDeepResearch ? "default" : "secondary"}>
               {isDeepResearch ? "Deep Research" : "Standard Search"}
             </Badge>
           </div>
           
-          <Progress value={progress} className="mt-3 h-2" />
+          {activeStep && (
+            <Card className="bg-primary/5 border-primary/10 mb-4">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="font-medium">{activeStep.label}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {activeStep.details || `Processing ${isDeepResearch ? 'research' : 'search'} data...`}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
         
-        <ScrollArea className="h-[calc(100vh-220px)]">
-          <div className="p-6">
-            <h3 className="font-semibold mb-4">Search query: "{query}"</h3>
+        <ScrollArea className="h-[60vh] rounded-md">
+          <div className="relative">
+            {/* Timeline connector */}
+            <div className="absolute left-2.5 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-800" />
             
-            <div className="relative">
-              {steps.map((step, index) => (
-                <div key={step.id} className="mb-6 relative">
-                  {/* Vertical connector line */}
-                  {index < steps.length - 1 && (
-                    <div className="absolute left-[10px] top-[24px] w-[2px] h-[calc(100%-20px)] bg-gray-200 dark:bg-gray-700"></div>
-                  )}
+            {/* Steps */}
+            <div className="space-y-6 relative">
+              {steps.map((step) => (
+                <div key={step.id} className="flex items-start gap-3">
+                  <div className={`
+                    relative z-10 flex h-6 w-6 items-center justify-center rounded-full border
+                    ${step.status === 'active' ? 'bg-primary text-white border-primary animate-pulse' : 
+                      step.status === 'completed' ? 'bg-green-500 border-green-500 text-white' : 
+                      step.status === 'error' ? 'bg-red-500 border-red-500 text-white' :
+                      'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}
+                  `}>
+                    {getStepIcon(step)}
+                  </div>
                   
-                  <div className="flex items-start gap-4">
-                    <div className="rounded-full p-1 bg-white dark:bg-gray-800 relative z-10">
-                      {step.status === 'completed' ? (
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                      ) : step.status === 'active' ? (
-                        <div className="h-5 w-5 flex items-center justify-center">
-                          <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                        </div>
-                      ) : (
-                        <div className="h-5 w-5 flex items-center justify-center">
-                          {getStepIcon(step.id)}
-                        </div>
-                      )}
+                  <div>
+                    <div className="flex items-center">
+                      <p className={`text-sm font-medium ${
+                        step.status === 'active' ? 'text-primary' : 
+                        step.status === 'completed' ? 'text-gray-900 dark:text-gray-100' : 
+                        step.status === 'error' ? 'text-red-500' :
+                        'text-gray-500'
+                      }`}>
+                        {step.label}
+                      </p>
                     </div>
                     
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className={`font-medium ${
-                          step.status === 'active' ? 'text-primary' : 
-                          step.status === 'completed' ? 'text-gray-700 dark:text-gray-300' : 
-                          'text-gray-400 dark:text-gray-500'
-                        }`}>
-                          {step.label}
-                        </h4>
-                        
-                        {step.status === 'active' && (
-                          <Badge variant="outline" className="bg-primary/10 animate-pulse">
-                            In progress
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {step.timestamp.toLocaleTimeString()}
+                    </p>
+                    
+                    {step.details && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         {step.details}
                       </p>
-                      
-                      {/* Extra details for active steps */}
-                      {step.status === 'active' && step.id === 'web-search' && (
-                        <div className="mt-2 text-xs text-gray-500 italic">
-                          Found {sources} sources so far...
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}

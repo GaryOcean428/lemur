@@ -82,10 +82,10 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
   };
   
   // Use the result for the active tab
-  const activeTabData = results[activeTab] || data;
+  const activeTabData = results[activeTab as keyof typeof results] || data;
   
   // Check if deep research results are available
-  const hasDeepResearch = data && data.deepResearch && data.research;
+  const hasDeepResearch = data && data.deepResearch === true && data.research && data.research.results && data.research.results.length > 0;
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -298,7 +298,7 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
           {hasDeepResearch && (
             <TabsContent value="research" className="mt-0">
               <h2 className="text-xl font-semibold dark:text-white mb-4">Advanced Research Results</h2>
-              <DeepResearchResults research={data.research} />
+              <DeepResearchResults research={data.research!} />
             </TabsContent>
           )}
         </div>

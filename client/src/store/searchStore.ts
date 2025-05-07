@@ -121,7 +121,6 @@ export const useSearchStore = create<SearchState>((set) => ({
     all: null,
     ai: null,
     web: null,
-    research: null,
     images: null,
     videos: null,
     news: null,
@@ -129,6 +128,7 @@ export const useSearchStore = create<SearchState>((set) => ({
     social: null,
     maps: null,
     academic: null,
+    research: null,
   },
   
   // No tabs have been searched yet

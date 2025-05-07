@@ -39,11 +39,14 @@ interface DeepResearchResultsProps {
 export default function DeepResearchResults({ research }: DeepResearchResultsProps) {
   const [expandedContent, setExpandedContent] = useState<string | null>(null);
   
-  if (!research || !research.results) {
+  // Handle undefined research data gracefully
+  if (!research || !research.results || research.results.length === 0) {
     return (
-      <div className="p-8 text-center">
-        <h3 className="text-lg font-medium mb-2">No research results available</h3>
-        <p className="text-muted-foreground">Try modifying your search or enabling deep research for more comprehensive results.</p>
+      <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6">
+        <h3 className="text-lg font-medium mb-4">No research results available</h3>
+        <p className="text-gray-600 dark:text-gray-400">
+          We couldn't find any deep research results for this query. Try a different search or check back later.
+        </p>
       </div>
     );
   }
