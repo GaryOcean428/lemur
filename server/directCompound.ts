@@ -85,20 +85,22 @@ export async function directGroqCompoundSearch(
     // Model selection map
     // Using the latest Groq models as documented
     const modelMap: Record<string, string> = {
-      "auto": "compound-beta", // Balanced performance and quality
-      "fast": "compound-beta-mini", // Faster with lower latency
-      "comprehensive": "llama-3.3-70b", // High quality, advanced reasoning (Llama 3.3 70B)
-      "maverick": "llama-4-maverick" // Advanced reasoning with Llama 4 Maverick
+      "auto": "llama-3.1-70b", // Balanced performance and quality
+      "fast": "llama-3.1-8b", // Faster with lower latency
+      "comprehensive": "llama-3.1-70b", // High quality, advanced reasoning (Llama 3.1 70B)
+      "maverick": "llama-3.1-70b" // Fallback to 70B model
     };
     
     // Normalize the preference to lowercase for consistent matching
     const normalizedPref = modelPreference.toLowerCase();
     
-    // Select the model based on preference, defaulting to compound-beta if not found
-    const model = modelMap[normalizedPref] || "compound-beta";
+    // Select the model based on preference, defaulting to llama-3.1-70b if not found
+    const model = modelMap[normalizedPref] || "llama-3.1-70b";
     
-    // Groq's Llama models support built-in tool calling with Tavily integration
-    const supportsTools = true;
+    // Check if the model supports tool calling
+    // Currently, only compound-beta and compound-beta-mini supported tool calling
+    // However, they seem to be unavailable or renamed, so disabling tools for now
+    const supportsTools = false;
     
     // For non-tool compatible models, use a simpler system prompt without tool instructions
     const isToolModel = supportsTools;
