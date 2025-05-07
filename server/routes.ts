@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { InsertUserPreferences, InsertUserTopicInterest } from "@shared/schema";
 import { searchCache, aiResponseCache, suggestionCache } from "./utils/cache";
 import { validateGroqModel, mapModelPreference, APPROVED_MODELS } from "./utils/modelValidation";
+import { enforceRegionPreference, normalizeRegionCode } from "./utils/regionUtil";
 import { 
   ConversationContext, 
   ConversationTurn, 
@@ -47,24 +48,8 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY) 
   : null;
 
-// Define Tavily search result interfaces
-interface TavilySearchResult {
-  title: string;
-  url: string;
-  content: string;
-  score: number;
-  published_date?: string; // Publication date when available
-  image?: {
-    url: string;
-    alt?: string; // Description of the image if available
-  };
-}
-
-interface TavilySearchResponse {
-  results: TavilySearchResult[];
-  query: string;
-  search_depth: string;
-}
+// Import Tavily search interfaces from the dedicated module
+import { tavilySearch, TavilySearchResult, TavilySearchResponse } from './tavilySearch';
 
 // Define Groq response interfaces
 interface GroqChoice {
@@ -82,142 +67,7 @@ interface GroqResponse {
   model: string;
 }
 
-// Function to perform Tavily search
-async function tavilySearch(query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> {
-  console.log(`Tavily search for: "${query}" with depth: ${config.search_depth || 'basic'}`);
-  
-  // Clean and validate the query
-  const cleanedQuery = query.trim();
-  if (!cleanedQuery) {
-    throw new Error('Search query cannot be empty');
-  }
-  
-  // Extra validation for Tavily API key format
-  if (!apiKey || !apiKey.trim()) {
-    console.warn('Tavily API key is missing or empty. Using Groq only without web search results.');
-    // Return empty results rather than throwing an error to allow the system to continue with just Groq
-    return {
-      results: [],
-      query: cleanedQuery,
-      search_depth: config.search_depth || "basic"
-    };
-  }
-  
-  // Generate cache key based on query and config
-  const cacheKey = {
-    query: cleanedQuery,
-    config: { ...config }, // Clone config to avoid references
-    type: 'tavily-search'
-  };
-  
-  // Check cache first before making API call
-  // Skip cache for time-sensitive searches (time_range=day)
-  const skipCache = config.time_range === 'day' || config.time_range === 'hour';
-  
-  if (!skipCache) {
-    const cachedResults = searchCache.get(cacheKey);
-    if (cachedResults) {
-      console.log(`Cache hit for Tavily search: "${cleanedQuery}"`);
-      return cachedResults as TavilySearchResponse;
-    }
-  }
-  
-  // Detailed debug info about the API key
-  console.log(`DEBUG: Tavily API key details:`);
-  console.log(`- Length: ${apiKey.length}`);
-  console.log(`- First 8 chars: ${apiKey.substring(0, 8)}...`);
-  console.log(`- Starts with 'tvly-': ${apiKey.startsWith('tvly-')}`);
-  console.log(`- Contains whitespace: ${apiKey.includes(' ')}`);
-  console.log(`- Has quotes: ${apiKey.includes('"') || apiKey.includes("'")}`);
-  
-  if (!apiKey.startsWith('tvly-')) {
-    console.warn('Warning: Tavily API key does not have the expected format (should start with "tvly-"). API calls may fail.');
-  }
-  
-  try {
-    // Use Bearer token authentication as it's the correct method
-    const response = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey.trim()}`, // Use Bearer token auth
-      },
-      body: JSON.stringify({
-        query: cleanedQuery,
-        search_depth: config.search_depth || "basic",
-        include_domains: config.include_domains || [],
-        exclude_domains: config.exclude_domains || [],
-        max_results: config.max_results || 15,
-        include_answer: false,
-        include_images: config.include_images !== false, // Default to true
-        include_raw_content: false,
-        geo_location: config.geo_location ? config.geo_location.toUpperCase() : null, // e.g. "AU" for Australia
-        time_range: config.time_range || null, // e.g. "day", "week", "month"
-        // Additional filter options can be added here
-      }),
-    });
-
-    if (!response.ok) {
-      let errorMessage = `Tavily API error ${response.status}`;
-      
-      try {
-        const errorBody = await response.text();
-        console.error('Tavily API error details:', errorBody);
-        
-        // Provide specific error messages for common error codes
-        if (response.status === 401) {
-          console.warn('Tavily API authentication failed. Using Groq only without web search results.');
-          // Return empty results rather than throwing, so Groq can still provide some answer
-          return {
-            results: [],
-            query: cleanedQuery,
-            search_depth: config.search_depth || "basic"
-          };
-        } else if (response.status === 429) {
-          errorMessage = 'Tavily API error: Rate limit exceeded. Please try again later.';
-        } else {
-          errorMessage = `Tavily API error ${response.status}: ${errorBody}`;
-        }
-      } catch (parseError) {
-        console.error('Failed to parse Tavily error response:', parseError);
-      }
-      
-      throw new Error(errorMessage);
-    }
-
-    const results = await response.json() as TavilySearchResponse;
-    
-    // Cache results if they're valid and not time-sensitive
-    if (!skipCache && results && results.results && results.results.length > 0) {
-      // Determine appropriate TTL based on search depth and time range
-      let cacheTTL = 600; // Default 10 minutes
-      
-      if (config.search_depth === 'comprehensive') {
-        cacheTTL = 1800; // 30 minutes for comprehensive searches
-      } else if (config.time_range === 'week') {
-        cacheTTL = 3600; // 1 hour for weekly searches
-      } else if (config.time_range === 'month' || config.time_range === 'year') {
-        cacheTTL = 14400; // 4 hours for monthly/yearly searches
-      }
-      
-      searchCache.set(cacheKey, results, cacheTTL);
-      console.log(`Cached Tavily search results for "${cleanedQuery}" with TTL ${cacheTTL}s`);
-    }
-    
-    return results;
-  } catch (error) {
-    // Add more detailed error information
-    console.error('Tavily API call failed:', error);
-    
-    // Instead of throwing, return empty results to allow Groq to still function
-    console.warn('Tavily search failed. Using Groq only without web search results.');
-    return {
-      results: [],
-      query: cleanedQuery,
-      search_depth: config.search_depth || "basic"
-    };
-  }
-}
+// Using tavilySearch imported from module - it handles region code formatting
 
 // Function to perform Groq search
 async function groqSearch(query: string, sources: TavilySearchResult[], apiKey: string, modelPreference: string = 'auto'): Promise<{answer: string; model: string}> {
@@ -623,23 +473,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         preferredModel = userPreferences.aiModel;
       }
       
-      // Apply default geo location if not in request
-      if (userPreferences.defaultRegion && userPreferences.defaultRegion !== 'global') {
-        // Force geo_location from user preferences for consistency, even if provided in request
-        const regionCode = userPreferences.defaultRegion.toUpperCase();
-        filters.geo_location = regionCode;
-        console.log(`Applied region preference from user settings: ${regionCode}`);
+      // IMPORTANT: Use the enforceRegionPreference utility to strongly enforce region
+      // This guarantees that the user's region preference is always applied, even if
+      // the request contains a different region
+      if (userPreferences.defaultRegion) {
+        // The enforceRegionPreference utility handles all validation and normalization
+        filters = enforceRegionPreference(filters, userPreferences.defaultRegion);
+        
+        // Log explicit message about applied region for debugging
+        if (userPreferences.defaultRegion.toLowerCase() !== 'global') {
+          console.log(`ENFORCED region preference from user settings: ${userPreferences.defaultRegion}`);
+        }
       }
       
       // Apply any saved search filters from user preferences
       if (userPreferences.searchFilters) {
         // Merge user's saved filters with request filters, prioritizing request filters
+        // except for region which is enforced from user preferences
         Object.entries(userPreferences.searchFilters).forEach(([key, value]) => {
-          if (!filters[key] && value) {
+          // Skip geo_location as it's handled by enforceRegionPreference
+          if (key !== 'geo_location' && !filters[key] && value) {
             filters[key] = value;
           }
         });
       }
+    }
+    
+    // Extra logging to verify region is being applied
+    if (filters.geo_location) {
+      console.log(`Final geo_location for search: ${filters.geo_location}`);
+    } else {
+      console.log('No geo_location set for this search request');
     }
     
     return { filters, preferredModel };

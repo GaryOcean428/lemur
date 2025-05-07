@@ -91,10 +91,18 @@ export async function tavilySearch(query: string, apiKey: string, config: Record
     console.warn('Warning: Tavily API key does not have the expected format (should start with "tvly-"). API calls may fail.');
   }
 
-  // Ensure geo_location is properly formatted
+  // Ensure geo_location is properly formatted and prioritized
   const geoLocation = config.geo_location ? config.geo_location.toUpperCase() : null;
   if (geoLocation) {
     console.log(`Formatted geo_location for Tavily API: ${geoLocation}`);
+    console.log(`CRITICAL: Enforcing region preference: ${geoLocation} for search results`);
+    
+    // Add debugging for the region to help troubleshoot
+    if (geoLocation === 'AU') {
+      console.log('AUSTRALIA region specified - search results should prioritize Australian content');
+    } else {
+      console.log(`Region ${geoLocation} specified - search results should prioritize content from this region`);
+    }
   }
   
   try {
