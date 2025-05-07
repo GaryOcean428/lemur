@@ -20,15 +20,29 @@ export const APPROVED_MODELS = {
 };
 
 // Model feature capabilities
-const MODEL_CAPABILITIES = {
+type ModelCapability = {
+  supportsMultipleTools: boolean;
+  supportsToolCalling: boolean;
+  maxTokens: number;
+  bestFor: string;
+  averageLatencyMs: number;
+};
+
+type ModelCapabilityMap = {
+  [key in typeof APPROVED_MODELS.ALL_VALID[number]]: ModelCapability;
+};
+
+const MODEL_CAPABILITIES: ModelCapabilityMap = {
   "compound-beta": {
-    supportsMultipleTools: true,
+    supportsMultipleTools: false, // Updated based on error logs - doesn't seem to support tool calling
+    supportsToolCalling: false,   // Added flag to indicate if tool calling is supported at all
     maxTokens: 128000,
     bestFor: "Comprehensive searches with multiple sources",
     averageLatencyMs: 2500
   },
   "compound-beta-mini": {
     supportsMultipleTools: false, // Only supports a single tool call
+    supportsToolCalling: false,   // Added flag to indicate if tool calling is supported at all
     maxTokens: 16000,
     bestFor: "Quick searches and simple questions",
     averageLatencyMs: 800
@@ -133,10 +147,24 @@ export function mapModelPreference(preference: string): string {
  */
 export function supportsMultipleTools(model: string): boolean {
   // Validate model first to ensure it's a known model
-  const validModel = validateGroqModel(model);
+  const validModel = validateGroqModel(model) as keyof typeof MODEL_CAPABILITIES;
   
   // Check the capabilities map
-  return MODEL_CAPABILITIES[validModel]?.supportsMultipleTools ?? false;
+  return MODEL_CAPABILITIES[validModel].supportsMultipleTools;
+}
+
+/**
+ * Utility function to determine if a model supports any tool calling at all
+ * 
+ * @param model The model name to check
+ * @returns Boolean indicating whether the model supports tool calling
+ */
+export function supportsToolCalling(model: string): boolean {
+  // Validate model first to ensure it's a known model
+  const validModel = validateGroqModel(model) as keyof typeof MODEL_CAPABILITIES;
+  
+  // Check the capabilities map
+  return MODEL_CAPABILITIES[validModel].supportsToolCalling;
 }
 
 /**
@@ -147,10 +175,10 @@ export function supportsMultipleTools(model: string): boolean {
  */
 export function getModelMaxTokens(model: string): number {
   // Validate model first to ensure it's a known model
-  const validModel = validateGroqModel(model);
+  const validModel = validateGroqModel(model) as keyof typeof MODEL_CAPABILITIES;
   
   // Check the capabilities map
-  return MODEL_CAPABILITIES[validModel]?.maxTokens ?? 16000; // Default conservatively
+  return MODEL_CAPABILITIES[validModel].maxTokens;
 }
 
 /**
@@ -161,8 +189,8 @@ export function getModelMaxTokens(model: string): number {
  */
 export function getModelDescription(model: string): string {
   // Validate model first to ensure it's a known model
-  const validModel = validateGroqModel(model);
+  const validModel = validateGroqModel(model) as keyof typeof MODEL_CAPABILITIES;
   
   // Return the description from capabilities
-  return MODEL_CAPABILITIES[validModel]?.bestFor ?? "General search";
+  return MODEL_CAPABILITIES[validModel].bestFor;
 }

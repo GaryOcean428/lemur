@@ -5,7 +5,7 @@
  * directly using Groq Compound Beta's built-in Tavily integration.
  */
 
-import { validateGroqModel, mapModelPreference, APPROVED_MODELS } from "./utils/modelValidation";
+import { validateGroqModel, mapModelPreference, supportsToolCalling, APPROVED_MODELS } from "./utils/modelValidation";
 
 export interface GroqCompoundResponse {
   id: string;
@@ -96,11 +96,15 @@ export async function directGroqCompoundSearch(
     // Log the final validated model
     console.log(`Using validated Groq model: ${model} from APPROVED_MODELS list`);
     
-    // Both compound-beta and compound-beta-mini support tool calling
-    const supportsTools = true;
+    // Check if the model supports tool calling using our utility function
+    const supportsTools = supportsToolCalling(model);
+    
+    // For now, based on error logs, we've determined that these models don't support tool calling
+    // This is a fallback manual override until we can confirm with Groq which models support tool calling
+    const supportsToolsOverride = false; // Override while we sort out tool support
     
     // For non-tool compatible models, use a simpler system prompt without tool instructions
-    const isToolModel = supportsTools;
+    const isToolModel = supportsTools && supportsToolsOverride;
     
     // Log which model was selected
     console.log(`Using Groq model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
@@ -206,7 +210,10 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     messages.push(userMessage);
 
     // Prepare API request body based on whether tools are supported
-    const requestBody = supportsTools ? {
+    console.log(`Tool support status: Raw Check=${supportsTools}, Override=${supportsToolsOverride}, Final=${isToolModel}`);
+    
+    // Only include tools if the model is confirmed to support them
+    const requestBody = isToolModel ? {
       model,
       messages,
       temperature: 0.3,
@@ -240,7 +247,7 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
       temperature: 0.3
     };
 
-    console.log(`Making API request with${supportsTools ? '' : 'out'} tools to Groq API`);
+    console.log(`Making API request with${isToolModel ? '' : 'out'} tools to Groq API using model: ${model}`);
     
     // Make the API request to Groq
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
