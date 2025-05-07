@@ -1270,14 +1270,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createSearchHistory({
           userId,
           query,
+          timestamp: new Date()
+        });
+        
+        // Save the full research results to the saved searches for retrieval later
+        await storage.saveSearch({
+          userId,
+          query,
           results: researchResults,
-          searchType: 'deep_research',
-          createdAt: new Date()
+          savedAt: new Date()
         });
       }
       
       // Complete timing
-      completeApiTiming(timingId);
+      completeApiTiming(timingId, { success: true });
       
       // Return results
       res.json({
@@ -1346,10 +1352,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const extractionResult = await tavilyExtractContent(url, tavilyApiKey);
       
       // Complete timing
-      completeApiTiming(timingId);
+      completeApiTiming(timingId, { success: true });
       
       // Record cache hit/miss
       recordCacheResult('content_extraction', false);
+      
+      // Add to search history if user is authenticated
+      if (req.isAuthenticated()) {
+        const userId = req.user.id;
+        try {
+          await storage.createSearchHistory({
+            userId,
+            query: `URL: ${url}`
+          });
+        } catch (error) {
+          console.error("Error saving extraction to history:", error);
+          // Continue even if saving fails
+        }
+      }
       
       // Return results
       res.json({
