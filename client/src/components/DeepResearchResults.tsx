@@ -1,136 +1,211 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Clock, FileText, Award } from 'lucide-react';
+import { BookOpen, FileText, Link as LinkIcon, Calendar, AlignLeft, Search } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+
+interface TopicClusters {
+  [key: string]: string[];
+}
+
+interface DeepResearchResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+  published_date?: string;
+  extracted_content?: string;
+  source_quality?: number;
+  source_type?: string;
+  summary?: string;
+}
+
+export interface DeepResearch {
+  results: DeepResearchResult[];
+  query: string;
+  topic_clusters?: TopicClusters;
+  research_summary?: string;
+  estimated_analysis_depth?: string;
+}
 
 interface DeepResearchResultsProps {
-  research: {
-    results: Array<{
-      title: string;
-      url: string;
-      content: string;
-      score: number;
-      published_date?: string;
-      extracted_content?: string;
-      source_quality?: number;
-      source_type?: string;
-      summary?: string;
-    }>;
-    query: string;
-    topic_clusters?: {
-      [key: string]: string[];
-    };
-    research_summary?: string;
-    estimated_analysis_depth?: string;
-  }
+  research: DeepResearch;
 }
 
 export default function DeepResearchResults({ research }: DeepResearchResultsProps) {
+  const [expandedContent, setExpandedContent] = useState<string | null>(null);
+  
+  if (!research || !research.results) {
+    return (
+      <div className="p-8 text-center">
+        <h3 className="text-lg font-medium mb-2">No research results available</h3>
+        <p className="text-muted-foreground">Try modifying your search or enabling deep research for more comprehensive results.</p>
+      </div>
+    );
+  }
+
+  // Extract topic clusters for display
+  const topicClusters = research.topic_clusters || {};
+  const topicNames = Object.keys(topicClusters);
+  
   return (
-    <div className="deep-research-results">
+    <div className="container mx-auto px-4 py-6">
       {/* Research Summary Section */}
       {research.research_summary && (
-        <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-xl shadow-sm">
-          <h2 className="text-xl font-semibold mb-3 flex items-center">
-            <Award className="w-5 h-5 mr-2 text-indigo-500" />
-            Advanced Research Summary
-          </h2>
-          <div className="prose dark:prose-invert max-w-none">
-            <p className="text-base leading-relaxed">{research.research_summary}</p>
-          </div>
-          {research.estimated_analysis_depth && (
-            <Badge variant="outline" className="mt-4 bg-white/50 dark:bg-gray-800/50">
-              Analysis Depth: {research.estimated_analysis_depth}
-            </Badge>
-          )}
-        </div>
+        <Card className="mb-8 border-primary/10 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              Research Summary
+            </CardTitle>
+            <CardDescription>
+              Comprehensive analysis based on {research.results.length} sources
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-line text-sm">
+              {research.research_summary}
+            </p>
+          </CardContent>
+        </Card>
       )}
       
-      {/* Topic Clusters */}
-      {research.topic_clusters && Object.keys(research.topic_clusters).length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-lg font-medium mb-3">Topic Clusters</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(research.topic_clusters).map(([topic, keywords], idx) => (
-              <div key={idx} className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                <h4 className="font-medium mb-2">{topic}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {keywords.map((keyword, kidx) => (
-                    <Badge key={kidx} variant="secondary" className="text-xs">
-                      {keyword}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Topic Clusters Section */}
+      {topicNames.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Search className="h-5 w-5 text-primary" />
+              Topic Clusters
+            </CardTitle>
+            <CardDescription>
+              Related topics identified in research
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue={topicNames[0]}>
+              <TabsList className="mb-4 flex flex-wrap">
+                {topicNames.map((topic) => (
+                  <TabsTrigger key={topic} value={topic}>{topic}</TabsTrigger>
+                ))}
+              </TabsList>
+              
+              {topicNames.map((topic) => (
+                <TabsContent key={topic} value={topic} className="mt-0">
+                  <ScrollArea className="h-[200px] rounded-md border p-4">
+                    <div className="flex flex-wrap gap-2">
+                      {topicClusters[topic].map((subtopic, index) => (
+                        <Badge key={index} variant="secondary" className="py-1">
+                          {subtopic}
+                        </Badge>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+              ))}
+            </Tabs>
+          </CardContent>
+        </Card>
       )}
       
-      {/* Research Results */}
-      <div>
-        <h3 className="text-lg font-medium mb-4">Detailed Research Results</h3>
-        <div className="space-y-6">
+      {/* Detailed Research Results */}
+      <div className="mb-4">
+        <h3 className="text-xl font-semibold flex items-center gap-2 mb-4">
+          <FileText className="h-5 w-5 text-primary" />
+          Detailed Research Sources ({research.results.length})
+        </h3>
+        
+        <div className="grid gap-4">
           {research.results.map((result, index) => (
-            <div 
-              key={index} 
-              className="p-5 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-800 transition-colors"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h4 className="text-lg font-medium">
+            <Card key={index} className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">
                   <a 
                     href={result.url} 
                     target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center"
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors"
                   >
                     {result.title}
-                    <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
-                </h4>
-                <Badge variant="outline" className="text-xs bg-white dark:bg-gray-700">
-                  Score: {Math.round(result.score * 100)}%
-                </Badge>
-              </div>
+                </CardTitle>
+                <CardDescription className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="flex items-center gap-1">
+                    <LinkIcon className="h-3 w-3" />
+                    <a 
+                      href={result.url}
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-500 hover:underline truncate max-w-[250px]"
+                    >
+                      {new URL(result.url).hostname}
+                    </a>
+                  </span>
+                  
+                  {result.published_date && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {formatDistanceToNow(new Date(result.published_date), { addSuffix: true })}
+                    </span>
+                  )}
+                  
+                  {result.source_type && (
+                    <Badge variant="outline" className="text-xs font-normal">
+                      {result.source_type}
+                    </Badge>
+                  )}
+                  
+                  {/* Quality indicator */}
+                  {typeof result.source_quality === 'number' && (
+                    <Badge 
+                      variant={
+                        result.source_quality > 0.8 ? "default" : 
+                        result.source_quality > 0.5 ? "secondary" : 
+                        "outline"
+                      }
+                      className="text-xs font-normal"
+                    >
+                      {result.source_quality > 0.8 ? "High Quality" : 
+                       result.source_quality > 0.5 ? "Medium Quality" : 
+                       "Basic Source"}
+                    </Badge>
+                  )}
+                </CardDescription>
+              </CardHeader>
               
-              <div className="flex gap-2 text-sm text-gray-500 dark:text-gray-400 mb-3">
-                <span className="inline-flex items-center">
-                  <Clock className="mr-1 h-3 w-3" />
-                  {result.published_date || 'Date unknown'}
-                </span>
-                {result.source_type && (
-                  <Badge variant="secondary" className="text-xs">
-                    {result.source_type}
-                  </Badge>
-                )}
-              </div>
-              
-              {/* Content excerpt */}
-              <p className="text-sm line-clamp-3 mb-3">{result.content}</p>
-              
-              {/* If we have extracted content, show a collapsible section */}
-              {result.extracted_content && (
-                <details className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-                  <summary className="text-sm font-medium cursor-pointer text-indigo-600 dark:text-indigo-400 flex items-center">
-                    <FileText className="mr-1 h-4 w-4" />
-                    View Extracted Content
-                  </summary>
-                  <ScrollArea className="h-64 mt-3 bg-gray-50 dark:bg-gray-900 p-3 rounded text-sm">
-                    <p className="whitespace-pre-line">{result.extracted_content}</p>
-                  </ScrollArea>
-                </details>
-              )}
-              
-              {/* If we have a summary, show it */}
-              {result.summary && (
-                <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Summary
-                  </div>
-                  <p className="text-sm">{result.summary}</p>
+              <CardContent>
+                {/* Source summary or extracted intro */}
+                <div className="mb-2">
+                  <p className="text-sm">
+                    {expandedContent === result.url && result.extracted_content 
+                      ? result.extracted_content 
+                      : result.content}
+                  </p>
                 </div>
-              )}
-            </div>
+                
+                {/* Expand/Collapse button if detailed content available */}
+                {result.extracted_content && (
+                  <div className="mt-4">
+                    <Separator className="my-2" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setExpandedContent(
+                        expandedContent === result.url ? null : result.url
+                      )}
+                      className="text-xs flex items-center gap-1"
+                    >
+                      <AlignLeft className="h-3.5 w-3.5" />
+                      {expandedContent === result.url ? "Show Less" : "Show Full Content"}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>

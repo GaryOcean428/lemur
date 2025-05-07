@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import SearchForm from "@/components/SearchForm";
 import SearchTabs from "@/components/SearchTabs";
 import SearchFiltersPanel from "@/components/SearchFilters";
+import SearchInsightsPanel from "@/components/SearchInsightsPanel";
 import { performSearch, performDirectSearch } from "@/lib/api";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Eye } from "lucide-react";
 import { useSearchStore } from "@/store/searchStore";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -15,6 +16,7 @@ export default function SearchResults() {
   const { setIsLoading } = useSearchStore();
   const [useDirectSearch, setUseDirectSearch] = useState(true); // Default to using direct search
   const [authRequired, setAuthRequired] = useState(false); // Track if authentication is required
+  const [showInsightsPanel, setShowInsightsPanel] = useState(false); // Control insights panel visibility
   const { user } = useAuth(); // Get current user from auth context
 
   // Get the search query from URL
@@ -63,9 +65,14 @@ export default function SearchResults() {
     }
   });
   
-  // Update global loading state
+  // Update global loading state and show insights panel during search
   useEffect(() => {
     setIsLoading(isLoading);
+    
+    // Show insights panel when loading starts
+    if (isLoading) {
+      setShowInsightsPanel(true);
+    }
   }, [isLoading, setIsLoading]);
   
   // Handle authRequired flag from API responses
@@ -73,7 +80,16 @@ export default function SearchResults() {
     if (data && 'authRequired' in data && data.authRequired) {
       setAuthRequired(true);
     }
-  }, [data]);
+    
+    // Hide insights panel when results arrive (with a slight delay)
+    if (data && !isLoading) {
+      const timer = setTimeout(() => {
+        setShowInsightsPanel(false);
+      }, 1000); // Keep open 1 second after results arrive for a smooth transition
+      
+      return () => clearTimeout(timer);
+    }
+  }, [data, isLoading]);
 
   if (error) {
     let errorMessage = "An error occurred while fetching search results. Please try again."; 
@@ -156,7 +172,18 @@ export default function SearchResults() {
             <div className="flex-grow">
               <SearchForm initialQuery={query} />
             </div>
-            <div>
+            <div className="flex items-center gap-2">
+              {/* View Insights button */}
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => setShowInsightsPanel(true)}
+                className="flex items-center gap-1"
+                title="View search insights"
+              >
+                <Eye className="h-4 w-4" />
+                <span className="hidden sm:inline">Insights</span>
+              </Button>
               <SearchFiltersPanel />
             </div>
           </div>
@@ -164,6 +191,14 @@ export default function SearchResults() {
         
         {/* Search Tabs with All Results */}
         <SearchTabs data={data} query={query} isLoading={isLoading} isFollowUp={isFollowUp} authRequired={authRequired} />
+        
+        {/* Real-time Search Insights Panel */}
+        <SearchInsightsPanel 
+          isOpen={showInsightsPanel}
+          onOpenChange={setShowInsightsPanel}
+          query={query}
+          isDeepResearch={deepResearch}
+        />
       </div>
     </div>
   );
