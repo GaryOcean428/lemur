@@ -5,6 +5,8 @@
  * directly using Groq Compound Beta's built-in Tavily integration.
  */
 
+import { validateGroqModel, mapModelPreference, APPROVED_MODELS } from "./utils/modelValidation";
+
 export interface GroqCompoundResponse {
   id: string;
   choices: {
@@ -78,37 +80,21 @@ export async function directGroqCompoundSearch(
       console.warn('Warning: Groq API key does not have the expected format (should start with "gsk_"). API calls may fail.');
     }
 
-    // Choose model based on preference
-    // Note: Some Llama models may have varying tool calling capabilities,
-    // so we need different handling based on whether tools are needed
+    // Use our centralized model validation utilities to ensure only approved models are used
     
-    // CRITICAL: DO NOT MODIFY THESE MODEL NAMES
-    // These are the exact Groq models required by the project
-    // The availability of these models is guaranteed by our agreement with Groq
-    // As documented in docs/groq-compound-beta.md
+    // Log the model preference for debugging purposes
+    console.log(`Original model preference: ${modelPreference}`);
     
-    // Model selection map - THESE ARE THE ONLY ALLOWED MODELS
-    const modelMap: Record<string, string> = {
-      "auto": "compound-beta", // Balanced performance and quality - supports multiple tool calls
-      "fast": "compound-beta-mini", // Faster with lower latency - supports single tool call
-      "comprehensive": "compound-beta", // High quality, advanced reasoning
-      "maverick": "compound-beta" // Advanced reasoning with Llama 4 Maverick
-    };
+    // Map the user-friendly model preference to an actual Groq model name
+    // This uses our centralized mapping function from modelValidation.ts
+    let model = mapModelPreference(modelPreference);
     
-    // Normalize the preference to lowercase for consistent matching
-    const normalizedPref = modelPreference.toLowerCase();
+    // Validate the model to ensure it's one of the approved models
+    // This is a critical safeguard against code modifications that might use incorrect models
+    model = validateGroqModel(model);
     
-    // Select the model based on preference, defaulting to compound-beta if not found
-    let selectedModel = modelMap[normalizedPref] || "compound-beta";
-    
-    // SAFEGUARD: Ensure we only use the approved models
-    if (!["compound-beta", "compound-beta-mini"].includes(selectedModel)) {
-      console.error(`Invalid model selection: ${selectedModel}. Falling back to compound-beta.`);
-      selectedModel = "compound-beta";
-    }
-    
-    // Use the verified model name
-    const model = selectedModel;
+    // Log the final validated model
+    console.log(`Using validated Groq model: ${model} from APPROVED_MODELS list`);
     
     // Both compound-beta and compound-beta-mini support tool calling
     const supportsTools = true;
