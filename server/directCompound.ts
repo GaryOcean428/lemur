@@ -6,6 +6,7 @@
  */
 
 import { validateGroqModel, mapModelPreference, supportsToolCalling, APPROVED_MODELS } from "./utils/modelValidation";
+import { normalizeRegionCode, enforceRegionPreference } from "./utils/regionUtil";
 
 export interface GroqCompoundResponse {
   id: string;
@@ -109,6 +110,20 @@ export async function directGroqCompoundSearch(
     // Log which model was selected
     console.log(`Using Groq model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
 
+    // Normalize and validate the geo_location parameter
+    const normalizedGeoLocation = normalizeRegionCode(geo_location);
+    // If geo_location is valid, use it; otherwise default to AU (Australia)
+    const regionCode = normalizedGeoLocation || 'AU';
+    
+    // Apply to filters using the enforceRegionPreference function
+    const updatedFilters = enforceRegionPreference(filters, regionCode);
+    
+    // Log region information for debugging
+    console.log(`DirectGroqCompound using region code: ${regionCode} for search results`);
+    if (regionCode === 'AU') {
+      console.log('AUSTRALIA region specified in directGroqCompound - results should prioritize Australian content');
+    }
+    
     // Create the system message with search preferences
     // Use different prompts for tool and non-tool models
     // First, fetch Tavily search results to provide context
@@ -124,13 +139,18 @@ export async function directGroqCompoundSearch(
           'Authorization': `Bearer ${tavilyApiKey}`
         };
         
+        // Apply the updated filters from region preference enforcement
         const searchRequestBody = {
           query: query,
-          search_depth: "basic",
-          include_domains: filters?.include_domains || [],
-          exclude_domains: filters?.exclude_domains || [],
-          max_results: 5
+          search_depth: updatedFilters.search_depth || "basic",
+          include_domains: updatedFilters.include_domains || filters?.include_domains || [],
+          exclude_domains: updatedFilters.exclude_domains || filters?.exclude_domains || [],
+          max_results: 5,
+          geo_location: regionCode // Always apply the normalized region code
         };
+        
+        // Log the search request for debugging
+        console.log(`Tavily search request in directCompound using geo_location: ${regionCode}`);
         
         const searchResponse = await fetch(searchApiUrl, {
           method: 'POST',
@@ -169,7 +189,10 @@ When responding to search queries, follow these guidelines:
 2. Use markdown formatting for structure (headings, lists, etc.)
 3. Break down complex information into understandable parts
 4. Be factual and provide balanced viewpoints on controversial topics
-5. Adapt content to be contextually relevant for users in ${geo_location}
+5. CRITICALLY IMPORTANT: Results must be contextually relevant for users in ${regionCode} location
+
+REGIONAL RELEVANCE INSTRUCTION:
+${regionCode === 'AU' ? 'The user is in AUSTRALIA. Always prioritize Australian content, services, prices in AUD, and local context. Mention specifically when results are from Australia.' : `The user is in the ${regionCode} region. Prioritize regional content and context.`}
 
 IMPORTANT CITATION FORMAT: 
 For any factual information from the search results provided, include numbered references at the end of your response in this format:
@@ -232,7 +255,8 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
                 },
                 region: {
                   type: "string",
-                  description: "The region to focus search results on, e.g., AU for Australia"
+                  description: `The region to focus search results on. ALWAYS use "${regionCode}" for this search to ensure regional relevance.`,
+                  default: regionCode  // Default to user's preferred region code
                 }
               },
               required: ["query"]
