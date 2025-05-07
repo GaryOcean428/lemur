@@ -5,6 +5,7 @@ import { fetchSearchSuggestions } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import SubscriptionPrompt from "./SubscriptionPrompt";
+import DeepResearchToggle from "./DeepResearchToggle";
 
 interface SearchFormProps {
   initialQuery?: string;
@@ -17,6 +18,7 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showSubscriptionPrompt, setShowSubscriptionPrompt] = useState(false);
   const [subscriptionPromptMessage, setSubscriptionPromptMessage] = useState("");
+  const [deepResearchEnabled, setDeepResearchEnabled] = useState(false);
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const formRef = useRef<HTMLFormElement>(null);
@@ -77,11 +79,24 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
       return;
     }
     
+    // Check if user tries to use deep research but is not a pro user
+    if (deepResearchEnabled && user && user.subscriptionTier !== 'pro' && user.subscriptionTier !== 'developer') {
+      setSubscriptionPromptMessage("Advanced Research is a Pro feature. Upgrade to access comprehensive research capabilities.");
+      setShowSubscriptionPrompt(true);
+      return;
+    }
+    
     // Proceed with search, include follow-up parameter if applicable
     let searchUrl = `/search?q=${encodeURIComponent(trimmedQuery)}`;
     if (isFollowUp) {
       searchUrl += '&isFollowUp=true';
     }
+    
+    // Add deep research parameter if enabled (only for Pro users)
+    if (deepResearchEnabled && (user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'developer')) {
+      searchUrl += '&deepResearch=true';
+    }
+    
     setLocation(searchUrl);
   };
   
@@ -97,11 +112,24 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
       return;
     }
     
+    // Check if user tries to use deep research but is not a pro user
+    if (deepResearchEnabled && user && user.subscriptionTier !== 'pro' && user.subscriptionTier !== 'developer') {
+      setSubscriptionPromptMessage("Advanced Research is a Pro feature. Upgrade to access comprehensive research capabilities.");
+      setShowSubscriptionPrompt(true);
+      return;
+    }
+    
     // Proceed with search, include follow-up parameter if applicable
     let searchUrl = `/search?q=${encodeURIComponent(suggestion)}`;
     if (isFollowUp) {
       searchUrl += '&isFollowUp=true';
     }
+    
+    // Add deep research parameter if enabled (only for Pro users)
+    if (deepResearchEnabled && (user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'developer')) {
+      searchUrl += '&deepResearch=true';
+    }
+    
     setLocation(searchUrl);
   };
   

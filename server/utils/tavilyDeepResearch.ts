@@ -90,8 +90,8 @@ export async function tavilyDeepResearch(
   
   try {
     // Construct the request to Tavily's API
-    // Using /crawl endpoint for the deep research functionality
-    const response = await fetch("https://api.tavily.com/crawl", {
+    // Using /search endpoint with advanced parameters for the deep research functionality
+    const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -99,16 +99,16 @@ export async function tavilyDeepResearch(
       },
       body: JSON.stringify({
         query: cleanedQuery,
-        max_results: options.max_results || 10,
-        topic_keywords: options.topic_keywords || [],
+        search_depth: "advanced",
+        max_results: options.max_results || 15,
         include_domains: options.include_domains || [],
         exclude_domains: options.exclude_domains || [],
-        time_range: options.time_range,
+        time_range: options.time_range || "month",
         geo_location: options.geo_location ? options.geo_location.toUpperCase() : undefined,
-        include_raw_content: options.include_raw_content !== false,
-        crawl_depth: options.crawl_depth || 'medium',
-        extract_content: options.extract_content !== false,
-        generate_summary: options.generate_summary !== false
+        include_answer: true,
+        include_raw_content: true,
+        include_images: false,
+        include_sources_in_answer: true
       })
     });
     
