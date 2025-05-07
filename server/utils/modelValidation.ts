@@ -34,18 +34,18 @@ type ModelCapabilityMap = {
 
 const MODEL_CAPABILITIES: ModelCapabilityMap = {
   "compound-beta": {
-    supportsMultipleTools: false, // Updated based on error logs - doesn't seem to support tool calling
-    supportsToolCalling: false,   // Added flag to indicate if tool calling is supported at all
-    maxTokens: 128000,
-    bestFor: "Comprehensive searches with multiple sources",
-    averageLatencyMs: 2500
+    supportsMultipleTools: true,  // Can make multiple tool calls
+    supportsToolCalling: true,    // Supports Groq's built-in tool calling
+    maxTokens: 128000,            // 128k context window
+    bestFor: "Comprehensive searches requiring in-depth analysis of multiple sources",
+    averageLatencyMs: 2500        // Average response time in milliseconds
   },
   "compound-beta-mini": {
     supportsMultipleTools: false, // Only supports a single tool call
-    supportsToolCalling: false,   // Added flag to indicate if tool calling is supported at all
-    maxTokens: 16000,
-    bestFor: "Quick searches and simple questions",
-    averageLatencyMs: 800
+    supportsToolCalling: true,    // Supports basic tool calling
+    maxTokens: 32000,             // 32k context window
+    bestFor: "Fast searches and simple questions with minimal context",
+    averageLatencyMs: 800         // Average response time in milliseconds
   }
 };
 
@@ -86,8 +86,8 @@ export function validateGroqModel(model: string, preferFast: boolean = false): s
   // Log error for invalid model with detailed explanation
   console.error(`⚠️ CRITICAL MODEL ERROR: Invalid Groq model '${model}' detected.`);
   console.error(`This violates the Lemur architecture guidelines which require using exactly:`);
-  console.error(`- ${APPROVED_MODELS.COMPOUND_BETA} (for comprehensive search with multiple tool support)`);
-  console.error(`- ${APPROVED_MODELS.COMPOUND_BETA_MINI} (for faster search with single tool support)`);
+  console.error(`- ${APPROVED_MODELS.COMPOUND_BETA} (for comprehensive search with multiple source integration)`);
+  console.error(`- ${APPROVED_MODELS.COMPOUND_BETA_MINI} (for faster search with limited token context)`);
   
   // Return the appropriate fallback model
   if (preferFast) {

@@ -38,7 +38,8 @@ export function isValidRegionCode(regionCode: string): boolean {
   // List of supported region codes for search
   const validRegionCodes = [
     'US', 'EU', 'ASIA', 'AU', 'UK', 'GB', 'CA', 'GLOBAL',
-    'NZ', 'IN', 'DE', 'FR', 'JP', 'BR' // Additional supported regions
+    'NZ', 'IN', 'DE', 'FR', 'JP', 'BR', // Additional supported regions
+    'LATAM', 'AFRICA', 'OCEANIA', 'ME', 'MX', 'ES', 'IT', 'CN', 'KR' // Expanded regional support
   ];
   
   return validRegionCodes.includes(regionCode);
@@ -59,6 +60,8 @@ export function mapRegionToCode(region: string): string {
     'united states': 'US',
     'ca': 'CA',
     'canada': 'CA',
+    'mx': 'MX',
+    'mexico': 'MX',
     
     // Europe
     'eu': 'EU',
@@ -71,6 +74,12 @@ export function mapRegionToCode(region: string): string {
     'deutschland': 'DE',
     'fr': 'FR',
     'france': 'FR',
+    'es': 'ES',
+    'spain': 'ES',
+    'españa': 'ES',
+    'it': 'IT',
+    'italy': 'IT',
+    'italia': 'IT',
     
     // Asia-Pacific
     'asia': 'ASIA',
@@ -83,11 +92,24 @@ export function mapRegionToCode(region: string): string {
     'japan': 'JP',
     'in': 'IN',
     'india': 'IN',
+    'cn': 'CN',
+    'china': 'CN',
+    'kr': 'KR',
+    'korea': 'KR',
+    'south korea': 'KR',
     
-    // South America
+    // Latin America
+    'latam': 'LATAM',
+    'latin america': 'LATAM',
     'br': 'BR',
     'brazil': 'BR',
     'brasil': 'BR',
+    
+    // Other Regions
+    'africa': 'AFRICA',
+    'oceania': 'OCEANIA',
+    'me': 'ME',
+    'middle east': 'ME',
     
     // Global
     'global': 'GLOBAL',
@@ -141,33 +163,63 @@ export function getRegionalInstructionForCode(regionCode: string): string {
   
   // Handle specific regions with tailored instructions
   switch (regionCode) {
-    case 'AU':
-      return 'The user is in AUSTRALIA. Always prioritize Australian content, services, prices in AUD, and local context. Mention specifically when results are from Australia.';
+    // North America
     case 'US':
       return 'The user is in the UNITED STATES. Prioritize American content, services, prices in USD, and ensure results are relevant to US contexts. Mention when information is specific to the US.';
+    case 'CA':
+      return 'The user is in CANADA. Prioritize Canadian content, services, prices in CAD, and ensure results are relevant to Canadian contexts. Mention when information is specific to Canada.';
+    case 'MX':
+      return 'The user is in MEXICO. Prioritize Mexican content, services, prices in MXN, and ensure results are relevant to Mexican contexts. Mention when information is specific to Mexico.';
+    
+    // Europe
     case 'GB':
     case 'UK':
       return 'The user is in the UNITED KINGDOM. Prioritize British content, services, prices in GBP, and ensure results are relevant to UK contexts. Mention when information is specific to the UK.';
-    case 'CA':
-      return 'The user is in CANADA. Prioritize Canadian content, services, prices in CAD, and ensure results are relevant to Canadian contexts. Mention when information is specific to Canada.';
-    case 'NZ':
-      return 'The user is in NEW ZEALAND. Prioritize New Zealand content, services, prices in NZD, and ensure results are relevant to NZ contexts. Mention when information is specific to New Zealand.';
-    case 'IN':
-      return 'The user is in INDIA. Prioritize Indian content, services, prices in INR, and ensure results are relevant to Indian contexts. Mention when information is specific to India.';
     case 'DE':
       return 'The user is in GERMANY. Prioritize German content, services, prices in EUR, and ensure results are relevant to German contexts. Mention when information is specific to Germany.';
     case 'FR':
       return 'The user is in FRANCE. Prioritize French content, services, prices in EUR, and ensure results are relevant to French contexts. Mention when information is specific to France.';
-    case 'JP':
-      return 'The user is in JAPAN. Prioritize Japanese content, services, prices in JPY, and ensure results are relevant to Japanese contexts. Mention when information is specific to Japan.';
-    case 'BR':
-      return 'The user is in BRAZIL. Prioritize Brazilian content, services, prices in BRL, and ensure results are relevant to Brazilian contexts. Mention when information is specific to Brazil.';
+    case 'ES':
+      return 'The user is in SPAIN. Prioritize Spanish content, services, prices in EUR, and ensure results are relevant to Spanish contexts. Mention when information is specific to Spain.';
+    case 'IT':
+      return 'The user is in ITALY. Prioritize Italian content, services, prices in EUR, and ensure results are relevant to Italian contexts. Mention when information is specific to Italy.';
     case 'EU':
       return 'The user is in EUROPE. Prioritize European content, services, prices in EUR, and ensure results are relevant to European contexts. Mention when information is specific to Europe.';
+    
+    // Asia-Pacific
+    case 'AU':
+      return 'The user is in AUSTRALIA. Always prioritize Australian content, services, prices in AUD, and local context. Mention specifically when results are from Australia.';
+    case 'NZ':
+      return 'The user is in NEW ZEALAND. Prioritize New Zealand content, services, prices in NZD, and ensure results are relevant to NZ contexts. Mention when information is specific to New Zealand.';
+    case 'JP':
+      return 'The user is in JAPAN. Prioritize Japanese content, services, prices in JPY, and ensure results are relevant to Japanese contexts. Mention when information is specific to Japan.';
+    case 'IN':
+      return 'The user is in INDIA. Prioritize Indian content, services, prices in INR, and ensure results are relevant to Indian contexts. Mention when information is specific to India.';
+    case 'CN':
+      return 'The user is in CHINA. Prioritize Chinese content, services, prices in CNY, and ensure results are relevant to Chinese contexts. Mention when information is specific to China.';
+    case 'KR':
+      return 'The user is in SOUTH KOREA. Prioritize Korean content, services, prices in KRW, and ensure results are relevant to Korean contexts. Mention when information is specific to South Korea.';
     case 'ASIA':
       return 'The user is in ASIA. Prioritize Asian content, services, and ensure results are relevant to Asian contexts. Consider regional differences across Asian countries.';
+    
+    // Latin America
+    case 'BR':
+      return 'The user is in BRAZIL. Prioritize Brazilian content, services, prices in BRL, and ensure results are relevant to Brazilian contexts. Mention when information is specific to Brazil.';
+    case 'LATAM':
+      return 'The user is in LATIN AMERICA. Prioritize Latin American content, services, and ensure results are relevant to Latin American contexts. Consider regional differences across Latin American countries.';
+    
+    // Other Regions
+    case 'AFRICA':
+      return 'The user is in AFRICA. Prioritize African content, services, and ensure results are relevant to African contexts. Consider regional differences across African countries.';
+    case 'OCEANIA':
+      return 'The user is in OCEANIA. Prioritize Oceanian content, services, and ensure results are relevant to Oceanian contexts, particularly focusing on Pacific Island nations beyond Australia and New Zealand.';
+    case 'ME':
+      return 'The user is in the MIDDLE EAST. Prioritize Middle Eastern content, services, and ensure results are relevant to Middle Eastern contexts. Consider regional differences across Middle Eastern countries.';
+    
+    // Global
     case 'GLOBAL':
       return 'The user has selected GLOBAL scope. Provide a balanced international perspective without regional bias. Present information that is globally applicable.';
+    
     default:
       return defaultInstruction;
   }
