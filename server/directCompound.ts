@@ -83,19 +83,19 @@ export async function directGroqCompoundSearch(
     // so we need different handling based on whether tools are needed
     
     // Model selection map
-    // Using the latest Groq models as documented
+    // Using currently available Groq models (as of May 2024)
     const modelMap: Record<string, string> = {
-      "auto": "llama-3.1-70b", // Balanced performance and quality
-      "fast": "llama-3.1-8b", // Faster with lower latency
-      "comprehensive": "llama-3.1-70b", // High quality, advanced reasoning (Llama 3.1 70B)
-      "maverick": "llama-3.1-70b" // Fallback to 70B model
+      "auto": "mixtral-8x7b-32768", // Balanced performance and quality
+      "fast": "llama2-70b-4096", // Faster with lower latency
+      "comprehensive": "mixtral-8x7b-32768", // Higher quality for reasoning
+      "maverick": "mixtral-8x7b-32768" // Fallback to mixtral model
     };
     
     // Normalize the preference to lowercase for consistent matching
     const normalizedPref = modelPreference.toLowerCase();
     
-    // Select the model based on preference, defaulting to llama-3.1-70b if not found
-    const model = modelMap[normalizedPref] || "llama-3.1-70b";
+    // Select the model based on preference, defaulting to mixtral-8x7b-32768 if not found
+    const model = modelMap[normalizedPref] || "mixtral-8x7b-32768";
     
     // Check if the model supports tool calling
     // Currently, only compound-beta and compound-beta-mini supported tool calling
