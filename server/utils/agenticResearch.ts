@@ -582,11 +582,15 @@ export async function executeAgenticResearch(
   try {
     // Step 1: Planning - Break down the query
     processSteps.push("Planning research approach...");
+    updateProgress({ status: 'planning', query });
+    
     const { subQueries, plan } = await planResearch(query);
     processSteps.push(`Research plan created with ${subQueries.length} sub-questions`);
     
     // Step 2: Searching - Execute searches for all sub-queries
     processSteps.push("Searching for information...");
+    updateProgress({ status: 'searching', query, subQueries });
+    
     const searchResults = await executeSearches(subQueries, tavilyApiKey, {
       deepDive,
       // Include any other options passed in
@@ -620,6 +624,7 @@ export async function executeAgenticResearch(
       
       // Analyze step - initial synthesis or follow-up
       processSteps.push(`Analysis iteration ${iterations}: Synthesizing information...`);
+      updateProgress({ status: 'analyzing', results: currentResults });
       currentDraft = await analyzeResults(query, currentResults, iterations);
       
       // Check if we should do another iteration
@@ -627,10 +632,12 @@ export async function executeAgenticResearch(
       
       // Critique step (Reflexion pattern)
       processSteps.push(`Critique iteration ${iterations}: Evaluating analysis quality...`);
+      updateProgress({ status: 'critiquing', draft: currentDraft, results: currentResults });
       currentCritique = await critiqueDraft(query, currentDraft, currentResults);
       
       // Refine step
       processSteps.push(`Refinement iteration ${iterations}: Improving analysis based on critique...`);
+      updateProgress({ status: 'refining', critique: currentCritique, draft: currentDraft, results: currentResults });
       currentDraft = await refineDraft(query, currentDraft, currentCritique, currentResults);
     }
     
@@ -653,6 +660,15 @@ export async function executeAgenticResearch(
     // Extract sources
     const sources = extractSources(finalDraft, searchResults);
     processSteps.push(`Complete with ${sources.length} cited sources`);
+    
+    // Update progress with finished state
+    updateProgress({ 
+      status: 'finished', 
+      answer: finalDraft, 
+      iterations,
+      sources,
+      process: processSteps
+    });
     
     // Prepare result
     const result = {

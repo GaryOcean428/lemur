@@ -694,7 +694,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Perform agentic deep research with reasoning loops
         console.log(`Using agentic research with reasoning loops for: "${query}"`);
-        const agenticResults = await executeAgenticResearch(query, tavilyApiKey, {
+        
+        // Current research state for SSE updates
+        let currentState: ResearchState = { status: 'idle' };
+        let progressLog: string[] = [];
+        let currentIterations = 0;
+        
+        // Define progress callback for real-time updates
+        const progressCallback = (progress: AgenticResearchProgress) => {
+          // Update our tracking variables
+          currentState = progress.state;
+          progressLog = progress.log;
+          currentIterations = progress.iterations;
+          
+          // Log progress for debugging
+          console.log(`Research progress: ${progress.state.status}, iterations: ${progress.iterations}`);
+        };
+        
+        const agenticResults = await executeAgenticResearch(query, tavilyApiKey, progressCallback, {
           deepDive: true,
           maxIterations: 2,
           includeReasoning: true,
@@ -1347,7 +1364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Perform agentic deep research with reasoning loops
       console.log(`Using agentic research with reasoning loops for debug: "${query}"`);
-      const agenticResults = await executeAgenticResearch(query, tavilyApiKey, debugOptions);
+      const agenticResults = await executeAgenticResearch(query, tavilyApiKey, null, debugOptions);
       
       // Format response
       const response = {
@@ -1463,7 +1480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Perform deep research
       // Perform agentic deep research with reasoning loops
       console.log(`Using agentic research with reasoning loops for: "${query}"`);
-      const agenticResults = await executeAgenticResearch(query, tavilyApiKey, {
+      const agenticResults = await executeAgenticResearch(query, tavilyApiKey, null, {
         deepDive: true,
         maxIterations: 2,
         includeReasoning: true,
