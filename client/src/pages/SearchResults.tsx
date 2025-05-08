@@ -41,7 +41,7 @@ export default function SearchResults() {
       // Deep research is only for pro users and follows a different path
       if (deepResearch && (user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'developer')) {
         // If deep research is enabled, we use the regular search API with the deepResearch parameter
-        return performSearch(query, 'all', filters, deepResearch);
+        return performSearch(query, 'all', filters, deepResearch, isFollowUp);
       }
       // Otherwise use normal search flow
       else if (useDirectSearch) {
@@ -56,7 +56,7 @@ export default function SearchResults() {
           });
       } else {
         // Fall back to traditional search pipeline
-        return performSearch(query, 'all', filters);
+        return performSearch(query, 'all', filters, false, isFollowUp);
       }
     },
     retry: (failureCount, error) => {
