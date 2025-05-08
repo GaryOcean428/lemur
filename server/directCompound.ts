@@ -147,7 +147,7 @@ export async function directGroqCompoundSearch(
           search_depth: updatedFilters.search_depth || "basic",
           include_domains: updatedFilters.include_domains || filters?.include_domains || [],
           exclude_domains: updatedFilters.exclude_domains || filters?.exclude_domains || [],
-          max_results: 5,
+          max_results: 4, // Reduced from 5 to 4 for better performance
           geo_location: regionCode // Always apply the normalized region code
         };
         
@@ -164,11 +164,12 @@ export async function directGroqCompoundSearch(
           const searchData = await searchResponse.json();
           if (searchData.results && searchData.results.length > 0) {
             // Format search results as context for the model
+            // Limit to 4 most relevant results and reduce content length to save tokens
             searchContext = 'Here are some recent search results that may be helpful:\n\n';
-            searchData.results.forEach((result: any, index: number) => {
+            searchData.results.slice(0, 4).forEach((result: any, index: number) => {
               searchContext += `[${index + 1}]: ${result.title}\n`;
               searchContext += `URL: ${result.url}\n`;
-              searchContext += `Content: ${result.content.substring(0, 300)}...\n\n`;
+              searchContext += `Content: ${result.content.substring(0, 250)}...\n\n`;
             });
           }
         } else {
@@ -212,12 +213,14 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     
     // Add conversation context for follow-up questions if available
     if (isContextual && conversationContext.length > 0) {
-      // Add a context message summarizing previous conversation
+      // Add a context message summarizing previous conversation (limited to last 2 exchanges for efficiency)
       let contextMessage = "Previous conversation context:\n";
-      conversationContext.forEach((ctx, index) => {
+      // Only use last 2 conversation items to save tokens
+      const recentContext = conversationContext.slice(-2);
+      recentContext.forEach((ctx, index) => {
         contextMessage += `User: ${ctx.query}\n`;
         if (ctx.answer) {
-          contextMessage += `Assistant: ${ctx.answer.substring(0, 150)}${ctx.answer.length > 150 ? '...' : ''}\n`;
+          contextMessage += `Assistant: ${ctx.answer.substring(0, 100)}${ctx.answer.length > 100 ? '...' : ''}\n`;
         }
       });
       

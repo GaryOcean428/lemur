@@ -587,11 +587,12 @@ export async function executeAgenticResearch(
   
   // Cache key for the entire research process
   // Create a more stable cache key that only includes relevant options
+  // Include userTier in cache key to differentiate results quality by tier
   const cacheKey = {
     query,
     maxIterations,
     deepDive,
-    includeReasoning,
+    userTier: options.userTier || 'default',
     searchContextSize,
     type: 'agentic-research-full'
   };
@@ -705,8 +706,10 @@ export async function executeAgenticResearch(
       process: processSteps
     };
     
-    // Cache the result for 30 minutes (1800 seconds)
-    searchCache.set(cacheKey, result, 1800);
+    // Cache the result - with longer TTL for Pro users
+    const cacheTTL = options.userTier === 'pro' ? 3600 : 1800; // 1 hour for Pro, 30 min for others
+    console.log(`Caching research results for ${cacheTTL} seconds (${options.userTier || 'default'} tier)`);
+    searchCache.set(cacheKey, result, cacheTTL);
     
     // Final performance measurement with detailed metrics
     const totalTimeSec = Math.round((Date.now() - startTime) / 1000);
