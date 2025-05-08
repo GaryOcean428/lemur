@@ -174,7 +174,7 @@ async function executeSearches(subQueries: string[], tavilyApiKey: string, optio
   
   // Define search parameters with appropriate depth
   const searchParams = {
-    search_depth: options.deepDive ? "advanced" : "medium",
+    search_depth: options.deepDive ? "advanced" : "basic", // Using valid values 'advanced' or 'basic' only
     max_results: options.deepDive ? 10 : 5,
     include_domains: options.include_domains || [],
     exclude_domains: options.exclude_domains || [],

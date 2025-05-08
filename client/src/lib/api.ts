@@ -269,7 +269,7 @@ export async function performSearch(
                   return {
                     query: query,
                     traditional: data.traditional.results,
-                    enhanced: {
+                    ai: { // Changed 'enhanced' to 'ai' to match SearchResults interface
                       answer: "I encountered an error while processing your search. Please try again later.",
                       model: "error-fallback",
                       sources: [],
