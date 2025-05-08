@@ -199,7 +199,7 @@ export default function SearchResults() {
           query={query}
           isDeepResearch={deepResearch}
           currentIteration={data?.research?.currentIteration || 0}
-          maxIterations={data?.research?.maxIterations || 2}
+          maxIterations={2} // Hard-code this since we're using 2 in agenticResults call on server
           reasoningLog={data?.research?.reasoningLog || []}
         />
       </div>

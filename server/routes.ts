@@ -760,7 +760,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           research: {
             ...researchResults,
             currentIteration: currentIterations,
-            maxIterations: options?.maxIterations || 2,
+            maxIterations: 2, // Fixed default value since we're using 2 in the agenticResults call
             reasoningLog: progressLog
           },
           searchType: searchType
