@@ -71,50 +71,28 @@ export default function AuthDebug() {
     }
   };
 
-  // Test session and auth debug endpoint
-  const testAuthDebug = async () => {
+  // Test direct API calls only
+  const testAdvancedApiOptions = async () => {
     try {
-      const response = await fetch("/api/auth-debug", {
+      // Just a basic test to verify API connectivity
+      const response = await fetch("/api/user", {
         credentials: "include",
       });
-      const data = await response.json();
-      setAuthResponse(data);
-      toast({
-        title: "Auth Debug Response",
-        description: "See details below",
+      const data = response.ok ? await response.json() : { status: response.status, statusText: response.statusText };
+      setAuthResponse({
+        user: data,
+        timestamp: new Date().toISOString(),
+        message: "User API test completed successfully"
       });
-    } catch (error) {
-      setAuthResponse({ error: String(error) });
       toast({
-        title: "Auth debug failed",
-        description: String(error),
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Test direct login endpoint
-  const testDirectLogin = async () => {
-    try {
-      const response = await fetch("/api/test-login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await response.json();
-      setAuthResponse(data);
-      toast({
-        title: response.ok ? "Direct Login Success" : "Direct Login Failed",
-        description: data.message || (response.ok ? "Logged in successfully" : "Login failed"),
+        title: "API Connection",
+        description: response.ok ? "Connected to API successfully" : `Error: ${response.status} ${response.statusText}`,
         variant: response.ok ? "default" : "destructive",
       });
     } catch (error) {
       setAuthResponse({ error: String(error) });
       toast({
-        title: "Direct login failed",
+        title: "API connection test failed",
         description: String(error),
         variant: "destructive",
       });
@@ -168,11 +146,8 @@ export default function AuthDebug() {
               <Button type="button" variant="secondary" onClick={testApiUser}>
                 Test API/User
               </Button>
-              <Button type="button" variant="secondary" onClick={testAuthDebug}>
-                Auth Debug
-              </Button>
-              <Button type="button" variant="outline" onClick={testDirectLogin}>
-                Direct Login
+              <Button type="button" variant="outline" onClick={testAdvancedApiOptions}>
+                Advanced API Test
               </Button>
             </div>
           </form>
