@@ -81,6 +81,11 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
           return `from <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${sourceName}</span></a>`;
         }
         return match;
+      })
+      // Handle MLA, Chicago, and AGLC citation standards
+      .replace(/\[(MLA|Chicago|AGLC): ([^\]]+)\]/g, (match, style, citation) => {
+        const formattedCitation = formatCitation(style, citation);
+        return `<span class="citation-${style.toLowerCase()}">${formattedCitation}</span>`;
       });
     
     // Step 2: Convert markdown to HTML
@@ -143,6 +148,15 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         .citation-link:hover {
           text-decoration: none !important;
         }
+        .citation-mla {
+          font-style: italic;
+        }
+        .citation-chicago {
+          font-weight: bold;
+        }
+        .citation-aglc {
+          text-decoration: underline;
+        }
       </style>
     ` + processedText;
     
@@ -151,6 +165,20 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
       ADD_TAGS: ['style'],
       ADD_ATTR: ['onmouseover', 'onmouseout', 'data-source-id']
     });
+  }
+
+  // Function to format citations according to different standards
+  function formatCitation(style: string, citation: string): string {
+    switch (style) {
+      case 'MLA':
+        return `<em>${citation}</em>`;
+      case 'Chicago':
+        return `<strong>${citation}</strong>`;
+      case 'AGLC':
+        return `<u>${citation}</u>`;
+      default:
+        return citation;
+    }
   }
 
   // Render the markdown to HTML
