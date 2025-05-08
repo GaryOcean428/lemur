@@ -14,12 +14,16 @@ export interface AIAnswer {
 export interface TraditionalResult {
   title: string;
   url: string;
-  snippet: string;
-  domain: string;
-  date?: string; // Publication date of the result
+  snippet: string;          // Brief text snippet from the result
+  domain: string;           // Domain of the result 
+  metaDescription?: string; // More detailed meta description or preview content
+  date?: string;            // Publication date of the result
+  author?: string;          // Author of the content if available
+  category?: string;        // Content category if available
+  siteName?: string;        // Site name if different from domain
   image?: {
     url: string;
-    alt?: string; // Image description for accessibility
+    alt?: string;           // Image description for accessibility
   };
 }
 

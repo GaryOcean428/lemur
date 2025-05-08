@@ -145,16 +145,32 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
                 <h2 className="text-xl font-semibold dark:text-white mb-4">Web Results</h2>
                 {activeTabData?.traditional?.map((result, index) => (
                   <div key={index} className="p-4 mb-4 bg-white dark:bg-gray-800 shadow-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <div className="flex justify-between items-center mb-1">
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{result.domain}</div>
-                      {result.date && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{result.date}</div>
-                      )}
+                    {/* Top metadata bar */}
+                    <div className="flex flex-wrap justify-between items-center mb-1">
+                      <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+                        <span>{result.siteName || result.domain}</span>
+                        {result.category && (
+                          <>
+                            <span>•</span>
+                            <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-full">{result.category}</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+                        {result.author && (
+                          <span className="hidden sm:inline">By {result.author}</span>
+                        )}
+                        {result.date && (
+                          <span>{result.date}</span>
+                        )}
+                      </div>
                     </div>
+                    
                     {/* Flex container for content and image */}
                     <div className={`${result.image ? 'flex gap-4' : ''}`}>
                       <div className="flex-grow">
-                        <h3 className="text-lg font-medium">
+                        {/* Title with URL */}
+                        <h3 className="text-lg font-medium group">
                           <a 
                             href={result.url} 
                             target="_blank" 
@@ -163,10 +179,22 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
                           >
                             {result.title}
                           </a>
+                          <span className="block text-xs text-green-700 dark:text-green-500 mt-1 group-hover:underline">
+                            {result.url.length > 70 ? result.url.substring(0, 70) + '...' : result.url}
+                          </span>
                         </h3>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                        
+                        {/* Primary snippet */}
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 mb-1">
                           {result.snippet}
                         </p>
+                        
+                        {/* Extended meta description if available */}
+                        {result.metaDescription && result.metaDescription !== result.snippet && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 border-l-2 border-gray-200 dark:border-gray-700 pl-2">
+                            {result.metaDescription}
+                          </p>
+                        )}
                       </div>
                       
                       {/* Image if available */}
@@ -219,16 +247,32 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
               <h2 className="text-xl font-semibold dark:text-white mb-4">Web Results</h2>
               {activeTabData?.traditional?.map((result, index) => (
                 <div key={index} className="p-4 mb-4 bg-white dark:bg-gray-800 shadow-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                  <div className="flex justify-between items-center mb-1">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{result.domain}</div>
-                    {result.date && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{result.date}</div>
-                    )}
+                  {/* Top metadata bar */}
+                  <div className="flex flex-wrap justify-between items-center mb-1">
+                    <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+                      <span>{result.siteName || result.domain}</span>
+                      {result.category && (
+                        <>
+                          <span>•</span>
+                          <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-full">{result.category}</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+                      {result.author && (
+                        <span className="hidden sm:inline">By {result.author}</span>
+                      )}
+                      {result.date && (
+                        <span>{result.date}</span>
+                      )}
+                    </div>
                   </div>
+                  
                   {/* Flex container for content and image */}
                   <div className={`${result.image ? 'flex gap-4' : ''}`}>
                     <div className="flex-grow">
-                      <h3 className="text-lg font-medium">
+                      {/* Title with URL */}
+                      <h3 className="text-lg font-medium group">
                         <a 
                           href={result.url} 
                           target="_blank" 
@@ -237,10 +281,22 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
                         >
                           {result.title}
                         </a>
+                        <span className="block text-xs text-green-700 dark:text-green-500 mt-1 group-hover:underline">
+                          {result.url.length > 70 ? result.url.substring(0, 70) + '...' : result.url}
+                        </span>
                       </h3>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                      
+                      {/* Primary snippet */}
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 mb-1">
                         {result.snippet}
                       </p>
+                      
+                      {/* Extended meta description if available */}
+                      {result.metaDescription && result.metaDescription !== result.snippet && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 border-l-2 border-gray-200 dark:border-gray-700 pl-2">
+                          {result.metaDescription}
+                        </p>
+                      )}
                     </div>
                     
                     {/* Image if available */}
