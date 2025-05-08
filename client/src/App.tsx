@@ -30,6 +30,7 @@ import SubscriptionSuccessPage from "@/pages/subscription-success";
 import ManageSubscriptionPage from "@/pages/manage-subscription";
 import DeepResearchPage from "@/pages/deep-research";
 import AgenticResearchDebug from "@/components/AgenticResearchDebug";
+import AuthDebug from "@/pages/auth-debug";
 
 function Router() {
   return (
@@ -83,6 +84,7 @@ function Router() {
       <Route path="/debug/agentic-research">
         <ProtectedRoute path="/debug/agentic-research" component={AgenticResearchDebug} />
       </Route>
+      <Route path="/debug/auth" component={AuthDebug} />
       
       {/* 404 page - must be last */}
       <Route component={NotFound} />
