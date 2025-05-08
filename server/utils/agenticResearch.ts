@@ -37,20 +37,62 @@ export interface AgenticResearchProgress {
   iterations: number;
 }
 
-// Initialize the OpenAI client
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// If the key is not provided, log a warning
-if (!process.env.OPENAI_API_KEY) {
-  console.warn("OPENAI_API_KEY not found. Agentic research requires a valid OpenAI API key.");
+// Initialize the OpenAI client with enhanced error checking
+let openai: OpenAI;
+try {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY not found. Agentic research requires a valid OpenAI API key.");
+    throw new Error("OpenAI API key is missing");
+  }
+  
+  // Log partial key for debugging (first 4 chars)
+  const partialKey = process.env.OPENAI_API_KEY.substring(0, 4) + "...";
+  console.log(`OpenAI API initialized with key starting with: ${partialKey}`);
+  
+  openai = new OpenAI({ 
+    apiKey: process.env.OPENAI_API_KEY,
+    timeout: 60000 // 60 seconds timeout to prevent hanging requests
+  });
+} catch (error) {
+  console.error("Failed to initialize OpenAI client:", error);
+  // Create a dummy client that will throw helpful errors when used
+  openai = {
+    chat: {
+      completions: {
+        create: async () => {
+          throw new Error("OpenAI client not properly initialized. Check API key configuration.");
+        }
+      }
+    }
+  } as any;
 }
 
-// Helper function to safely get content from OpenAI response
+// Helper function to safely get content from OpenAI response with detailed logging
 function safeGetContent(response: any): string {
-  if (!response || !response.choices || !response.choices[0] || !response.choices[0].message) {
+  if (!response) {
+    console.error("Empty response received from OpenAI API");
     return "";
   }
-  return response.choices[0].message.content || "";
+  
+  if (!response.choices || !Array.isArray(response.choices) || response.choices.length === 0) {
+    console.error("Invalid response format from OpenAI API - missing or empty choices array", 
+      JSON.stringify(response).substring(0, 200) + "...");
+    return "";
+  }
+  
+  if (!response.choices[0].message) {
+    console.error("Invalid choice format from OpenAI API - missing message property",
+      JSON.stringify(response.choices[0]).substring(0, 200) + "...");
+    return "";
+  }
+  
+  if (!response.choices[0].message.content) {
+    console.warn("Empty content in OpenAI API response");
+    return "";
+  }
+  
+  // Success case
+  return response.choices[0].message.content;
 }
 
 /**
@@ -430,6 +472,18 @@ export async function executeAgenticResearch(
   sources: Array<{url: string, title: string}>;
   process: string[];
 }> {
+  console.log("Starting agentic research process with OpenAI integration");
+  
+  // Verify OpenAI API key is available
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("CRITICAL ERROR: OPENAI_API_KEY not found, cannot proceed with agentic research");
+    return {
+      answer: "Deep research cannot be completed at this time due to missing API configuration. Please contact support with error code: OAI-MISSING-KEY.",
+      sources: [],
+      process: ["Error: OpenAI API key not configured"]
+    };
+  }
+  
   // Set default options
   const maxIterations = options.maxIterations || 2;
   const includeReasoning = options.includeReasoning ?? true;
@@ -438,6 +492,8 @@ export async function executeAgenticResearch(
   // Initialize progress tracking
   const process: string[] = [];
   let iterations = 0;
+  
+  process.push("Initializing agentic research process...");
   
   // Cache key for the entire research process
   const cacheKey = {
