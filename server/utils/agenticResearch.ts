@@ -129,15 +129,15 @@ async function planResearch(query: string): Promise<{
         {
           role: "system",
           content: `
-You are a research planner that breaks down complex queries into specific sub-questions.
+You are a research planner that breaks down complex queries into a minimal set of specific sub-questions.
 For the given research topic, create a research plan by:
-1. Breaking down the main question into 2-5 specific sub-questions that help fully address the topic
-2. Ensuring the sub-questions cover different aspects needed for comprehensive understanding
+1. Breaking down the main question into 2-3 specific sub-questions that help fully address the topic
+2. Ensuring the sub-questions cover key aspects needed for comprehensive understanding
 3. Organizing the sub-questions in a logical research sequence
-4. Briefly explaining why each sub-question is important to the overall research goal
+4. Focus on efficiency - only create the most important sub-questions
 
 Respond with structured JSON containing:
-- subQueries: an array of specific, searchable questions (2-5 questions max)
+- subQueries: an array of specific, searchable questions (2-3 questions max)
 - plan: a brief explanation of your research approach
 `
         },
@@ -221,12 +221,12 @@ async function analyzeResults(query: string, results: TavilySearchResult[], iter
     return "No results found to analyze.";
   }
   
-  // Format search results for the AI
-  const formattedResults = results.slice(0, 10).map((result, index) => {
+  // Format search results for the AI - reduced from 10 to 8 sources and content from 1000 to 800 chars
+  const formattedResults = results.slice(0, 8).map((result, index) => {
     return `
 SOURCE [${index + 1}]: ${result.title}
 URL: ${result.url}
-CONTENT: ${result.content.substring(0, 1000)}${result.content.length > 1000 ? '...' : ''}
+CONTENT: ${result.content.substring(0, 800)}${result.content.length > 800 ? '...' : ''}
     `;
   }).join('\n\n');
   
@@ -263,7 +263,7 @@ Please analyze these sources thoroughly, using step-by-step reasoning to synthes
         }
       ],
       temperature: 0.2,
-      max_tokens: 1500
+      max_tokens: 1200
     });
     
     return safeGetContent(response);
@@ -573,9 +573,13 @@ export async function executeAgenticResearch(
   updateProgress({ status: 'idle' });
   
   // Cache key for the entire research process
+  // Create a more stable cache key that only includes relevant options
   const cacheKey = {
     query,
-    options,
+    maxIterations,
+    deepDive,
+    includeReasoning,
+    searchContextSize,
     type: 'agentic-research-full'
   };
   
