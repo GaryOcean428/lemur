@@ -48,8 +48,14 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
     if (data && !isLoading) {
       setResults('all', data);
       setSearchedTab('all', true);
+      
+      // Auto-switch to Research tab when deep research results are available
+      if (data.deepResearch === true && data.research && data.research.results && data.research.results.length > 0) {
+        console.log('Deep research results detected, switching to research tab');
+        setActiveTab('research');
+      }
     }
-  }, [data, isLoading, setResults, setSearchedTab]);
+  }, [data, isLoading, setResults, setSearchedTab, setActiveTab]);
 
   // Using SearchTabType imported from store
   
