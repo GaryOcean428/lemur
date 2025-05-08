@@ -51,6 +51,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
 // Import Tavily search interfaces from the dedicated module
 import { tavilySearch, TavilySearchResult, TavilySearchResponse } from './tavilySearch';
 import { tavilyDeepResearch, tavilyExtractContent, TavilyDeepResearchResponse } from './utils/tavilyDeepResearch';
+import { executeAgenticResearch } from './utils/agenticResearch';
 
 // Define Groq response interfaces
 interface GroqChoice {
@@ -691,8 +692,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Starting deep research for query: "${query}"`);
         console.log(`Research parameters:`, JSON.stringify(researchParams));
         
-        // Perform deep research
-        const researchResults = await tavilyDeepResearch(query, tavilyApiKey, researchParams);
+        // Perform agentic deep research with reasoning loops
+        console.log(`Using agentic research with reasoning loops for: "${query}"`);
+        const agenticResults = await executeAgenticResearch(query, tavilyApiKey, {
+          deepDive: true,
+          maxIterations: 2,
+          includeReasoning: true,
+          ...researchParams
+        });
+        
+        // Convert to the expected format for compatibility
+        const researchResults: TavilyDeepResearchResponse = {
+          results: agenticResults.sources.map((source, index) => ({
+            title: source.title,
+            url: source.url,
+            content: `Source from agentic research [${index + 1}]`,
+            score: 1.0 - (index * 0.05), // Assign decreasing scores
+          })),
+          query: query,
+          research_summary: agenticResults.answer,
+          topic_clusters: {
+            "Research Process": agenticResults.process
+          }
+        };
         
         // Record search in history if authenticated
         if (userId) {
@@ -1327,7 +1349,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Research parameters:`, JSON.stringify(researchParams));
       
       // Perform deep research
-      const researchResults = await tavilyDeepResearch(query, tavilyApiKey, researchParams);
+      // Perform agentic deep research with reasoning loops
+      console.log(`Using agentic research with reasoning loops for: "${query}"`);
+      const agenticResults = await executeAgenticResearch(query, tavilyApiKey, {
+        deepDive: true,
+        maxIterations: 2,
+        includeReasoning: true,
+        ...researchParams
+      });
+      
+      // Convert to the expected format for compatibility
+      const researchResults: TavilyDeepResearchResponse = {
+        results: agenticResults.sources.map((source, index) => ({
+          title: source.title,
+          url: source.url,
+          content: `Source from agentic research [${index + 1}]`,
+          score: 1.0 - (index * 0.05), // Assign decreasing scores
+        })),
+        query: query,
+        research_summary: agenticResults.answer,
+        topic_clusters: {
+          "Research Process": agenticResults.process
+        }
+      };
       
       // Record search in history if authenticated
       if (userId) {

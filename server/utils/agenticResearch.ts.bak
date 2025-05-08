@@ -103,7 +103,7 @@ Respond with structured JSON containing:
       temperature: 0.3
     });
 
-    const planData = JSON.parse(safeGetContent(response) || '{"subQueries":[]}');
+    const planData = JSON.parse(response.choices[0].message.content || '{"subQueries":[]}');
     
     // Cache the result for 1 hour (3600 seconds)
     searchCache.set(cacheKey, planData, 3600);
@@ -219,7 +219,7 @@ Please analyze these sources thoroughly, using step-by-step reasoning to synthes
       max_tokens: 1500
     });
     
-    return safeGetContent(response);
+    return response.choices[0].message.content;
   } catch (error) {
     console.error("Error analyzing results:", error);
     return "Error occurred during analysis.";
@@ -267,7 +267,7 @@ Please critique this draft and identify specific areas for improvement.`
       max_tokens: 1000
     });
     
-    return safeGetContent(response);
+    return response.choices[0].message.content;
   } catch (error) {
     console.error("Error critiquing draft:", error);
     return "Error occurred during critique.";
@@ -328,7 +328,7 @@ Please provide a refined analysis that addresses the critique while accurately r
       max_tokens: 1800
     });
     
-    return safeGetContent(response);
+    return response.choices[0].message.content;
   } catch (error) {
     console.error("Error refining draft:", error);
     return draft; // Return original draft if refinement fails
@@ -378,7 +378,7 @@ Please convert this into a polished final research report, removing explicit rea
       max_tokens: 1800
     });
     
-    return safeGetContent(response);
+    return response.choices[0].message.content;
   } catch (error) {
     console.error("Error finalizing draft:", error);
     return draft; // Return original draft if finalization fails
