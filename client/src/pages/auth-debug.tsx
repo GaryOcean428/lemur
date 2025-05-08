@@ -71,6 +71,56 @@ export default function AuthDebug() {
     }
   };
 
+  // Test session and auth debug endpoint
+  const testAuthDebug = async () => {
+    try {
+      const response = await fetch("/api/auth-debug", {
+        credentials: "include",
+      });
+      const data = await response.json();
+      setAuthResponse(data);
+      toast({
+        title: "Auth Debug Response",
+        description: "See details below",
+      });
+    } catch (error) {
+      setAuthResponse({ error: String(error) });
+      toast({
+        title: "Auth debug failed",
+        description: String(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Test direct login endpoint
+  const testDirectLogin = async () => {
+    try {
+      const response = await fetch("/api/test-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await response.json();
+      setAuthResponse(data);
+      toast({
+        title: response.ok ? "Direct Login Success" : "Direct Login Failed",
+        description: data.message || (response.ok ? "Logged in successfully" : "Login failed"),
+        variant: response.ok ? "default" : "destructive",
+      });
+    } catch (error) {
+      setAuthResponse({ error: String(error) });
+      toast({
+        title: "Direct login failed",
+        description: String(error),
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto mt-10 px-4 max-w-2xl">
       <Card className="mb-8">
@@ -117,6 +167,12 @@ export default function AuthDebug() {
               </Button>
               <Button type="button" variant="secondary" onClick={testApiUser}>
                 Test API/User
+              </Button>
+              <Button type="button" variant="secondary" onClick={testAuthDebug}>
+                Auth Debug
+              </Button>
+              <Button type="button" variant="outline" onClick={testDirectLogin}>
+                Direct Login
               </Button>
             </div>
           </form>
