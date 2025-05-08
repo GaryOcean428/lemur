@@ -61,67 +61,84 @@ export default function SearchInsightsPanel({
     }
   ];
 
-  // More detailed steps for deep research
+  // More detailed steps for deep research with agentic loops
   const deepResearchSteps: SearchStep[] = [
     {
       id: 'init',
       label: 'Research initialization',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Setting up the research environment and loading tools'
     },
     {
-      id: 'research-query',
-      label: 'Research query formulation',
+      id: 'research-planning',
+      label: 'Research planning',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Breaking down the query into specific sub-questions'
     },
     {
       id: 'web-deep',
       label: 'Comprehensive web search',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Retrieving information from diverse sources'
     },
     {
       id: 'academic',
       label: 'Academic sources retrieval',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Gathering scholarly information when applicable'
+    },
+    {
+      id: 'reasoning',
+      label: 'Initial reasoning & analysis',
+      status: 'pending',
+      timestamp: new Date(),
+      details: 'Reasoning over gathered information using chain-of-thought'
     },
     {
       id: 'content-analysis',
-      label: 'Content extraction & analysis',
+      label: 'Deep content extraction',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Processing raw content for thorough understanding'
     },
     {
-      id: 'source-evaluation',
-      label: 'Source quality evaluation',
+      id: 'critique',
+      label: 'Critical self-evaluation',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Reviewing analysis for errors, gaps, and improvements'
     },
     {
-      id: 'topic-clustering',
-      label: 'Topic analysis & clustering',
+      id: 'refinement',
+      label: 'Research refinement',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Improving analysis based on critique and additional information'
     },
     {
       id: 'synthesis',
       label: 'Information synthesis',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Combining insights into a coherent response'
     },
     {
-      id: 'summary',
-      label: 'Research summary generation',
+      id: 'citation',
+      label: 'Citation verification',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Ensuring all claims are properly sourced'
     },
     {
       id: 'final',
       label: 'Results assembly',
       status: 'pending',
-      timestamp: new Date()
+      timestamp: new Date(),
+      details: 'Finalizing the research report with citations'
     }
   ];
 
