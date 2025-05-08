@@ -1,9 +1,12 @@
-import { Image as ImageIcon, ExternalLink } from "lucide-react";
+import { Image as ImageIcon, ExternalLink, Save, Share, Download } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchStore } from "@/store/searchStore";
 import { SearchResults } from "@/lib/types";
 import { performSearch } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface ImageResultProps {
   query: string;
@@ -15,6 +18,11 @@ interface ImageResult {
   url: string;
   imageUrl: string;
   domain: string;
+  dimensions?: string;
+  fileSize?: string;
+  source?: string;
+  rating?: number;
+  relatedImages?: ImageResult[];
 }
 
 export default function ImageResults({ query, loading: initialLoading = false }: ImageResultProps) {
@@ -24,7 +32,6 @@ export default function ImageResults({ query, loading: initialLoading = false }:
   const { filters } = useSearchStore();
 
   useEffect(() => {
-    // If no query, don't search
     if (!query) return;
 
     async function fetchImageResults() {
@@ -32,54 +39,40 @@ export default function ImageResults({ query, loading: initialLoading = false }:
       setError(null);
       
       try {
-        console.log(`Fetching image results for query: "${query}"`);
         const results = await performSearch(query, "images", filters);
         
-        // Log the results for debugging
-        console.log("Image search results received:", 
-                   results?.traditional?.length || 0, "traditional results", 
-                   results?.traditional?.filter(r => r.image && r.image.url).length || 0, "with images");
-        
-        // Extract images from results
         if (results && results.traditional && results.traditional.length > 0) {
-          // First, check if any results have images
           const withImages = results.traditional.filter(result => result.image && result.image.url);
-          console.log(`Found ${withImages.length} results with image URLs`);
           
           if (withImages.length > 0) {
-            const imageResults: ImageResult[] = withImages.map(result => {
-              // Make sure the image URL is valid
-              const imageUrl = result.image?.url || '';
-              console.log(`Processing image result: ${result.title.substring(0, 30)}... with image URL: ${imageUrl.substring(0, 30)}...`);
-              
-              return {
-                title: result.title,
-                url: result.url,
-                imageUrl: imageUrl,
-                domain: result.domain
-              };
-            });
+            const imageResults: ImageResult[] = withImages.map(result => ({
+              title: result.title,
+              url: result.url,
+              imageUrl: result.image?.url || '',
+              domain: result.domain,
+              dimensions: result.image?.dimensions,
+              fileSize: result.image?.fileSize,
+              source: result.image?.source,
+              rating: result.image?.rating,
+              relatedImages: result.image?.relatedImages
+            }));
             
             setImages(imageResults);
           } else {
-            // If no results have images, use the results anyway but use domain as identifier
             const fallbackResults: ImageResult[] = results.traditional.map(result => ({
               title: result.title,
               url: result.url,
-              imageUrl: '', // No image URL available
+              imageUrl: '',
               domain: result.domain
             }));
             
-            console.log("No results with images found, using fallback display");
             setImages(fallbackResults);
           }
         } else {
-          console.log("No results found at all");
           setImages([]);
           setError("No image results found");
         }
       } catch (err) {
-        console.error("Error fetching image results:", err);
         setError("Error fetching image results");
         setImages([]);
       } finally {
@@ -138,39 +131,56 @@ export default function ImageResults({ query, loading: initialLoading = false }:
         
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {images.map((image, index) => (
-            <a 
-              href={image.url} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              key={index} 
-              className="group rounded-lg overflow-hidden flex flex-col hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-700"
-            >
-              <div className="aspect-square bg-gray-50 dark:bg-gray-900 overflow-hidden relative">
-                {image.imageUrl ? (
-                  <img 
-                    src={image.imageUrl} 
-                    alt={image.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-12 h-12 text-gray-300 dark:text-gray-600" />
+            <HoverCard key={index}>
+              <HoverCardTrigger asChild>
+                <a 
+                  href={image.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="group rounded-lg overflow-hidden flex flex-col hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-700"
+                >
+                  <div className="aspect-square bg-gray-50 dark:bg-gray-900 overflow-hidden relative">
+                    {image.imageUrl ? (
+                      <img 
+                        src={image.imageUrl} 
+                        alt={image.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageIcon className="w-12 h-12 text-gray-300 dark:text-gray-600" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <ExternalLink className="w-6 h-6 text-white" />
+                    </div>
                   </div>
-                )}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <ExternalLink className="w-6 h-6 text-white" />
+                  <div className="p-2">
+                    <h3 className="text-sm font-medium line-clamp-1 text-gray-800 dark:text-gray-200">
+                      {image.title}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {image.domain}
+                    </p>
+                  </div>
+                </a>
+              </HoverCardTrigger>
+              <HoverCardContent>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{image.title}</p>
+                  {image.dimensions && <p className="text-xs text-gray-500 dark:text-gray-400">Dimensions: {image.dimensions}</p>}
+                  {image.fileSize && <p className="text-xs text-gray-500 dark:text-gray-400">File Size: {image.fileSize}</p>}
+                  {image.source && <p className="text-xs text-gray-500 dark:text-gray-400">Source: {image.source}</p>}
+                  {image.rating && <p className="text-xs text-gray-500 dark:text-gray-400">Rating: {image.rating}</p>}
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm"><Save className="h-4 w-4" /> Save</Button>
+                    <Button variant="outline" size="sm"><Share className="h-4 w-4" /> Share</Button>
+                    <Button variant="outline" size="sm"><Download className="h-4 w-4" /> Download</Button>
+                  </div>
                 </div>
-              </div>
-              <div className="p-2">
-                <h3 className="text-sm font-medium line-clamp-1 text-gray-800 dark:text-gray-200">
-                  {image.title}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {image.domain}
-                </p>
-              </div>
-            </a>
+              </HoverCardContent>
+            </HoverCard>
           ))}
         </div>
       </div>

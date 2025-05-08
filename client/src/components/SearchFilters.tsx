@@ -79,6 +79,19 @@ export default function SearchFiltersPanel() {
     });
   };
 
+  const handleSortChange = (value: string) => {
+    setFilters({ sort: value });
+  };
+
+  const handleUserPreferenceChange = (preference: string, value: boolean) => {
+    setFilters({
+      userPreferences: {
+        ...filters.userPreferences,
+        [preference]: value
+      }
+    });
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
@@ -105,7 +118,7 @@ export default function SearchFiltersPanel() {
           <span>Reset All Filters</span>
         </Button>
 
-        <Accordion type="multiple" className="w-full" defaultValue={["time", "sources", "region", "content", "ai"]}>
+        <Accordion type="multiple" className="w-full" defaultValue={["time", "sources", "region", "content", "ai", "sort", "userPreferences"]}>
           {/* Time Range */}
           <AccordionItem value="time">
             <AccordionTrigger>Time Range</AccordionTrigger>
@@ -307,6 +320,52 @@ export default function SearchFiltersPanel() {
                       <SelectItem value="academic">Academic (APA-style)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Sorting Options */}
+          <AccordionItem value="sort">
+            <AccordionTrigger>Sort By</AccordionTrigger>
+            <AccordionContent>
+              <RadioGroup value={filters.sort} onValueChange={handleSortChange} className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="relevance" id="sort-relevance" />
+                  <Label htmlFor="sort-relevance">Relevance</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="date" id="sort-date" />
+                  <Label htmlFor="sort-date">Date</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="popularity" id="sort-popularity" />
+                  <Label htmlFor="sort-popularity">Popularity</Label>
+                </div>
+              </RadioGroup>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* User Preferences */}
+          <AccordionItem value="userPreferences">
+            <AccordionTrigger>User Preferences</AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="preference-personalized" 
+                    checked={filters.userPreferences.personalized}
+                    onCheckedChange={(checked) => handleUserPreferenceChange("personalized", checked === true)}
+                  />
+                  <Label htmlFor="preference-personalized">Personalized Results</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="preference-safeSearch" 
+                    checked={filters.userPreferences.safeSearch}
+                    onCheckedChange={(checked) => handleUserPreferenceChange("safeSearch", checked === true)}
+                  />
+                  <Label htmlFor="preference-safeSearch">Safe Search</Label>
                 </div>
               </div>
             </AccordionContent>

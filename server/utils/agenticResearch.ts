@@ -523,6 +523,36 @@ ${context ? `CONTEXT FROM PREVIOUS RESEARCH:\n${context}` : ""}
 }
 
 /**
+ * Fetch results from Serper API
+ */
+async function fetchSerperResults(query: string, apiKey: string, filters: Record<string, any> = {}): Promise<any> {
+  try {
+    const response = await fetch("https://api.serper.dev/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        query,
+        filters
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Serper API error: ${response.status} - ${errorText}`);
+    }
+
+    const results = await response.json();
+    return results;
+  } catch (error) {
+    console.error("Error fetching Serper results:", error);
+    throw error;
+  }
+}
+
+/**
  * Main function to execute agentic research with reasoning loops
  */
 export async function executeAgenticResearch(
