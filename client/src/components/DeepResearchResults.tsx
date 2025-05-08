@@ -7,6 +7,17 @@ import { BookOpen, FileText, Link as LinkIcon, Calendar, AlignLeft, Search } fro
 import { formatDistanceToNow } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { marked } from 'marked';
+// Create a synchronous version of marked.parse to avoid Promise issues
+const parseMarkdown = (text: string): string => {
+  try {
+    return marked.parse(text || '') as string;
+  } catch (error) {
+    console.error('Error parsing markdown:', error);
+    return text || '';
+  }
+};
+import DOMPurify from 'dompurify';
 
 interface TopicClusters {
   [key: string]: string[];
@@ -70,9 +81,12 @@ export default function DeepResearchResults({ research }: DeepResearchResultsPro
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="whitespace-pre-line text-sm">
-              {research.research_summary}
-            </p>
+            <div 
+              className="prose prose-sm dark:prose-invert max-w-none" 
+              dangerouslySetInnerHTML={{ 
+                __html: DOMPurify.sanitize(parseMarkdown(research.research_summary || '')) 
+              }}
+            />
           </CardContent>
         </Card>
       )}
@@ -183,11 +197,16 @@ export default function DeepResearchResults({ research }: DeepResearchResultsPro
               <CardContent>
                 {/* Source summary or extracted intro */}
                 <div className="mb-2">
-                  <p className="text-sm">
-                    {expandedContent === result.url && result.extracted_content 
-                      ? result.extracted_content 
-                      : result.content}
-                  </p>
+                  <div 
+                    className="prose prose-sm dark:prose-invert max-w-none" 
+                    dangerouslySetInnerHTML={{ 
+                      __html: DOMPurify.sanitize(parseMarkdown(
+                        expandedContent === result.url && result.extracted_content 
+                          ? result.extracted_content 
+                          : result.content
+                      )) 
+                    }}
+                  />
                 </div>
                 
                 {/* Expand/Collapse button if detailed content available */}
