@@ -258,6 +258,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   
   // Test endpoint for Tavily API specifically
+  // Direct Tavily search endpoint for debugging
+  app.post("/api/tavily-search", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ 
+          error: "Authentication required"
+        });
+      }
+      
+      const { query, search_depth = "basic", include_answer = false, geo_location = null } = req.body;
+      
+      if (!query) {
+        return res.status(400).json({ 
+          error: "Query is required"
+        });
+      }
+      
+      const tavilyApiKey = process.env.TAVILY_API_KEY || "";
+      if (!tavilyApiKey) {
+        return res.status(500).json({ 
+          error: "Tavily API key not configured" 
+        });
+      }
+      
+      // Pre-authentication check
+      console.log("DEBUG: Tavily API key details:");
+      console.log(`- Length: ${tavilyApiKey.length}`);
+      console.log(`- First 8 chars: ${tavilyApiKey.substring(0, 8)}...`);
+      console.log(`- Starts with 'tvly-': ${tavilyApiKey.startsWith('tvly-')}`);
+      console.log(`- Contains whitespace: ${/\s/.test(tavilyApiKey)}`);
+      console.log(`- Has quotes: ${tavilyApiKey.includes('"') || tavilyApiKey.includes("'")}`);
+      
+      // Format geo_location for consistency
+      const formattedGeoLocation = geo_location ? geo_location.toUpperCase() : 'AU';
+      console.log(`Formatted geo_location for Tavily API: ${formattedGeoLocation}`);
+      
+      // Actually call the API
+      const searchResponse = await tavilySearch(query, tavilyApiKey, {
+        search_depth: search_depth,
+        include_answer: include_answer,
+        geo_location: formattedGeoLocation
+      });
+      
+      res.json(searchResponse);
+    } catch (error) {
+      console.error("Tavily search error:", error);
+      res.status(500).json({ 
+        error: "Error performing Tavily search", 
+        message: String(error)
+      });
+    }
+  });
+
   app.get("/api/test-tavily", async (req, res) => {
     try {
       const tavilyApiKey = process.env.TAVILY_API_KEY || "";
@@ -510,6 +563,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     return { filters, preferredModel };
   }
+
+  // Direct search endpoint for debugging
+  app.post("/api/search/direct", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ 
+          error: "Authentication required"
+        });
+      }
+      
+      const { query, model_preference = "auto" } = req.body;
+      
+      if (!query) {
+        return res.status(400).json({ 
+          error: "Query is required"
+        });
+      }
+      
+      // Get API keys
+      const tavilyApiKey = process.env.TAVILY_API_KEY || "";
+      const groqApiKey = process.env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY || "";
+      
+      if (!tavilyApiKey || !groqApiKey) {
+        return res.status(500).json({
+          error: "API keys not configured",
+          missingKeys: {
+            tavily: !tavilyApiKey,
+            groq: !groqApiKey
+          }
+        });
+      }
+      
+      // Search Tavily first for web results
+      const searchResults = await tavilySearch(query, tavilyApiKey, {
+        search_depth: model_preference === "comprehensive" ? "advanced" : "basic",
+        include_answer: false,
+        geo_location: "AU" // Default to Australia for consistent results
+      });
+      
+      // Use Groq with the search results for an AI-enhanced answer
+      const answer = await groqSearch(query, searchResults.results, groqApiKey, model_preference);
+      
+      // Record the search in history
+      const userId = req.user.id;
+      await storage.createSearchHistory({
+        query,
+        userId,
+        results: searchResults,
+        aiAnswer: answer
+      });
+      
+      // Return the combined results
+      res.json({
+        query,
+        answer: answer.answer,
+        model: answer.model,
+        sources: searchResults.results.map(result => ({
+          title: result.title,
+          url: result.url,
+          snippet: result.content.substring(0, 200) + "..."
+        })),
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Direct search error:", error);
+      res.status(500).json({ 
+        error: "Error performing search", 
+        message: String(error)
+      });
+    }
+  });
 
   // Search suggestions endpoint
   app.get("/api/search/suggestions", async (req, res) => {
