@@ -663,10 +663,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Check if we should use Deep Research mode - only available for pro tier
+      // Check if we should use Deep Research mode - only available for pro or developer tier
       if (deepResearch) {
-        // Verify the user has pro tier (required for deep research)
-        if (userTier !== 'pro') {
+        // Verify the user has pro or developer tier (required for deep research)
+        if (userTier !== 'pro' && userTier !== 'developer') {
           return res.status(403).json({
             message: "Deep Research is a Pro tier feature. Please upgrade your subscription to access deep research capabilities.",
             limitReached: false,
@@ -677,10 +677,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Start timing for telemetry
         const timingId = startApiTiming('deep-research');
         
+        // Get custom research parameters from URL query params
+        const maxIterations = req.query.maxIterations ? Number(req.query.maxIterations) : 3;
+        const includeReasoning = req.query.includeReasoning !== 'false'; // Default to true
+        const deepDive = req.query.deepDive === 'true'; // Default to false
+        const searchContextSize = (req.query.searchContextSize as string) || 'medium';
+        
+        // Map searchContextSize to max_results value
+        const maxResults = (() => {
+          switch(searchContextSize) {
+            case 'low': return 8;
+            case 'high': return 20;
+            case 'medium':
+            default: return 15;
+          }
+        })();
+        
         // Set up research parameters
         const researchParams = {
           search_depth: 'advanced',
-          max_results: 15, // Increased results for deep research
+          max_results: maxResults,
           include_answer: true,
           include_raw_content: true, // Get full content where available
           include_domains: filters.include_domains,
@@ -689,8 +705,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           geo_location: filters.geo_location || null
         };
         
-        console.log(`Starting deep research for query: "${query}"`);
-        console.log(`Research parameters:`, JSON.stringify(researchParams));
+        console.log(`Starting deep research for query: "${query}" with custom parameters`);
+        console.log(`Research parameters:`, JSON.stringify({
+          ...researchParams,
+          maxIterations,
+          includeReasoning,
+          deepDive,
+          searchContextSize
+        }));
         
         // Perform agentic deep research with reasoning loops
         console.log(`Using agentic research with reasoning loops for: "${query}"`);
@@ -712,9 +734,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         
         const agenticResults = await executeAgenticResearch(query, tavilyApiKey, progressCallback, {
-          deepDive: true,
-          maxIterations: 2,
-          includeReasoning: true,
+          deepDive,
+          maxIterations,
+          includeReasoning,
+          searchContextSize,
           ...researchParams
         });
         
@@ -753,15 +776,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Complete timing
         completeApiTiming(timingId, true);
         
-        // Return results with agentic research metadata
+        // Return results with agentic research metadata and custom parameters
         return res.json({
           query,
           deepResearch: true,
           research: {
             ...researchResults,
             currentIteration: currentIterations,
-            maxIterations: 2, // Fixed default value since we're using 2 in the agenticResults call
-            reasoningLog: progressLog
+            maxIterations: maxIterations,
+            reasoningLog: includeReasoning ? progressLog : [],
+            deepDive: deepDive,
+            searchContextSize: searchContextSize
           },
           searchType: searchType
         });

@@ -108,15 +108,19 @@ export default function SearchResults() {
       setAuthRequired(true);
     }
     
-    // Hide insights panel when results arrive (with a slight delay)
-    if (data && !isLoading) {
+    // For deep research, keep insights panel open to show research progress
+    if (deepResearch && data && data.deepResearch) {
+      setShowInsightsPanel(true);
+    }
+    // Hide insights panel when results arrive (with a slight delay) for non-deep research
+    else if (data && !isLoading && !deepResearch) {
       const timer = setTimeout(() => {
         setShowInsightsPanel(false);
       }, 1000); // Keep open 1 second after results arrive for a smooth transition
       
       return () => clearTimeout(timer);
     }
-  }, [data, isLoading]);
+  }, [data, isLoading, deepResearch]);
 
   if (error) {
     let errorMessage = "An error occurred while fetching search results. Please try again."; 
