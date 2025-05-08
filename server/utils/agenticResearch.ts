@@ -170,12 +170,12 @@ Respond with structured JSON containing:
  * Execute search for each sub-query and combine results
  */
 async function executeSearches(subQueries: string[], tavilyApiKey: string, options: Record<string, any> = {}): Promise<TavilySearchResult[]> {
-  console.log(`Executing ${subQueries.length} sub-queries for research`);
+  console.log(`Executing ${subQueries.length} sub-queries for research, deepDive=${options.deepDive}`);
   
   // Define search parameters with appropriate depth
   const searchParams = {
     search_depth: options.deepDive ? "advanced" : "basic", // Using valid values 'advanced' or 'basic' only
-    max_results: options.deepDive ? 10 : 5,
+    max_results: options.deepDive ? 8 : 5, // Reduced from 10 to 8 for better performance
     include_domains: options.include_domains || [],
     exclude_domains: options.exclude_domains || [],
     time_range: options.time_range || "month",
@@ -199,14 +199,27 @@ async function executeSearches(subQueries: string[], tavilyApiKey: string, optio
     searchResults.forEach((result: TavilySearchResponse) => {
       result.results.forEach((item: TavilySearchResult) => {
         if (!seenUrls.has(item.url)) {
+          // Truncate content to improve token efficiency (800 chars max)
+          if (item.content && item.content.length > 800) {
+            item.content = item.content.substring(0, 800) + '...';
+          }
+          
           seenUrls.add(item.url);
           allResults.push(item);
         }
       });
     });
     
-    // Sort by relevance score
-    return allResults.sort((a, b) => b.score - a.score);
+    // Limit the total number of results to conserve tokens
+    const limitedResults = allResults
+      .sort((a, b) => b.score - a.score)
+      .slice(0, options.deepDive ? 12 : 8);
+    
+    // Log the total size of all results combined
+    const totalContentSize = limitedResults.reduce((total, item) => total + (item.content?.length || 0), 0);
+    console.log(`Combined search results: ${limitedResults.length} items, total content size: ${totalContentSize} chars`);
+    
+    return limitedResults;
   } catch (error) {
     console.error("Error executing searches:", error);
     throw error;
@@ -564,9 +577,9 @@ export async function executeAgenticResearch(
       });
     }
     
-    // Add performance logging
+    // Add performance logging with more details
     const elapsedSec = Math.round((Date.now() - startTime) / 1000);
-    console.log(`Research progress: ${state.status}, iterations: ${iterations}, elapsed: ${elapsedSec}s`);
+    console.log(`Research progress: ${state.status}, iterations: ${iterations}, elapsed: ${elapsedSec}s, tier: ${options.userTier || 'not specified'}, deepDive: ${deepDive}`);
   };
   
   // Initialize progress with idle state
@@ -695,17 +708,17 @@ export async function executeAgenticResearch(
     // Cache the result for 30 minutes (1800 seconds)
     searchCache.set(cacheKey, result, 1800);
     
-    // Final performance measurement
+    // Final performance measurement with detailed metrics
     const totalTimeSec = Math.round((Date.now() - startTime) / 1000);
-    console.log(`Agentic research completed in ${totalTimeSec} seconds with ${iterations} iterations`);
+    console.log(`PERFORMANCE_METRICS: Agentic research completed in ${totalTimeSec} seconds with ${iterations} iterations, userTier=${options.userTier || 'not specified'}, deepDive=${deepDive}, searchContextSize=${searchContextSize}, maxIterations=${maxIterations}, sourceCount=${sources.length}`);
     
     return result;
   } catch (error) {
     console.error("Error in agentic research process:", error);
     
-    // Final performance measurement even for error cases
+    // Final performance measurement with detailed metrics even for error cases
     const totalTimeSec = Math.round((Date.now() - startTime) / 1000);
-    console.log(`Agentic research failed after ${totalTimeSec} seconds`);
+    console.log(`PERFORMANCE_ERROR: Agentic research failed after ${totalTimeSec} seconds, userTier=${options.userTier || 'not specified'}, deepDive=${deepDive}, searchContextSize=${searchContextSize}, maxIterations=${maxIterations}, iterations=${iterations}`);
     
     // Return a graceful failure with error details
     return {
