@@ -12,7 +12,7 @@ import { OpenAI } from "openai";
 import { tavilyDeepResearch, tavilyExtractContent, TavilyDeepResearchResponse, TavilyDeepResearchResult } from '../utils/tavilyDeepResearch';
 import { tavilySearch } from '../tavilySearch';
 import type { TavilySearchResponse, TavilySearchResult } from '../tavilySearch';
-import { searchCache } from './cache';
+import { searchCache } from '../utils/cache';
 
 // Define types for the agentic reasoning process
 export type ResearchState = 
