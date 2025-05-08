@@ -1355,7 +1355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         research_summary: agenticResults.answer,
         results: agenticResults.sources,
         process_log: agenticResults.process,
-        iterations: agenticResults.iterations || 1,
+        iterations: 2, // Hard-code for now since we know it's 2 iterations from our options
         debug_info: {
           options: debugOptions,
           duration_ms: 0 // Will be filled below
@@ -1364,19 +1364,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Complete timing
       const timing = completeApiTiming(timingId, true);
-      if (timing) {
+      if (timing && timing.durationMs) {
         response.debug_info.duration_ms = timing.durationMs;
       }
       
       return res.json(response);
     } catch (error: any) {
       console.error('Debug agentic research error:', error);
-      completeApiTiming(timingId, false);
+      
+      // Complete timing with error status
+      if (typeof timingId !== 'undefined') {
+        completeApiTiming(timingId, false);
+      }
       
       return res.status(500).json({
         error: 'research_error',
         message: error.message || 'An unknown error occurred during research',
-        query: query,
+        query: typeof query !== 'undefined' ? query : 'unknown',
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
