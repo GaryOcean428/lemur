@@ -24,7 +24,8 @@ In your Checkout integration, remove [payment_method_types](https://docs.stripe.
 
 ```bash
 curl https://api.stripe.com/v1/checkout/sessions \
-  -u sk_test_4eC39HqLyjWDarjtT1zdp7dc: \
+  -u  \ //test
+
   -d success_url="https://example.com/success" \
   -d cancel_url="https://example.com/cancel" \
   -d "line_items[0][price]"=price_H5ggYwtDq4fbrJ \
@@ -43,7 +44,7 @@ In your Payment Element integration, remove [payment_method_types](https://docs.
 
 ```bash
 curl https://api.stripe.com/v1/payment_intents \
-  -u sk_test_4eC39HqLyjWDarjtT1zdp7dc: \
+  -u  \ //test
   -d amount=1099 \
   -d currency=eur \
   -d “payment_method_types[]”=bancontact\
@@ -59,7 +60,7 @@ If your integration uses an API version prior to [2023-08-16](https://docs.strip
 
 ```bash
 curl https://api.stripe.com/v1/payment_intents \
-  -u sk_test_4eC39HqLyjWDarjtT1zdp7dc: \
+  -u  \ //test
   -d amount=1099 \
   -d currency=eur \
   -d "automatic_payment_methods[enabled]"=true
