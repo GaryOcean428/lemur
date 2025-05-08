@@ -37,20 +37,23 @@ export interface AgenticResearchProgress {
   iterations: number;
 }
 
+// Import Node.js process to avoid confusion with our local process variable
+import { env } from 'node:process';
+
 // Initialize the OpenAI client with enhanced error checking
 let openai: OpenAI;
 try {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!env.OPENAI_API_KEY) {
     console.error("OPENAI_API_KEY not found. Agentic research requires a valid OpenAI API key.");
     throw new Error("OpenAI API key is missing");
   }
   
   // Log partial key for debugging (first 4 chars)
-  const partialKey = process.env.OPENAI_API_KEY.substring(0, 4) + "...";
+  const partialKey = env.OPENAI_API_KEY.substring(0, 4) + "...";
   console.log(`OpenAI API initialized with key starting with: ${partialKey}`);
   
   openai = new OpenAI({ 
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: env.OPENAI_API_KEY,
     timeout: 60000 // 60 seconds timeout to prevent hanging requests
   });
 } catch (error) {
@@ -474,8 +477,17 @@ export async function executeAgenticResearch(
 }> {
   console.log("Starting agentic research process with OpenAI integration");
   
-  // Verify OpenAI API key is available
-  if (!process.env.OPENAI_API_KEY) {
+  // Set default options
+  const maxIterations = options.maxIterations || 2;
+  const includeReasoning = options.includeReasoning ?? true;
+  const deepDive = options.deepDive ?? false;
+  
+  // Initialize progress tracking
+  const processSteps: string[] = [];
+  let iterations = 0;
+  
+  // Verify OpenAI API key is available first
+  if (!env.OPENAI_API_KEY) {
     console.error("CRITICAL ERROR: OPENAI_API_KEY not found, cannot proceed with agentic research");
     return {
       answer: "Deep research cannot be completed at this time due to missing API configuration. Please contact support with error code: OAI-MISSING-KEY.",
@@ -484,16 +496,7 @@ export async function executeAgenticResearch(
     };
   }
   
-  // Set default options
-  const maxIterations = options.maxIterations || 2;
-  const includeReasoning = options.includeReasoning ?? true;
-  const deepDive = options.deepDive ?? false;
-  
-  // Initialize progress tracking
-  const process: string[] = [];
-  let iterations = 0;
-  
-  process.push("Initializing agentic research process...");
+  processSteps.push("Initializing agentic research process...");
   
   // Cache key for the entire research process
   const cacheKey = {
@@ -515,18 +518,18 @@ export async function executeAgenticResearch(
   
   try {
     // Step 1: Planning - Break down the query
-    process.push("Planning research approach...");
+    processSteps.push("Planning research approach...");
     const { subQueries, plan } = await planResearch(query);
-    process.push(`Research plan created with ${subQueries.length} sub-questions`);
+    processSteps.push(`Research plan created with ${subQueries.length} sub-questions`);
     
     // Step 2: Searching - Execute searches for all sub-queries
-    process.push("Searching for information...");
+    processSteps.push("Searching for information...");
     const searchResults = await executeSearches(subQueries, tavilyApiKey, {
       deepDive,
       // Include any other options passed in
       ...options
     });
-    process.push(`Found ${searchResults.length} relevant sources`);
+    processSteps.push(`Found ${searchResults.length} relevant sources`);
     
     // Initial state
     let currentDraft = "";
@@ -538,34 +541,34 @@ export async function executeAgenticResearch(
       iterations++;
       
       // Analyze step - initial synthesis or follow-up
-      process.push(`Analysis iteration ${iterations}: Synthesizing information...`);
+      processSteps.push(`Analysis iteration ${iterations}: Synthesizing information...`);
       currentDraft = await analyzeResults(query, currentResults, iterations);
       
       // Check if we should do another iteration
       if (iterations >= maxIterations) break;
       
       // Critique step (Reflexion pattern)
-      process.push(`Critique iteration ${iterations}: Evaluating analysis quality...`);
+      processSteps.push(`Critique iteration ${iterations}: Evaluating analysis quality...`);
       currentCritique = await critiqueDraft(query, currentDraft, currentResults);
       
       // Refine step
-      process.push(`Refinement iteration ${iterations}: Improving analysis based on critique...`);
+      processSteps.push(`Refinement iteration ${iterations}: Improving analysis based on critique...`);
       currentDraft = await refineDraft(query, currentDraft, currentCritique, currentResults);
     }
     
     // Step 4: Final polishing
-    process.push("Finalizing research report...");
+    processSteps.push("Finalizing research report...");
     const finalDraft = await finalizeDraft(query, currentDraft, includeReasoning);
     
     // Extract sources
     const sources = extractSources(finalDraft, searchResults);
-    process.push(`Complete with ${sources.length} cited sources`);
+    processSteps.push(`Complete with ${sources.length} cited sources`);
     
     // Prepare result
     const result = {
       answer: finalDraft,
       sources,
-      process
+      process: processSteps
     };
     
     // Cache the result for 30 minutes (1800 seconds)
@@ -579,7 +582,7 @@ export async function executeAgenticResearch(
     return {
       answer: `An error occurred while researching "${query}". ${error instanceof Error ? error.message : 'Please try again later.'}`,
       sources: [],
-      process: [...process, "ERROR: Research process encountered a problem"]
+      process: [...processSteps, "ERROR: Research process encountered a problem"]
     };
   }
 }
