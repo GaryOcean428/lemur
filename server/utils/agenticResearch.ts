@@ -29,6 +29,8 @@ export interface AgenticResearchOptions {
   includeReasoning?: boolean;
   deepDive?: boolean;
   userTier?: string;
+  useWebSearch?: boolean;
+  searchContextSize?: 'low' | 'medium' | 'high';
 }
 
 export interface AgenticResearchProgress {
@@ -121,8 +123,8 @@ async function planResearch(query: string): Promise<{
 
   try {
     const response = await openai.chat.completions.create({
-      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      model: "gpt-4o",
+      // Using GPT-4.1, the latest OpenAI model (as of May 2025)
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
@@ -230,8 +232,8 @@ CONTENT: ${result.content.substring(0, 1000)}${result.content.length > 1000 ? '.
   
   try {
     const response = await openai.chat.completions.create({
-      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      model: "gpt-4o",
+      // Using GPT-4.1, the latest OpenAI model (as of May 2025)
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
@@ -277,8 +279,8 @@ Please analyze these sources thoroughly, using step-by-step reasoning to synthes
 async function critiqueDraft(query: string, draft: string, results: TavilySearchResult[]): Promise<string> {
   try {
     const response = await openai.chat.completions.create({
-      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      model: "gpt-4o",
+      // Using GPT-4.1, the latest OpenAI model (as of May 2025)
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
@@ -334,8 +336,8 @@ CONTENT: ${result.content.substring(0, 800)}${result.content.length > 800 ? '...
   
   try {
     const response = await openai.chat.completions.create({
-      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      model: "gpt-4o",
+      // Using GPT-4.1, the latest OpenAI model (as of May 2025)
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
@@ -390,8 +392,8 @@ async function finalizeDraft(query: string, draft: string, includeReasoning: boo
   
   try {
     const response = await openai.chat.completions.create({
-      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      model: "gpt-4o",
+      // Using GPT-4.1, the latest OpenAI model (as of May 2025)
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
