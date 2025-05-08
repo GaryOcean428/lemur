@@ -524,12 +524,19 @@ export async function executeAgenticResearch(
 }> {
   console.log("Starting agentic research process with OpenAI integration");
   
-  // Set default options
-  const maxIterations = options.maxIterations || 2;
+  // Set default options - Reduced default iterations to improve performance
+  // Only Pro users get multiple iterations by default, and max is now 1 for basic users
+  const maxIterations = options.maxIterations || (options.userTier === 'pro' ? 2 : 1);
   const includeReasoning = options.includeReasoning ?? true;
   const deepDive = options.deepDive ?? false;
   const useWebSearch = options.useWebSearch ?? false;
   const searchContextSize = options.searchContextSize || 'medium';
+  
+  // Add additional logging for performance tracking
+  console.log(`Using agentic research with maxIterations=${maxIterations}, userTier=${options.userTier || 'not specified'}`);
+  
+  // Start timer for performance tracking
+  const startTime = Date.now();
   
   // Initialize progress tracking
   const processSteps: string[] = [];
@@ -556,6 +563,10 @@ export async function executeAgenticResearch(
         iterations
       });
     }
+    
+    // Add performance logging
+    const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+    console.log(`Research progress: ${state.status}, iterations: ${iterations}, elapsed: ${elapsedSec}s`);
   };
   
   // Initialize progress with idle state
@@ -680,15 +691,23 @@ export async function executeAgenticResearch(
     // Cache the result for 30 minutes (1800 seconds)
     searchCache.set(cacheKey, result, 1800);
     
+    // Final performance measurement
+    const totalTimeSec = Math.round((Date.now() - startTime) / 1000);
+    console.log(`Agentic research completed in ${totalTimeSec} seconds with ${iterations} iterations`);
+    
     return result;
   } catch (error) {
     console.error("Error in agentic research process:", error);
+    
+    // Final performance measurement even for error cases
+    const totalTimeSec = Math.round((Date.now() - startTime) / 1000);
+    console.log(`Agentic research failed after ${totalTimeSec} seconds`);
     
     // Return a graceful failure with error details
     return {
       answer: `An error occurred while researching "${query}". ${error instanceof Error ? error.message : 'Please try again later.'}`,
       sources: [],
-      process: [...processSteps, "ERROR: Research process encountered a problem"]
+      process: [...processSteps, `ERROR: Research process encountered a problem after ${totalTimeSec} seconds`]
     };
   }
 }
