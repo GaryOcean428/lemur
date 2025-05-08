@@ -19,13 +19,20 @@ export interface SearchInsightsPanelProps {
   onOpenChange: (open: boolean) => void;
   query: string;
   isDeepResearch: boolean;
+  // New props for tracking agentic research
+  currentIteration?: number;
+  maxIterations?: number;
+  reasoningLog?: string[];
 }
 
 export default function SearchInsightsPanel({ 
   isOpen, 
   onOpenChange,
   query,
-  isDeepResearch
+  isDeepResearch,
+  currentIteration = 0,
+  maxIterations = 2,
+  reasoningLog = []
 }: SearchInsightsPanelProps) {
   // Search steps for regular search
   const standardSearchSteps: SearchStep[] = [
@@ -62,10 +69,10 @@ export default function SearchInsightsPanel({
   ];
 
   // More detailed steps for deep research with agentic loops
-  // These match the actual steps in server/utils/agenticResearch.ts
+  // These exactly match the ResearchState types in server/utils/agenticResearch.ts
   const deepResearchSteps: SearchStep[] = [
     {
-      id: 'init',
+      id: 'idle',
       label: 'Research initialization',
       status: 'pending',
       timestamp: new Date(),
@@ -86,60 +93,32 @@ export default function SearchInsightsPanel({
       details: 'Retrieving information from diverse sources for each sub-question'
     },
     {
-      id: 'analysis1',
+      id: 'analyzing',
       label: 'Initial analysis',
       status: 'pending',
       timestamp: new Date(),
-      details: 'First-pass analysis using chain-of-thought reasoning'
+      details: 'Analyzing search results using chain-of-thought reasoning'
     },
     {
-      id: 'critique1',
+      id: 'critiquing',
       label: 'Critical evaluation',
       status: 'pending',
       timestamp: new Date(),
       details: 'Self-critique to identify gaps and weaknesses in analysis'
     },
     {
-      id: 'refine1',
-      label: 'First refinement',
+      id: 'refining',
+      label: 'Refinement',
       status: 'pending',
       timestamp: new Date(),
       details: 'Improving analysis based on self-critique'
     },
     {
-      id: 'analysis2',
-      label: 'Follow-up analysis',
-      status: 'pending',
-      timestamp: new Date(),
-      details: 'Second-pass analysis with deeper understanding'
-    },
-    {
-      id: 'critique2',
-      label: 'Advanced critique',
-      status: 'pending',
-      timestamp: new Date(),
-      details: 'Thorough evaluation of refined analysis quality'
-    },
-    {
-      id: 'refine2',
-      label: 'Final refinement',
-      status: 'pending',
-      timestamp: new Date(),
-      details: 'Final improvements based on critique'
-    },
-    {
-      id: 'finalize',
+      id: 'finished',
       label: 'Report finalization',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Polishing and finalizing the comprehensive research report'
-    },
-    {
-      id: 'citation',
-      label: 'Source extraction',
-      status: 'pending',
-      timestamp: new Date(),
-      details: 'Extracting and validating all cited sources'
+      details: 'Compiling final research report with citations'
     }
   ];
 
@@ -203,25 +182,20 @@ export default function SearchInsightsPanel({
   const getStepIcon = (step: SearchStep) => {
     // When using specific icons for agentic research process steps
     switch (step.id) {
-      case 'init':
+      case 'idle':
         return <Waves className="h-4 w-4" />;
       case 'planning':
         return <FlaskConical className="h-4 w-4" />;
       case 'searching':
         return <Search className="h-4 w-4" />;
-      case 'analysis1':
-      case 'analysis2':
+      case 'analyzing':
         return <Database className="h-4 w-4" />;
-      case 'critique1':
-      case 'critique2':  
+      case 'critiquing':
         return <Waves className="h-4 w-4" />;
-      case 'refine1':
-      case 'refine2':
+      case 'refining':
         return <Database className="h-4 w-4" />;
-      case 'finalize':
-        return <FlaskConical className="h-4 w-4" />;
-      case 'citation':
-        return <Search className="h-4 w-4" />;
+      case 'finished':
+        return <CheckCircle2 className="h-4 w-4" />;
       // Standard search steps
       case 'web':
         return <Search className="h-4 w-4" />;
