@@ -36,6 +36,7 @@ export interface DeepResearchResponse {
   estimated_analysis_depth?: string;
   research_summary?: string;
   user_tier?: string;
+  previous_context?: string; // Added to include more context from previous interactions
 }
 
 interface UrlContentResponse {
@@ -241,6 +242,11 @@ export default function DeepResearchPanel() {
                   <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">
                     {researchResults.results.length} sources
                   </Badge>
+                  {researchResults.previous_context && (
+                    <Badge variant="outline" className="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800">
+                      Context: {researchResults.previous_context}
+                    </Badge>
+                  )}
                 </div>
               </CardHeader>
               

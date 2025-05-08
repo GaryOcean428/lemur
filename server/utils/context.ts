@@ -77,6 +77,18 @@ export function isLikelyFollowUp(query: string, previousContext?: ConversationCo
     }
   }
   
+  // Advanced NLP techniques for follow-up detection
+  const advancedFollowUpIndicators = [
+    'can you elaborate on', 'could you explain further', 'what do you mean by',
+    'how does this relate to', 'what are the implications of', 'can you provide more details on'
+  ];
+  
+  for (const indicator of advancedFollowUpIndicators) {
+    if (normalizedQuery.includes(indicator)) {
+      return true;
+    }
+  }
+  
   return false;
 }
 
