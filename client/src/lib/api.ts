@@ -116,12 +116,20 @@ export async function performDirectSearch(query: string, isFollowUp: boolean = f
   }
 }
 
+export interface ResearchOptions {
+  maxIterations?: number;
+  includeReasoning?: boolean;
+  deepDive?: boolean;
+  searchContextSize?: 'low' | 'medium' | 'high';
+}
+
 export async function performSearch(
   query: string, 
   searchType: string = 'all', 
   filters?: SearchFilters | null, 
   deepResearch: boolean = false,
-  isFollowUp: boolean = false
+  isFollowUp: boolean = false,
+  researchOptions?: ResearchOptions
 ): Promise<SearchResults> {
   try {
     // Build URL with query parameter and search type
@@ -135,6 +143,22 @@ export async function performSearch(
     // Add deep research parameter if specified
     if (deepResearch) {
       url += `&deepResearch=true`;
+      
+      // Add advanced research options if provided
+      if (researchOptions) {
+        if (researchOptions.maxIterations !== undefined) {
+          url += `&maxIterations=${researchOptions.maxIterations}`;
+        }
+        if (researchOptions.includeReasoning !== undefined) {
+          url += `&includeReasoning=${researchOptions.includeReasoning}`;
+        }
+        if (researchOptions.deepDive !== undefined) {
+          url += `&deepDive=${researchOptions.deepDive}`;
+        }
+        if (researchOptions.searchContextSize !== undefined) {
+          url += `&searchContextSize=${researchOptions.searchContextSize}`;
+        }
+      }
     }
     
     // Add filter parameters if provided

@@ -4,7 +4,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, Clock, Database, FlaskConical, Loader2, Search, ServerCrash, Waves } from 'lucide-react';
+import { 
+  CheckCircle2, Clock, Database, FlaskConical, Loader2, Search, ServerCrash, Waves,
+  BarChart3, FileCheck, FilterX, Lightbulb, GitMerge
+} from 'lucide-react';
 
 export interface SearchStep {
   id: string;
@@ -69,7 +72,7 @@ export default function SearchInsightsPanel({
   ];
 
   // More detailed steps for deep research with agentic loops
-  // These exactly match the ResearchState types in server/utils/agenticResearch.ts
+  // These match the extended agentic reasoning process
   const deepResearchSteps: SearchStep[] = [
     {
       id: 'idle',
@@ -83,42 +86,56 @@ export default function SearchInsightsPanel({
       label: 'Planning research approach',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Breaking down the query into sub-questions for better coverage'
+      details: 'Breaking down the query into sub-questions and identifying key areas to explore'
     },
     {
       id: 'searching',
-      label: 'Searching for information',
+      label: 'Information gathering',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Retrieving information from diverse sources for each sub-question'
+      details: 'Retrieving relevant information from diverse sources with varied perspectives'
     },
     {
       id: 'analyzing',
-      label: 'Initial analysis',
+      label: 'Initial synthesis',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Analyzing search results using chain-of-thought reasoning'
+      details: 'Synthesizing information using structured reasoning and evidence analysis'
     },
     {
       id: 'critiquing',
-      label: 'Critical evaluation',
+      label: 'Critical reflection',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Self-critique to identify gaps and weaknesses in analysis'
+      details: 'Self-critique to identify biases, gaps, and weaknesses in the analysis'
     },
     {
       id: 'refining',
-      label: 'Refinement',
+      label: 'Iterative refinement',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Improving analysis based on self-critique'
+      details: 'Improving the analysis based on critical reflection and additional evidence'
+    },
+    {
+      id: 'cross_checking',
+      label: 'Cross validation',
+      status: 'pending',
+      timestamp: new Date(),
+      details: 'Verifying information across multiple sources and checking for consistency'
+    },
+    {
+      id: 'organizing',
+      label: 'Organization',
+      status: 'pending',
+      timestamp: new Date(),
+      details: 'Structuring insights into coherent themes and identifying connections'
     },
     {
       id: 'finished',
       label: 'Report finalization',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Compiling final research report with citations'
+      details: 'Compiling final research report with accurate citations and structured insights'
     }
   ];
 
@@ -193,6 +210,8 @@ export default function SearchInsightsPanel({
           if (lastLog.includes('analyz')) return 'analyzing';
           if (lastLog.includes('critique') || lastLog.includes('evaluat')) return 'critiquing';
           if (lastLog.includes('refin') || lastLog.includes('improv')) return 'refining';
+          if (lastLog.includes('cross')) return 'cross_checking';
+          if (lastLog.includes('organiz') || lastLog.includes('structur')) return 'organizing';
           return 'analyzing'; // Default to analyzing if we can't determine
         }
         
@@ -240,16 +259,20 @@ export default function SearchInsightsPanel({
       case 'analyzing':
         return <Database className="h-4 w-4" />;
       case 'critiquing':
-        return <Waves className="h-4 w-4" />;
+        return <FilterX className="h-4 w-4" />;
       case 'refining':
-        return <Database className="h-4 w-4" />;
+        return <GitMerge className="h-4 w-4" />;
+      case 'cross_checking':
+        return <FileCheck className="h-4 w-4" />;
+      case 'organizing':
+        return <BarChart3 className="h-4 w-4" />;
       case 'finished':
         return <CheckCircle2 className="h-4 w-4" />;
       // Standard search steps
       case 'web':
         return <Search className="h-4 w-4" />;
       case 'ai':
-        return <FlaskConical className="h-4 w-4" />;
+        return <Lightbulb className="h-4 w-4" />;
       // Default status-based icons
       default:
         return step.status === 'active' ? 
