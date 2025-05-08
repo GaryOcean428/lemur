@@ -1274,6 +1274,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Debug endpoint for agenticResearch testing
+  app.post("/api/debug/agentic-research", async (req, res) => {
+    try {
+      // Start timing for telemetry
+      const timingId = startApiTiming('/api/debug/agentic-research');
+      
+      // Get query and parameters
+      const { query, options = {} } = req.body;
+      
+      if (!query || typeof query !== 'string' || query.trim() === '') {
+        return res.status(400).json({ 
+          error: 'invalid_query',
+          message: 'A valid research query is required'
+        });
+      }
+      
+      // Get user and check subscription tier - only pro users can access this debug endpoint
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ 
+          error: 'authentication_required',
+          message: 'You must be logged in to use this endpoint'
+        });
+      }
+      
+      const userId = req.user.id;
+      const userTier = req.user.subscriptionTier || 'free';
+      
+      // Only pro users can access this debug endpoint
+      if (userTier !== 'pro' && userTier !== 'developer') {
+        logEvent('unauthorized_debug_attempt', {
+          userId,
+          userTier,
+          query: query.substring(0, 100)
+        });
+        
+        return res.status(403).json({
+          error: 'subscription_required',
+          message: 'Debug tools are only available to Pro tier users',
+          userTier,
+          requiredTier: 'pro'
+        });
+      }
+      
+      // Get API key
+      const tavilyApiKey = process.env.TAVILY_API_KEY;
+      if (!tavilyApiKey) {
+        throw new Error('Server configuration error: Missing Tavily API key');
+      }
+      
+      // Get OpenAI key (for agentic reasoning)
+      const openAIKey = process.env.OPENAI_API_KEY;
+      if (!openAIKey) {
+        throw new Error('Server configuration error: Missing OpenAI API key');
+      }
+      
+      console.log(`Starting debug agentic research for query: "${query}"`);
+      
+      // Set debugging options
+      const debugOptions = {
+        deepDive: true,
+        maxIterations: options.max_iterations || 2,
+        includeReasoning: true,
+        debug_mode: true,
+        search_depth: options.search_depth || 'medium',
+        max_results: options.max_results || 10,
+        userTier: userTier
+      };
+      
+      // Log detailed debug information
+      console.log(`Debug research parameters:`, JSON.stringify(debugOptions));
+      
+      // Perform agentic deep research with reasoning loops
+      console.log(`Using agentic research with reasoning loops for debug: "${query}"`);
+      const agenticResults = await executeAgenticResearch(query, tavilyApiKey, debugOptions);
+      
+      // Format response
+      const response = {
+        query,
+        research_summary: agenticResults.answer,
+        results: agenticResults.sources,
+        process_log: agenticResults.process,
+        iterations: agenticResults.iterations || 1,
+        debug_info: {
+          options: debugOptions,
+          duration_ms: 0 // Will be filled below
+        }
+      };
+      
+      // Complete timing
+      const timing = completeApiTiming(timingId, true);
+      if (timing) {
+        response.debug_info.duration_ms = timing.durationMs;
+      }
+      
+      return res.json(response);
+    } catch (error: any) {
+      console.error('Debug agentic research error:', error);
+      return res.status(500).json({
+        error: 'research_error',
+        message: error.message || 'An unknown error occurred during research',
+        query
+      });
+    }
+  });
+  
   // Advanced research endpoint for Pro users
   app.post("/api/deep-research", async (req, res) => {
     try {
