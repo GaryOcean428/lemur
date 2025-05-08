@@ -51,7 +51,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
 // Import Tavily search interfaces from the dedicated module
 import { tavilySearch, TavilySearchResult, TavilySearchResponse } from './tavilySearch';
 import { tavilyDeepResearch, tavilyExtractContent, TavilyDeepResearchResponse } from './utils/tavilyDeepResearch';
-import { executeAgenticResearch } from './utils/agenticResearch';
+import { executeAgenticResearch, ResearchState, AgenticResearchProgress } from './utils/agenticResearch';
 
 // Define Groq response interfaces
 interface GroqChoice {
@@ -753,11 +753,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Complete timing
         completeApiTiming(timingId, true);
         
-        // Return results
+        // Return results with agentic research metadata
         return res.json({
           query,
           deepResearch: true,
-          research: researchResults,
+          research: {
+            ...researchResults,
+            currentIteration: currentIterations,
+            maxIterations: options?.maxIterations || 2,
+            reasoningLog: progressLog
+          },
           searchType: searchType
         });
       }

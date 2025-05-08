@@ -125,55 +125,104 @@ export default function SearchInsightsPanel({
   // Choose steps based on whether it's deep research or not
   const [steps, setSteps] = useState<SearchStep[]>(isDeepResearch ? deepResearchSteps : standardSearchSteps);
   
-  // Auto-advance steps when the panel is open
+  // Update steps based on server research state
   useEffect(() => {
     if (!isOpen) return;
     
-    // Reset steps when query changes
+    // Reset steps when query changes or panel opens
     setSteps(prev => 
       prev.map(step => ({...step, status: 'pending', timestamp: new Date()}))
     );
     
-    // Simulate step progress for demonstration
-    let currentStep = 0;
-    const totalSteps = steps.length;
-    
-    // Update first step immediately
-    setSteps(prev => {
-      const newSteps = [...prev];
-      if (newSteps[0]) {
-        newSteps[0] = {...newSteps[0], status: 'active', timestamp: new Date()};
-      }
-      return newSteps;
-    });
-    
-    const interval = setInterval(() => {
-      // Mark current step as completed and next as active
+    // When using simulated progress (for now, until we have real-time updates)
+    if (reasoningLog.length === 0) {
+      // Simulate step progress for demonstration
+      let currentStep = 0;
+      const totalSteps = steps.length;
+      
+      // Update first step immediately
       setSteps(prev => {
         const newSteps = [...prev];
-        
-        // Complete current step
-        if (newSteps[currentStep]) {
-          newSteps[currentStep] = {...newSteps[currentStep], status: 'completed', timestamp: new Date()};
+        if (newSteps[0]) {
+          newSteps[0] = {...newSteps[0], status: 'active', timestamp: new Date()};
         }
-        
-        // Activate next step
-        currentStep++;
-        if (currentStep < totalSteps && newSteps[currentStep]) {
-          newSteps[currentStep] = {...newSteps[currentStep], status: 'active', timestamp: new Date()};
-        }
-        
         return newSteps;
       });
       
-      // Stop when all steps are completed
-      if (currentStep >= totalSteps - 1) {
-        clearInterval(interval);
-      }
-    }, isDeepResearch ? 1200 : 700); // Slower progression for deep research
-    
-    return () => clearInterval(interval);
-  }, [isOpen, query, isDeepResearch, steps.length]);
+      const interval = setInterval(() => {
+        // Mark current step as completed and next as active
+        setSteps(prev => {
+          const newSteps = [...prev];
+          
+          // Complete current step
+          if (newSteps[currentStep]) {
+            newSteps[currentStep] = {...newSteps[currentStep], status: 'completed', timestamp: new Date()};
+          }
+          
+          // Activate next step
+          currentStep++;
+          if (currentStep < totalSteps && newSteps[currentStep]) {
+            newSteps[currentStep] = {...newSteps[currentStep], status: 'active', timestamp: new Date()};
+          }
+          
+          return newSteps;
+        });
+        
+        // Stop when all steps are completed
+        if (currentStep >= totalSteps - 1) {
+          clearInterval(interval);
+        }
+      }, isDeepResearch ? 1200 : 700); // Slower progression for deep research
+      
+      return () => clearInterval(interval);
+    } else {
+      // Real-time status from server-side progress
+      // This will be integrated with websocket/SSE data from server when available
+      
+      // For now, use the current iteration to determine progress in the steps
+      const stepIdToUpdate = (() => {
+        // Maps server state to corresponding step ID
+        if (currentIteration === 0) {
+          return 'planning'; // First iteration starts with planning
+        } else if (currentIteration === maxIterations) {
+          return 'finished'; // Last iteration means we're finishing
+        } else if (reasoningLog.length > 0) {
+          // Check the last log entry to determine current state
+          const lastLog = reasoningLog[reasoningLog.length - 1].toLowerCase();
+          if (lastLog.includes('search')) return 'searching';
+          if (lastLog.includes('analyz')) return 'analyzing';
+          if (lastLog.includes('critique') || lastLog.includes('evaluat')) return 'critiquing';
+          if (lastLog.includes('refin') || lastLog.includes('improv')) return 'refining';
+          return 'analyzing'; // Default to analyzing if we can't determine
+        }
+        
+        return 'idle'; // Default to idle
+      })();
+      
+      // Update the steps based on the current state
+      setSteps(prev => {
+        const newSteps = [...prev];
+        let foundActive = false;
+        
+        // Update each step's status
+        return newSteps.map(step => {
+          // If this is the active step
+          if (step.id === stepIdToUpdate) {
+            foundActive = true;
+            return {...step, status: 'active', timestamp: new Date()};
+          }
+          
+          // Steps before the active step are completed
+          if (!foundActive) {
+            return {...step, status: 'completed', timestamp: new Date()};
+          }
+          
+          // Steps after the active step are pending
+          return {...step, status: 'pending', timestamp: new Date()};
+        });
+      });
+    }
+  }, [isOpen, query, isDeepResearch, steps.length, reasoningLog, currentIteration, maxIterations]);
   
   // Get the currently active step
   const activeStep = steps.find(step => step.status === 'active');
@@ -233,6 +282,18 @@ export default function SearchInsightsPanel({
             </Badge>
           </div>
           
+          {/* Display iteration progress for deep research */}
+          {isDeepResearch && (
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-xs font-medium text-muted-foreground">Research Iteration:</h3>
+              <div className="flex items-center gap-1">
+                <Badge variant="outline" className="text-xs px-2 py-0">
+                  {currentIteration} of {maxIterations}
+                </Badge>
+              </div>
+            </div>
+          )}
+          
           {activeStep && (
             <Card className="bg-primary/5 border-primary/10 mb-4">
               <CardContent className="p-4">
@@ -243,6 +304,24 @@ export default function SearchInsightsPanel({
                 <p className="text-xs text-muted-foreground mt-1">
                   {activeStep.details || `Processing ${isDeepResearch ? 'research' : 'search'} data...`}
                 </p>
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Display reasoning log for deep research */}
+          {isDeepResearch && reasoningLog.length > 0 && (
+            <Card className="border-muted mb-4">
+              <CardContent className="p-4">
+                <h3 className="text-sm font-medium mb-2">Reasoning Process:</h3>
+                <ScrollArea className="h-[120px] rounded-md border p-2">
+                  <div className="space-y-1">
+                    {reasoningLog.map((log, idx) => (
+                      <p key={idx} className="text-xs text-muted-foreground">
+                        {log}
+                      </p>
+                    ))}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           )}

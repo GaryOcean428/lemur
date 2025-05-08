@@ -47,6 +47,13 @@ export interface DeepResearch {
   };
   estimated_analysis_depth?: string;
   research_summary?: string;
+  
+  // Agentic research progress tracking
+  currentIteration?: number;
+  maxIterations?: number;
+  reasoningLog?: string[];
+  sources?: Array<{url: string, title: string}>;
+  process?: string[];
 }
 
 export interface SearchResults {

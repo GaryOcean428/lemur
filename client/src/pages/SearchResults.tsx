@@ -198,6 +198,9 @@ export default function SearchResults() {
           onOpenChange={setShowInsightsPanel}
           query={query}
           isDeepResearch={deepResearch}
+          currentIteration={data?.research?.currentIteration || 0}
+          maxIterations={data?.research?.maxIterations || 2}
+          reasoningLog={data?.research?.reasoningLog || []}
         />
       </div>
     </div>
