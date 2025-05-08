@@ -802,7 +802,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const timingId = startApiTiming('deep-research');
         
         // Get custom research parameters from URL query params
-        const maxIterations = req.query.maxIterations ? Number(req.query.maxIterations) : 3;
+        // Reduced default iterations from 3 to 2 to improve performance
+        const maxIterations = req.query.maxIterations ? Number(req.query.maxIterations) : 2;
         const includeReasoning = req.query.includeReasoning !== 'false'; // Default to true
         const deepDive = req.query.deepDive === 'true'; // Default to false
         const searchContextSize = (req.query.searchContextSize as string) || 'medium';
@@ -816,6 +817,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             default: return 15;
           }
         })();
+        
+        // Log research parameters for debugging performance issues
+        console.log(`Deep research parameters: ${JSON.stringify({
+          search_depth: deepDive ? "advanced" : "basic",
+          max_results: maxResults,
+          include_answer: true,
+          include_raw_content: deepDive,
+          time_range: filters.time_range || null,
+          geo_location: filters.geo_location || null,
+          maxIterations,
+          includeReasoning,
+          deepDive,
+          searchContextSize
+        })}`);
+        console.log(`Using agentic research with reasoning loops for: "${query}".`);
         
         // Set up research parameters
         const researchParams = {
