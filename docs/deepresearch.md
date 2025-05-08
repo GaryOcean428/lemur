@@ -389,31 +389,17 @@ Deep Research represents Lemur's premium research capability, providing Pro-tier
 
 Leveraging React 18's modern features allows Lemur to present this complex functionality with a smooth, responsive user interface that maintains interactivity even during intensive research operations. This technical foundation ensures that Deep Research not only provides superior content but does so with an exceptional user experience.
 
-Thanks for the detailed context. I’ll prepare a production-ready architecture and setup guide for a React + TypeScript AI search engine similar to Perplexity or Grok, integrating Tavily and Groq with compound-beta and compound-beta-mini models, including features like source citations, code snippet rendering, and multiple search APIs (Google Scholar, Bing, Brave, SerpAPI).
-
-I'll use the referenced Lemur GitHub repository to inform the implementation pattern. I’ll get back to you shortly with a detailed breakdown and recommendations.
-
-
-# AI-Powered Search Engine (Perplexity-Like) – Architecture & Setup Guide
-
-## Overview
-
-Building an AI-driven search engine involves connecting a user-friendly frontend to a powerful backend that integrates web search APIs and large language models (LLMs). In this guide, we design a **Perplexity/Grok-style search assistant** using **React + TypeScript** for the frontend and a **Node.js (Express)** backend. The system will let users ask natural language questions and receive answers with relevant source citations and formatted code snippets. Key features include:
-
-* **Multiple Search Providers:** Integration with Tavily (an LLM-tailored search API) and others like SerpAPI (for Google/Web/Scholar), Bing, and Brave Search, to retrieve up-to-date information.
-* **Groq LLM (Compound Beta) Integration:** Use Groq’s Compound Beta and Compound Beta Mini models as the answering engine. These models can handle tool usage (e.g. web search) internally, but we will provide our own retrieved context to ensure answers come with explicit citations.
-* **Source Attribution:** The system will associate each fact in the answer with a source. The LLM’s output will include reference markers (e.g. “\[1]”) that correspond to a list of cited URLs. Code examples in answers will be properly formatted (in Markdown code blocks) for display.
-* **Modern Web Stack:** A responsive React frontend for user query input and answer display, and a scalable Express backend to handle search queries, API calls, and response formatting. We’ll use TypeScript across both for type safety and maintainability.
-
+---
+# Extended Implementation: Complete Search Engine Architecture
 By the end, you’ll have a clear architecture and implementation approach for a production-ready AI search assistant, including component structure, API integration code, and examples of rendering answers with citations and code.
 
+The system architecture is divided into three layers:
 ## System Architecture Overview
 
-&#x20;*Figure: High-level architecture for the AI-powered search engine. The system is divided into three layers – **Frontend (React)** for user interaction, **Backend (Node/Express)** as an API orchestrator, and an **LLM + Tools layer** that handles the AI reasoning (Groq Compound Beta) and web search integration. In this design, the backend coordinates search queries via external APIs (Tavily, SerpAPI, etc.) and provides the aggregated context to the LLM. The LLM generates an answer with references, which the backend returns to the frontend for display.*
+The following section provides an expanded guide on implementing a full AI-powered search engine similar to Perplexity or Grok, building on the Deep Research capabilities described above. This implementation offers a complete end-to-end solution with multiple search providers, advanced citation handling, and comprehensive architecture.
 
-The architecture is similar to other agent-based search chatbots (e.g. one reference implementation uses a FastAPI backend with LangChain agents and Tavily for retrieval). Our design uses Node/Express, but follows the same principle of separating concerns:
 
-* **Frontend (Client)** – A React app where users enter questions and view answers. It sends the query to the backend and presents the response with rich formatting (e.g. hyperlinks for citations, syntax highlighting for code).
+** **Frontend (Client)** – A React app where users enter questions and view answers. It sends the query to the backend and presents the response with rich formatting (e.g. hyperlinks for citations, syntax highlighting for code).
 * **Backend (Server)** – An Express server that receives the query and orchestrates the search and answer process. It interacts with various **Search Provider APIs** (Tavily, SerpAPI, Bing, Brave, etc.) to retrieve relevant snippets, then calls the **Groq LLM API** (Compound Beta) to generate an answer using those snippets as context. The backend then formats the answer and sources into a response for the frontend.
 * **External APIs (Search & LLM)** – The backend’s “tools”:
 
