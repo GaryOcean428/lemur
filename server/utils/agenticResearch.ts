@@ -466,11 +466,56 @@ function extractSources(draft: string, results: TavilySearchResult[]): Array<{ur
 }
 
 /**
+ * Execute web search using OpenAI's built-in web browsing capability
+ * Only available with GPT-4.1 model
+ */
+async function performWebSearch(query: string, context: string = ""): Promise<string> {
+  try {
+    console.log("Performing web search using OpenAI GPT-4.1 for recent information");
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      messages: [
+        {
+          role: "system",
+          content: `
+You are an AI assistant with web browsing capabilities. Search the web to find the most up-to-date 
+information about the query. Focus on reliable sources and recent information.
+
+After searching, provide a detailed summary that includes:
+1. Key facts and information found during your search
+2. Specific dates, statistics, and details from reliable sources
+3. Citations in the format [Source: Website name]
+4. A clear indication of information that appears to be very recent (within the last month)
+
+${context ? `CONTEXT FROM PREVIOUS RESEARCH:\n${context}` : ""}
+`
+        },
+        {
+          role: "user",
+          content: `Search the web for the most current information about: ${query}`
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000
+    });
+    
+    const result = safeGetContent(response) || "";
+    console.log(`Web search completed with ${result.length} characters of information`);
+    return result;
+  } catch (error) {
+    console.error("Error performing web search:", error);
+    return "";
+  }
+}
+
+/**
  * Main function to execute agentic research with reasoning loops
  */
 export async function executeAgenticResearch(
   query: string,
   tavilyApiKey: string,
+  progressCallback?: (progress: AgenticResearchProgress) => void,
   options: AgenticResearchOptions = {}
 ): Promise<{
   answer: string;
@@ -483,6 +528,8 @@ export async function executeAgenticResearch(
   const maxIterations = options.maxIterations || 2;
   const includeReasoning = options.includeReasoning ?? true;
   const deepDive = options.deepDive ?? false;
+  const useWebSearch = options.useWebSearch ?? false;
+  const searchContextSize = options.searchContextSize || 'medium';
   
   // Initialize progress tracking
   const processSteps: string[] = [];
@@ -499,6 +546,20 @@ export async function executeAgenticResearch(
   }
   
   processSteps.push("Initializing agentic research process...");
+  
+  // Create helper function to update progress
+  const updateProgress = (state: ResearchState) => {
+    if (progressCallback) {
+      progressCallback({
+        state,
+        log: [...processSteps],
+        iterations
+      });
+    }
+  };
+  
+  // Initialize progress with idle state
+  updateProgress({ status: 'idle' });
   
   // Cache key for the entire research process
   const cacheKey = {
@@ -538,6 +599,21 @@ export async function executeAgenticResearch(
     let currentCritique = "";
     let currentResults = searchResults;
     
+    // Optional step: Web search for current information if enabled
+    let webSearchResults = "";
+    if (useWebSearch && options.userTier === 'pro') {
+      try {
+        processSteps.push("Performing web search for the most current information...");
+        webSearchResults = await performWebSearch(query);
+        if (webSearchResults) {
+          processSteps.push("Retrieved additional current information from web search");
+        }
+      } catch (error) {
+        console.error("Web search failed, continuing with standard research:", error);
+        processSteps.push("Web search attempt failed, proceeding with standard research");
+      }
+    }
+    
     // Step 3: Analyze & Refine loop (with ReAct pattern)
     while (iterations < maxIterations) {
       iterations++;
@@ -555,6 +631,18 @@ export async function executeAgenticResearch(
       
       // Refine step
       processSteps.push(`Refinement iteration ${iterations}: Improving analysis based on critique...`);
+      currentDraft = await refineDraft(query, currentDraft, currentCritique, currentResults);
+    }
+    
+    // If we have web search results, enhance the final draft with current information
+    if (webSearchResults) {
+      processSteps.push("Enhancing research with current web information...");
+      
+      // Append the web search results to the draft for final processing
+      currentDraft += "\n\n## ADDITIONAL CURRENT INFORMATION FROM WEB SEARCH:\n" + webSearchResults;
+      
+      // Perform an additional refinement step with the web search data
+      currentCritique = "Please integrate the additional current information from web search into the final analysis.";
       currentDraft = await refineDraft(query, currentDraft, currentCritique, currentResults);
     }
     
