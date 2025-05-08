@@ -62,83 +62,84 @@ export default function SearchInsightsPanel({
   ];
 
   // More detailed steps for deep research with agentic loops
+  // These match the actual steps in server/utils/agenticResearch.ts
   const deepResearchSteps: SearchStep[] = [
     {
       id: 'init',
       label: 'Research initialization',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Setting up the research environment and loading tools'
+      details: 'Setting up the research environment and initializing API clients'
     },
     {
-      id: 'research-planning',
-      label: 'Research planning',
+      id: 'planning',
+      label: 'Planning research approach',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Breaking down the query into specific sub-questions'
+      details: 'Breaking down the query into sub-questions for better coverage'
     },
     {
-      id: 'web-deep',
-      label: 'Comprehensive web search',
+      id: 'searching',
+      label: 'Searching for information',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Retrieving information from diverse sources'
+      details: 'Retrieving information from diverse sources for each sub-question'
     },
     {
-      id: 'academic',
-      label: 'Academic sources retrieval',
+      id: 'analysis1',
+      label: 'Initial analysis',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Gathering scholarly information when applicable'
+      details: 'First-pass analysis using chain-of-thought reasoning'
     },
     {
-      id: 'reasoning',
-      label: 'Initial reasoning & analysis',
+      id: 'critique1',
+      label: 'Critical evaluation',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Reasoning over gathered information using chain-of-thought'
+      details: 'Self-critique to identify gaps and weaknesses in analysis'
     },
     {
-      id: 'content-analysis',
-      label: 'Deep content extraction',
+      id: 'refine1',
+      label: 'First refinement',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Processing raw content for thorough understanding'
+      details: 'Improving analysis based on self-critique'
     },
     {
-      id: 'critique',
-      label: 'Critical self-evaluation',
+      id: 'analysis2',
+      label: 'Follow-up analysis',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Reviewing analysis for errors, gaps, and improvements'
+      details: 'Second-pass analysis with deeper understanding'
     },
     {
-      id: 'refinement',
-      label: 'Research refinement',
+      id: 'critique2',
+      label: 'Advanced critique',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Improving analysis based on critique and additional information'
+      details: 'Thorough evaluation of refined analysis quality'
     },
     {
-      id: 'synthesis',
-      label: 'Information synthesis',
+      id: 'refine2',
+      label: 'Final refinement',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Combining insights into a coherent response'
+      details: 'Final improvements based on critique'
+    },
+    {
+      id: 'finalize',
+      label: 'Report finalization',
+      status: 'pending',
+      timestamp: new Date(),
+      details: 'Polishing and finalizing the comprehensive research report'
     },
     {
       id: 'citation',
-      label: 'Citation verification',
+      label: 'Source extraction',
       status: 'pending',
       timestamp: new Date(),
-      details: 'Ensuring all claims are properly sourced'
-    },
-    {
-      id: 'final',
-      label: 'Results assembly',
-      status: 'pending',
-      timestamp: new Date(),
-      details: 'Finalizing the research report with citations'
+      details: 'Extracting and validating all cited sources'
     }
   ];
 
@@ -200,20 +201,33 @@ export default function SearchInsightsPanel({
   
   // Helper function to get appropriate icon for step
   const getStepIcon = (step: SearchStep) => {
+    // When using specific icons for agentic research process steps
     switch (step.id) {
       case 'init':
         return <Waves className="h-4 w-4" />;
+      case 'planning':
+        return <FlaskConical className="h-4 w-4" />;
+      case 'searching':
+        return <Search className="h-4 w-4" />;
+      case 'analysis1':
+      case 'analysis2':
+        return <Database className="h-4 w-4" />;
+      case 'critique1':
+      case 'critique2':  
+        return <Waves className="h-4 w-4" />;
+      case 'refine1':
+      case 'refine2':
+        return <Database className="h-4 w-4" />;
+      case 'finalize':
+        return <FlaskConical className="h-4 w-4" />;
+      case 'citation':
+        return <Search className="h-4 w-4" />;
+      // Standard search steps
       case 'web':
-      case 'web-deep':
         return <Search className="h-4 w-4" />;
       case 'ai':
         return <FlaskConical className="h-4 w-4" />;
-      case 'academic':
-        return <Database className="h-4 w-4" />;
-      case 'topic-clustering':
-      case 'synthesis':
-      case 'summary':
-        return <Waves className="h-4 w-4" />;
+      // Default status-based icons
       default:
         return step.status === 'active' ? 
           <Loader2 className="h-4 w-4 animate-spin" /> :
