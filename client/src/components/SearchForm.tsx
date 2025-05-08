@@ -100,6 +100,11 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
     // Add deep research parameter if enabled (only for Pro users)
     if (deepResearchEnabled && (user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'developer')) {
       searchUrl += '&deepResearch=true';
+      // Add advanced research settings
+      searchUrl += `&maxIterations=${maxIterations}`;
+      searchUrl += `&includeReasoning=${includeReasoning}`;
+      searchUrl += `&deepDive=${deepDive}`;
+      searchUrl += `&searchContextSize=${searchContextSize}`;
     }
     
     setLocation(searchUrl);
@@ -133,6 +138,11 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
     // Add deep research parameter if enabled (only for Pro users)
     if (deepResearchEnabled && (user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'developer')) {
       searchUrl += '&deepResearch=true';
+      // Add advanced research settings
+      searchUrl += `&maxIterations=${maxIterations}`;
+      searchUrl += `&includeReasoning=${includeReasoning}`;
+      searchUrl += `&deepDive=${deepDive}`;
+      searchUrl += `&searchContextSize=${searchContextSize}`;
     }
     
     setLocation(searchUrl);

@@ -24,6 +24,12 @@ export default function SearchResults() {
   const query = params.get("q") || "";
   const isFollowUp = params.get("isFollowUp") === "true";
   const deepResearch = params.get("deepResearch") === "true";
+  
+  // Get advanced research parameters from URL if they exist
+  const maxIterations = parseInt(params.get("maxIterations") || "3", 10);
+  const includeReasoning = params.get("includeReasoning") !== "false"; // Default to true
+  const deepDive = params.get("deepDive") === "true";
+  const searchContextSize = (params.get("searchContextSize") || "medium") as "low" | "medium" | "high";
 
   // If no query, redirect to home
   if (!query) {
@@ -36,12 +42,33 @@ export default function SearchResults() {
   
   // Fetch search results with the optimal search method
   const { data, isLoading, error } = useQuery({
-    queryKey: [useDirectSearch ? '/api/direct-search' : '/api/search', query, filters, isFollowUp, deepResearch],
+    queryKey: [
+      useDirectSearch ? '/api/direct-search' : '/api/search', 
+      query, 
+      filters, 
+      isFollowUp, 
+      deepResearch,
+      // Include advanced params in queryKey when deepResearch is true
+      ...(deepResearch ? [maxIterations, includeReasoning, deepDive, searchContextSize] : [])
+    ],
     queryFn: () => {
       // Deep research is only for pro users and follows a different path
       if (deepResearch && (user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'developer')) {
         // If deep research is enabled, we use the regular search API with the deepResearch parameter
-        return performSearch(query, 'all', filters, deepResearch, isFollowUp);
+        // and pass along the advanced research settings
+        return performSearch(
+          query, 
+          'all', 
+          filters, 
+          deepResearch, 
+          isFollowUp,
+          {
+            maxIterations,
+            includeReasoning,
+            deepDive,
+            searchContextSize
+          }
+        );
       }
       // Otherwise use normal search flow
       else if (useDirectSearch) {
