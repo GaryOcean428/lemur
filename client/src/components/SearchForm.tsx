@@ -19,6 +19,11 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
   const [showSubscriptionPrompt, setShowSubscriptionPrompt] = useState(false);
   const [subscriptionPromptMessage, setSubscriptionPromptMessage] = useState("");
   const [deepResearchEnabled, setDeepResearchEnabled] = useState(false);
+  // Deep research settings
+  const [maxIterations, setMaxIterations] = useState(3);
+  const [includeReasoning, setIncludeReasoning] = useState(true);
+  const [deepDive, setDeepDive] = useState(false);
+  const [searchContextSize, setSearchContextSize] = useState<'low' | 'medium' | 'high'>('medium');
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const formRef = useRef<HTMLFormElement>(null);
@@ -149,7 +154,17 @@ export default function SearchForm({ initialQuery = "", isFollowUp = false }: Se
         <div className="mb-3 flex justify-end">
           <DeepResearchToggle 
             enabled={deepResearchEnabled} 
-            onChange={setDeepResearchEnabled} 
+            onChange={setDeepResearchEnabled}
+            maxIterations={maxIterations}
+            includeReasoning={includeReasoning}
+            deepDive={deepDive}
+            searchContextSize={searchContextSize}
+            onSettingsChange={(settings) => {
+              if (settings.maxIterations !== undefined) setMaxIterations(settings.maxIterations);
+              if (settings.includeReasoning !== undefined) setIncludeReasoning(settings.includeReasoning);
+              if (settings.deepDive !== undefined) setDeepDive(settings.deepDive);
+              if (settings.searchContextSize !== undefined) setSearchContextSize(settings.searchContextSize);
+            }}
           />
         </div>
         
