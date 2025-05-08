@@ -372,7 +372,7 @@ Please provide a refined analysis that addresses the critique while accurately r
         }
       ],
       temperature: 0.2,
-      max_tokens: 1800
+      max_tokens: 1500
     });
     
     return safeGetContent(response);
@@ -422,7 +422,7 @@ Please convert this into a polished final research report, removing explicit rea
         }
       ],
       temperature: 0.2,
-      max_tokens: 1800
+      max_tokens: 1500
     });
     
     return safeGetContent(response);
@@ -497,7 +497,7 @@ ${context ? `CONTEXT FROM PREVIOUS RESEARCH:\n${context}` : ""}
         }
       ],
       temperature: 0.3,
-      max_tokens: 2000
+      max_tokens: 1500
     });
     
     const result = safeGetContent(response) || "";
