@@ -49,12 +49,12 @@ export default function AgenticResearchDebug() {
     setProcessLog(['Starting agentic research test...']);
 
     try {
-      const response = await apiRequest('POST', '/api/deep-research', {
+      const response = await apiRequest('POST', '/api/debug/agentic-research', {
         query: query.trim(),
         options: {
-          crawl_depth: 'medium',
-          extract_content: true,
-          generate_summary: true,
+          search_depth: 'medium',
+          max_results: 10,
+          max_iterations: 2,
           debug_mode: true // Request verbose logging
         }
       });
@@ -64,16 +64,27 @@ export default function AgenticResearchDebug() {
         setResult(data);
         
         // Extract and format process steps
-        if (data.topic_clusters && data.topic_clusters['Research Process']) {
+        if (data.process_log && Array.isArray(data.process_log)) {
           setProcessLog([
             'Agentic research completed successfully',
-            ...data.topic_clusters['Research Process']
+            ...data.process_log
           ]);
         } else {
+          // Fall back to general data inspection
+          const processSteps = [];
+          
+          if (data.iterations) {
+            processSteps.push(`Completed ${data.iterations} research iterations`);
+          }
+          
+          if (data.debug_info) {
+            processSteps.push(`Debug info: ${JSON.stringify(data.debug_info, null, 2)}`);
+          }
+          
           setProcessLog([
             'Agentic research completed successfully',
-            'No process steps returned in response',
-            JSON.stringify(data, null, 2).substring(0, 500) + '...'
+            ...(processSteps.length > 0 ? processSteps : ['No detailed process steps available']),
+            `Response preview: ${JSON.stringify(data, null, 2).substring(0, 500)}...`
           ]);
         }
       } else {
@@ -101,6 +112,10 @@ export default function AgenticResearchDebug() {
             <BugIcon className="h-5 w-5" />
             <span>Agentic Research Debug Tool</span>
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            This tool helps debug the agentic research process with reasoning loops, critiques, and refinements.
+            It requires Pro tier access.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
@@ -172,9 +187,31 @@ export default function AgenticResearchDebug() {
                 </h3>
                 <div className="rounded-md border p-4">
                   <div className="mb-3">
-                    <h4 className="text-sm font-medium">Research Summary</h4>
-                    <p className="mt-1 text-sm whitespace-pre-line">{result.research_summary}</p>
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-sm font-medium">Research Summary</h4>
+                      {result.iterations && (
+                        <span className="text-xs bg-primary/10 px-2 py-0.5 rounded-full">
+                          {result.iterations} research iteration{result.iterations !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm whitespace-pre-line">
+                      {result.research_summary || result.answer || 'No summary available'}
+                    </p>
                   </div>
+                  
+                  {result.debug_info && (
+                    <div className="mb-3 text-xs text-muted-foreground">
+                      <div className="flex gap-2">
+                        <span>Process time:</span>
+                        <span>{(result.debug_info.duration_ms / 1000).toFixed(2)}s</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span>Model:</span>
+                        <span>OpenAI GPT-4o</span>
+                      </div>
+                    </div>
+                  )}
                   
                   <Separator className="my-3" />
                   

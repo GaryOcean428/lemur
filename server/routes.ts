@@ -1371,10 +1371,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json(response);
     } catch (error: any) {
       console.error('Debug agentic research error:', error);
+      completeApiTiming(timingId, false);
+      
       return res.status(500).json({
         error: 'research_error',
         message: error.message || 'An unknown error occurred during research',
-        query
+        query: query,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
   });
