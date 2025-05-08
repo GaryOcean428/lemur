@@ -257,9 +257,34 @@ export async function performSearch(
           errorMessage = text;
           
           // Handle specific API errors for better user experience
-          if (response.status === 500) {
+          if (response.status === 500 || response.status === 503) {
             // Detect Groq API errors
-            if (text.includes('Groq API error') || text.includes('Bad Gateway')) {
+            if (text.includes('Groq API error') || text.includes('Bad Gateway') || text.includes('Service Unavailable') || text.includes('Groq API service unavailable')) {
+              console.error("Groq service error detected:", text);
+              
+              // Use the traditional search result fallback option if available
+              try {
+                const data = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=traditional`).then(r => r.json());
+                if (data && data.traditional && data.traditional.results) {
+                  return {
+                    query: query,
+                    traditional: data.traditional.results,
+                    enhanced: {
+                      answer: "I encountered an error while processing your search. Please try again later.",
+                      model: "error-fallback",
+                      sources: [],
+                      contextual: false
+                    },
+                    serviceStatus: {
+                      groq: "unavailable",
+                      tavily: "available"
+                    }
+                  } as SearchResults;
+                }
+              } catch (fallbackError) {
+                console.error("Failed to get traditional search fallback:", fallbackError);
+              }
+              
               throw new Error('Our AI service is temporarily unavailable. Traditional search results may still be available.');
             }
             // Detect Tavily API errors

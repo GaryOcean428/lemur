@@ -287,6 +287,14 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
 
     if (!response.ok) {
       let errorMessage = `Groq API error: ${response.status} ${response.statusText}`;
+      let errorBody = "";
+      
+      try {
+        errorBody = await response.text();
+        console.error('Groq API error details:', errorBody);
+      } catch (e) {
+        console.error('Could not read error body from Groq API response');
+      }
       
       if (response.status === 401) {
         errorMessage = 'Groq API error: Invalid or expired API key. Please update your API key.';
@@ -294,9 +302,11 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
         errorMessage = 'Groq API error: Rate limit exceeded. Please try again later.';
       } else if (response.status === 404) {
         errorMessage = `Groq API error: Model '${model}' not found or unavailable.`;
+      } else if (response.status === 503) {
+        // Handle service unavailable more gracefully
+        errorMessage = `Groq API service unavailable (503). The Groq API is temporarily down or experiencing issues. Please try again later.`;
+        console.error('Groq API service unavailable - details:', errorBody);
       } else {
-        const errorBody = await response.text();
-        console.error('Groq API error details:', errorBody);
         errorMessage = `Groq API error: ${response.status}. Details: ${errorBody}`;
       }
       
