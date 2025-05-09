@@ -6,7 +6,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { loadStripe } from '@stripe/stripe-js';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertTriangle as AlertTriangleIcon, Code as CodeIcon, Check as CheckIcon } from 'lucide-react';
+import { Loader2, AlertTriangle as AlertTriangleIcon, Code as CodeIcon, Check as CheckIcon, AlertCircle } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 // Get Stripe key from environment variable
@@ -31,37 +31,40 @@ if (isValidStripeKey) {
   }
 }
 
-// Only attempt to load Stripe with a valid key
-// Using a function to load Stripe on demand rather than at module level
-// This avoids issues with Stripe.js loading during server-side rendering
-import { Stripe as StripeType } from '@stripe/stripe-js';
-
-// Static variable to cache the promise
-let cachedStripePromise: Promise<StripeType | null> | null = null;
-
-const getStripe = (): Promise<StripeType | null> => {
-  if (!isValidStripeKey) {
-    console.error('Cannot load Stripe: Invalid API key');
-    return Promise.resolve(null);
-  }
-  
-  // Return cached promise if available
-  if (cachedStripePromise) {
-    return cachedStripePromise;
-  }
-  
+/**
+ * Safely load Stripe with error handling
+ * We're using a more controlled approach to prevent runtime errors
+ */
+function createStripePromise() {
   try {
-    // Create and cache the promise
-    cachedStripePromise = loadStripe(stripeKey);
-    return cachedStripePromise;
-  } catch (error) {
-    console.error('Error initializing Stripe:', error);
-    return Promise.resolve(null);
+    if (!isValidStripeKey) {
+      console.warn('Not initializing Stripe: Invalid API key');
+      return null;
+    }
+    
+    // Dynamically import Stripe to avoid Stripe.js errors during initial page load
+    // This moves Stripe loading into a separate request after the application is ready
+    return import('@stripe/stripe-js')
+      .then(({ loadStripe }) => {
+        try {
+          return loadStripe(stripeKey);
+        } catch (error) {
+          console.error('Error initializing Stripe:', error);
+          return null;
+        }
+      })
+      .catch(error => {
+        console.error('Failed to import Stripe:', error);
+        return null;
+      });
+  } catch (e) {
+    console.error('Error in Stripe initialization:', e);
+    return null;
   }
-};
+}
 
-// Create the promise but don't await it immediately
-const stripePromise = isValidStripeKey ? getStripe() : null;
+// We'll create the promise when needed rather than at module load time
+let stripePromise: Promise<any> | null = null;
 
 function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'basic' | 'pro', user: any, clientSecret?: string | null }) {
   const stripe = useStripe();
@@ -717,17 +720,52 @@ export default function SubscriptionPage() {
                 </form>
               </div>
             ) : (
-              <Elements 
-                stripe={stripePromise} 
-                options={{ 
-                  clientSecret,
-                  appearance: { theme: 'stripe' },
-                  // Customize options to make sure the element appears and is activated
-                  loader: 'always',
-                }}
-              >
-                <CheckoutForm planType={planType} user={user} clientSecret={clientSecret} />
-              </Elements>
+              <>
+                {/* Add error handling in case Stripe fails to load */}
+                <div id="stripe-error-wrapper" className="hidden">
+                  <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800 mb-6">
+                    <div className="flex items-start">
+                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-3 mt-0.5" />
+                      <div>
+                        <h3 className="text-sm font-medium text-red-800 dark:text-red-300">Payment Processing Unavailable</h3>
+                        <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                          We're experiencing technical difficulties with our payment processor. 
+                          Please try again later or contact support if the problem persists.
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          className="mt-3 text-xs" 
+                          onClick={() => window.location.reload()}
+                        >
+                          <Loader2 className="mr-2 h-3 w-3" /> Retry
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Add script to detect Stripe load failures and show the error */}
+                <script dangerouslySetInnerHTML={{ __html: `
+                  // Simple detection for Stripe.js loading failures
+                  setTimeout(() => {
+                    if (!window.Stripe) {
+                      document.getElementById('stripe-error-wrapper').classList.remove('hidden');
+                    }
+                  }, 5000);
+                `}} />
+                
+                <Elements 
+                  stripe={stripePromise || createStripePromise()} 
+                  options={{ 
+                    clientSecret,
+                    appearance: { theme: 'stripe' },
+                    // Customize options to make sure the element appears and is activated
+                    loader: 'always',
+                  }}
+                >
+                  <CheckoutForm planType={planType} user={user} clientSecret={clientSecret} />
+                </Elements>
+              </>
             )}
           </CardContent>
         </Card>
