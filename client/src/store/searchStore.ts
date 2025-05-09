@@ -30,6 +30,13 @@ export interface SearchFilters {
     detailLevel: 'concise' | 'detailed' | 'comprehensive';
     citationStyle: 'inline' | 'endnotes' | 'academic';
   };
+  
+  // User preferences
+  userPreferences: {
+    personalized: boolean;
+    safeSearch: boolean;
+    historyTracking: boolean;
+  };
 }
 
 export type SearchTabType = 
@@ -106,6 +113,11 @@ const defaultFilters: SearchFilters = {
     detailLevel: 'detailed',
     citationStyle: 'inline',
   },
+  userPreferences: {
+    personalized: true,
+    safeSearch: true,
+    historyTracking: true,
+  },
 };
 
 export const useSearchStore = create<SearchState>((set) => ({
@@ -175,6 +187,7 @@ export const useSearchStore = create<SearchState>((set) => ({
       ...(partialFilters.sources && { sources: { ...state.filters.sources, ...partialFilters.sources } }),
       ...(partialFilters.contentType && { contentType: { ...state.filters.contentType, ...partialFilters.contentType } }),
       ...(partialFilters.aiPreferences && { aiPreferences: { ...state.filters.aiPreferences, ...partialFilters.aiPreferences } }),
+      ...(partialFilters.userPreferences && { userPreferences: { ...state.filters.userPreferences, ...partialFilters.userPreferences } }),
     },
     // Reset searched tabs when filters change to force new searches
     searchedTabs: {
