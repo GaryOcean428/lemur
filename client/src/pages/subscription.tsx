@@ -6,7 +6,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { loadStripe } from '@stripe/stripe-js';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertTriangle as AlertTriangleIcon, Code as CodeIcon, Check as CheckIcon } from 'lucide-react';
+import { Loader2, AlertTriangle as AlertTriangleIcon, Code as CodeIcon, Check as CheckIcon, AlertCircle } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 // Get Stripe key from environment variable
@@ -22,7 +22,7 @@ const isValidStripeKey = stripeKey && stripeKey.startsWith('pk_');
 if (isValidStripeKey) {
   console.log('Using Stripe publishable key starting with:', stripeKey.substring(0, 8) + '...');
 } else {
-  console.log('Stripe publishable key missing or invalid. Environment variable VITE_STRIPE_PUBLIC_KEY needs to be set.');
+  console.warn('Stripe publishable key missing or invalid. Environment variable VITE_STRIPE_PUBLIC_KEY needs to be set.');
   
   // In development, provide extra information
   if (isDevelopment) {
@@ -31,8 +31,40 @@ if (isValidStripeKey) {
   }
 }
 
-// Only attempt to load Stripe with a valid key
-const stripePromise = isValidStripeKey ? loadStripe(stripeKey) : null;
+/**
+ * Safely load Stripe with error handling
+ * We're using a more controlled approach to prevent runtime errors
+ */
+function createStripePromise() {
+  try {
+    if (!isValidStripeKey) {
+      console.warn('Not initializing Stripe: Invalid API key');
+      return null;
+    }
+    
+    // Dynamically import Stripe to avoid Stripe.js errors during initial page load
+    // This moves Stripe loading into a separate request after the application is ready
+    return import('@stripe/stripe-js')
+      .then(({ loadStripe }) => {
+        try {
+          return loadStripe(stripeKey);
+        } catch (error) {
+          console.error('Error initializing Stripe:', error);
+          return null;
+        }
+      })
+      .catch(error => {
+        console.error('Failed to import Stripe:', error);
+        return null;
+      });
+  } catch (e) {
+    console.error('Error in Stripe initialization:', e);
+    return null;
+  }
+}
+
+// We'll create the promise when needed rather than at module load time
+let stripePromise: Promise<any> | null = null;
 
 function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'basic' | 'pro', user: any, clientSecret?: string | null }) {
   const stripe = useStripe();
@@ -160,6 +192,18 @@ function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'ba
       }
       
       // Real Stripe payment processing for production mode
+      if (!elements || !stripe) {
+        console.error("Stripe or Elements not available");
+        setErrorMessage("Payment processor is not ready. Please try again in a moment.");
+        toast({
+          title: "Payment Error",
+          description: "Payment processor is not ready. Please try again in a moment.",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+      
       // First, verify all elements are complete
       const { error: elementsError } = await elements.submit();
       if (elementsError) {
@@ -176,13 +220,16 @@ function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'ba
 
       // For subscriptions, we use confirmSetup instead of confirmPayment
       // This will set up the payment method for future subscription charges
-      const { error, setupIntent } = await stripe.confirmSetup({
+      const setupResult = await stripe.confirmSetup({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/subscription/success`
         },
         redirect: 'if_required',
-      });
+      } as any);
+      
+      const error = setupResult.error;
+      const setupIntent = setupResult.setupIntent as any; // Type assertion to bypass TS errors
 
       if (error) {
         console.error("Payment confirmation error:", error);
@@ -195,13 +242,15 @@ function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'ba
         setIsProcessing(false);
       } else if (setupIntent) {
         // Setup succeeded directly without redirect
-        console.log('Setup intent succeeded with status:', setupIntent.status);
+        const setupStatus = setupIntent.status || 'unknown';
+        const setupId = setupIntent.id || 'unknown';
+        console.log('Setup intent succeeded with status:', setupStatus);
         
         // Now activate the subscription with the setup intent
         try {
           const activateResponse = await apiRequest('POST', '/api/activate-subscription', {
             planType,
-            setupIntentId: setupIntent.id
+            setupIntentId: setupId
           });
           
           const activateData = await activateResponse.json();
@@ -671,17 +720,52 @@ export default function SubscriptionPage() {
                 </form>
               </div>
             ) : (
-              <Elements 
-                stripe={stripePromise} 
-                options={{ 
-                  clientSecret,
-                  appearance: { theme: 'stripe' },
-                  // Customize options to make sure the element appears and is activated
-                  loader: 'always',
-                }}
-              >
-                <CheckoutForm planType={planType} user={user} clientSecret={clientSecret} />
-              </Elements>
+              <>
+                {/* Add error handling in case Stripe fails to load */}
+                <div id="stripe-error-wrapper" className="hidden">
+                  <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-200 dark:border-red-800 mb-6">
+                    <div className="flex items-start">
+                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-3 mt-0.5" />
+                      <div>
+                        <h3 className="text-sm font-medium text-red-800 dark:text-red-300">Payment Processing Unavailable</h3>
+                        <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                          We're experiencing technical difficulties with our payment processor. 
+                          Please try again later or contact support if the problem persists.
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          className="mt-3 text-xs" 
+                          onClick={() => window.location.reload()}
+                        >
+                          <Loader2 className="mr-2 h-3 w-3" /> Retry
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Add script to detect Stripe load failures and show the error */}
+                <script dangerouslySetInnerHTML={{ __html: `
+                  // Simple detection for Stripe.js loading failures
+                  setTimeout(() => {
+                    if (!window.Stripe) {
+                      document.getElementById('stripe-error-wrapper').classList.remove('hidden');
+                    }
+                  }, 5000);
+                `}} />
+                
+                <Elements 
+                  stripe={stripePromise || createStripePromise()} 
+                  options={{ 
+                    clientSecret,
+                    appearance: { theme: 'stripe' },
+                    // Customize options to make sure the element appears and is activated
+                    loader: 'always',
+                  }}
+                >
+                  <CheckoutForm planType={planType} user={user} clientSecret={clientSecret} />
+                </Elements>
+              </>
             )}
           </CardContent>
         </Card>
