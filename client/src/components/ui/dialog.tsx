@@ -33,70 +33,17 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  // Ensure DialogContent has required accessibility elements
-  // Check if there's a DialogTitle in the children to meet ARIA requirements
-  let hasDialogTitle = false;
-  let hasDialogDescription = false;
-  
-  // Helper function to check for specific component types in React children
-  const checkForComponents = (children: React.ReactNode) => {
-    React.Children.forEach(children, child => {
-      if (React.isValidElement(child)) {
-        // Check if child is DialogHeader
-        if (child.type === DialogHeader) {
-          // Look through DialogHeader children
-          React.Children.forEach(child.props.children, headerChild => {
-            if (React.isValidElement(headerChild)) {
-              if (headerChild.type === DialogTitle) {
-                hasDialogTitle = true;
-              }
-              if (headerChild.type === DialogDescription) {
-                hasDialogDescription = true;
-              }
-            }
-          });
-        }
-        // Check if child is DialogTitle or DialogDescription directly
-        if (child.type === DialogTitle) {
-          hasDialogTitle = true;
-        }
-        if (child.type === DialogDescription) {
-          hasDialogDescription = true;
-        }
-        
-        // Recursively check children of this element too
-        if (child.props.children) {
-          checkForComponents(child.props.children);
-        }
-      }
-    });
-  };
-  
-  // Check for required accessibility components
-  checkForComponents(children);
-
-  // Add any missing accessibility components
-  let accessibleChildren = children;
-  
-  // If no DialogTitle found, provide an accessible title
-  if (!hasDialogTitle) {
-    accessibleChildren = (
-      <>
-        <DialogTitle className="sr-only">Dialog</DialogTitle>
-        {accessibleChildren}
-      </>
-    );
-  }
-  
-  // If no DialogDescription found, provide an accessible description
-  if (!hasDialogDescription) {
-    accessibleChildren = (
-      <>
-        {accessibleChildren}
-        <DialogDescription className="sr-only">Dialog content</DialogDescription>
-      </>
-    );
-  }
+  // Simple approach: Just add hidden accessibility elements to every dialog
+  // This ensures screen readers have context without complex child checking
+  const accessibleChildren = (
+    <>
+      <div className="sr-only">
+        <DialogPrimitive.Title>Dialog</DialogPrimitive.Title>
+        <DialogPrimitive.Description>Dialog content</DialogPrimitive.Description>
+      </div>
+      {children}
+    </>
+  );
 
   return (
     <DialogPortal>
