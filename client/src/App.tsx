@@ -12,6 +12,9 @@ import Footer from "@/components/Footer";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Responsive, WidthProvider } from "react-grid-layout"; // Import ReactGridLayout
+
+const ReactGridLayout = WidthProvider(Responsive); // Initialize ReactGridLayout
 
 // Import all the new pages
 import AboutPage from "@/pages/about";
@@ -104,7 +107,15 @@ function App() {
             <div className="flex flex-col min-h-screen">
               <Header />
               <main className="flex-grow">
-                <Router />
+                <ReactGridLayout
+                  className="layout"
+                  breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+                  cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                  rowHeight={30}
+                  width={1200}
+                >
+                  <Router />
+                </ReactGridLayout>
               </main>
               <Footer />
             </div>

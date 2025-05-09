@@ -2,6 +2,9 @@
 
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
+import { Responsive, WidthProvider } from "react-grid-layout"; // Import ReactGridLayout
+
+const ReactGridLayout = WidthProvider(Responsive); // Initialize ReactGridLayout
 
 import { cn } from "@/lib/utils"
 
@@ -49,7 +52,15 @@ const DrawerContent = React.forwardRef<
       {...props}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
-      {children}
+      <ReactGridLayout
+        className="layout"
+        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+        rowHeight={30}
+        width={1200}
+      >
+        {children}
+      </ReactGridLayout>
     </DrawerPrimitive.Content>
   </DrawerPortal>
 ))

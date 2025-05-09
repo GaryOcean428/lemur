@@ -11,7 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { Bar, Line } from 'react-chartjs-2'; // P12e9
+import { Bar, Line } from 'react-chartjs-2';
+import { Responsive, WidthProvider } from "react-grid-layout"; // Import ReactGridLayout
+
+const ReactGridLayout = WidthProvider(Responsive); // Initialize ReactGridLayout
 
 export interface DeepResearchResult {
   title: string;
@@ -27,7 +30,7 @@ export interface DeepResearchResult {
     source: string;
   }>;
   summary?: string;
-  chartData?: any; // P83cf
+  chartData?: any;
 }
 
 export interface DeepResearchResponse {
@@ -173,7 +176,7 @@ export default function DeepResearchPanel() {
     return previousQueries.slice(-5); // Limit to the last 5 queries
   };
 
-  const renderChart = (chartData: any) => { // P92bb
+  const renderChart = (chartData: any) => {
     return (
       <div className="chart-container">
         <Chart
@@ -365,7 +368,7 @@ export default function DeepResearchPanel() {
                             )}
                             
                             {/* Render interactive charts and graphs if available */}
-                            {result.chartData && renderChart(result.chartData)} {/* Pa123 */}
+                            {result.chartData && renderChart(result.chartData)}
                           </div>
                         ))}
                       </div>
