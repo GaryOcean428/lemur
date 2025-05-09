@@ -32,17 +32,36 @@ if (isValidStripeKey) {
 }
 
 // Only attempt to load Stripe with a valid key
-let stripePromise = null;
-if (isValidStripeKey) {
+// Using a function to load Stripe on demand rather than at module level
+// This avoids issues with Stripe.js loading during server-side rendering
+import { Stripe as StripeType } from '@stripe/stripe-js';
+
+// Static variable to cache the promise
+let cachedStripePromise: Promise<StripeType | null> | null = null;
+
+const getStripe = (): Promise<StripeType | null> => {
+  if (!isValidStripeKey) {
+    console.error('Cannot load Stripe: Invalid API key');
+    return Promise.resolve(null);
+  }
+  
+  // Return cached promise if available
+  if (cachedStripePromise) {
+    return cachedStripePromise;
+  }
+  
   try {
-    stripePromise = loadStripe(stripeKey);
-    if (!stripePromise) {
-      console.error('Failed to initialize Stripe (loadStripe returned null)');
-    }
+    // Create and cache the promise
+    cachedStripePromise = loadStripe(stripeKey);
+    return cachedStripePromise;
   } catch (error) {
     console.error('Error initializing Stripe:', error);
+    return Promise.resolve(null);
   }
-}
+};
+
+// Create the promise but don't await it immediately
+const stripePromise = isValidStripeKey ? getStripe() : null;
 
 function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'basic' | 'pro', user: any, clientSecret?: string | null }) {
   const stripe = useStripe();
@@ -170,6 +189,18 @@ function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'ba
       }
       
       // Real Stripe payment processing for production mode
+      if (!elements || !stripe) {
+        console.error("Stripe or Elements not available");
+        setErrorMessage("Payment processor is not ready. Please try again in a moment.");
+        toast({
+          title: "Payment Error",
+          description: "Payment processor is not ready. Please try again in a moment.",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+      
       // First, verify all elements are complete
       const { error: elementsError } = await elements.submit();
       if (elementsError) {
@@ -186,13 +217,16 @@ function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'ba
 
       // For subscriptions, we use confirmSetup instead of confirmPayment
       // This will set up the payment method for future subscription charges
-      const { error, setupIntent } = await stripe.confirmSetup({
+      const setupResult = await stripe.confirmSetup({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/subscription/success`
         },
         redirect: 'if_required',
-      });
+      } as any);
+      
+      const error = setupResult.error;
+      const setupIntent = setupResult.setupIntent as any; // Type assertion to bypass TS errors
 
       if (error) {
         console.error("Payment confirmation error:", error);
@@ -205,13 +239,15 @@ function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'ba
         setIsProcessing(false);
       } else if (setupIntent) {
         // Setup succeeded directly without redirect
-        console.log('Setup intent succeeded with status:', setupIntent.status);
+        const setupStatus = setupIntent.status || 'unknown';
+        const setupId = setupIntent.id || 'unknown';
+        console.log('Setup intent succeeded with status:', setupStatus);
         
         // Now activate the subscription with the setup intent
         try {
           const activateResponse = await apiRequest('POST', '/api/activate-subscription', {
             planType,
-            setupIntentId: setupIntent.id
+            setupIntentId: setupId
           });
           
           const activateData = await activateResponse.json();

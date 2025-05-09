@@ -14,7 +14,7 @@ app.use((req, res, next) => {
     // Set Content-Security-Policy header to allow WebAssembly and other needed features
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://* wss://*; font-src 'self' data:; frame-src 'self'; object-src 'none'; worker-src 'self' blob:;"
+      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://* wss://*; font-src 'self' data:; frame-src 'self'; object-src 'none'; worker-src 'self' blob:; wasm-unsafe-eval 'self'"
     );
   }
   next();
