@@ -55,7 +55,9 @@ export default function AgenticResearchDebug() {
           search_depth: 'medium',
           max_results: 10,
           max_iterations: 2,
-          debug_mode: true // Request verbose logging
+          debug_mode: true, // Request verbose logging
+          user_intent: true, // Enable user intent recognition
+          alternate_search: true // Enable alternate search approaches
         }
       });
 

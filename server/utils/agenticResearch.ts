@@ -144,6 +144,13 @@ Respond with structured JSON containing:
         {
           role: "user",
           content: `Research topic: ${query}`
+        },
+        {
+          role: "system",
+          content: `
+Consider the user's intent behind the query. What are they likely trying to achieve or understand? 
+Incorporate this understanding into the sub-questions and the research plan.
+`
         }
       ],
       response_format: { type: "json_object" },

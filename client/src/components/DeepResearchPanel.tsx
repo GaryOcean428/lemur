@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 
 export interface DeepResearchResult {
   title: string;
@@ -92,7 +93,8 @@ export default function DeepResearchPanel() {
         options: {
           crawl_depth: 'medium',
           extract_content: true,
-          generate_summary: true
+          generate_summary: true,
+          handle_ambiguity: true // Enable handling of ambiguous search criteria
         }
       });
       
@@ -138,7 +140,10 @@ export default function DeepResearchPanel() {
     
     try {
       const response = await apiRequest('POST', '/api/extract-content', {
-        url: extractUrl.trim()
+        url: extractUrl.trim(),
+        options: {
+          handle_hard_to_identify_sources: true // Enable handling of hard-to-identify sources
+        }
       });
       
       if (response.ok) {
