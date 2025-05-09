@@ -44,9 +44,17 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 // Initialize Stripe with the secret key if available
-const stripe = process.env.STRIPE_SECRET_KEY 
-  ? new Stripe(process.env.STRIPE_SECRET_KEY) 
-  : null;
+let stripe: Stripe | null = null;
+try {
+  if (process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2023-10-16', // Use the latest stable API version
+    });
+    console.log(`Stripe initialized successfully with API version 2023-10-16. Key starts with: ${process.env.STRIPE_SECRET_KEY.substring(0, 8)}...`);
+  }
+} catch (error) {
+  console.error("Error initializing Stripe:", error);
+}
 
 // Import Tavily search interfaces from the dedicated module
 import { tavilySearch, TavilySearchResult, TavilySearchResponse } from './tavilySearch';

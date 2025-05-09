@@ -22,7 +22,7 @@ const isValidStripeKey = stripeKey && stripeKey.startsWith('pk_');
 if (isValidStripeKey) {
   console.log('Using Stripe publishable key starting with:', stripeKey.substring(0, 8) + '...');
 } else {
-  console.log('Stripe publishable key missing or invalid. Environment variable VITE_STRIPE_PUBLIC_KEY needs to be set.');
+  console.warn('Stripe publishable key missing or invalid. Environment variable VITE_STRIPE_PUBLIC_KEY needs to be set.');
   
   // In development, provide extra information
   if (isDevelopment) {
@@ -32,7 +32,17 @@ if (isValidStripeKey) {
 }
 
 // Only attempt to load Stripe with a valid key
-const stripePromise = isValidStripeKey ? loadStripe(stripeKey) : null;
+let stripePromise = null;
+if (isValidStripeKey) {
+  try {
+    stripePromise = loadStripe(stripeKey);
+    if (!stripePromise) {
+      console.error('Failed to initialize Stripe (loadStripe returned null)');
+    }
+  } catch (error) {
+    console.error('Error initializing Stripe:', error);
+  }
+}
 
 function CheckoutForm({ planType, user, clientSecret }: { planType: 'free' | 'basic' | 'pro', user: any, clientSecret?: string | null }) {
   const stripe = useStripe();
