@@ -5,7 +5,7 @@ import { useLocation, Link } from 'wouter';
 import { MessageCircleMore, LogIn, ArrowUpCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { Chart } from 'react-chartjs-2'; // Import Chart component
+import { Chart, Bar, Line } from 'react-chartjs-2'; // Import Chart component
 
 interface AIAnswerProps {
   answer: string;

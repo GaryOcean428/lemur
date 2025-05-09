@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
+import { Bar, Line } from 'react-chartjs-2'; // P12e9
 
 export interface DeepResearchResult {
   title: string;
@@ -26,6 +27,7 @@ export interface DeepResearchResult {
     source: string;
   }>;
   summary?: string;
+  chartData?: any; // P83cf
 }
 
 export interface DeepResearchResponse {
@@ -169,6 +171,18 @@ export default function DeepResearchPanel() {
     // Retrieve previous queries from session or local storage
     const previousQueries = JSON.parse(localStorage.getItem('previousQueries') || '[]');
     return previousQueries.slice(-5); // Limit to the last 5 queries
+  };
+
+  const renderChart = (chartData: any) => { // P92bb
+    return (
+      <div className="chart-container">
+        <Chart
+          type={chartData.type}
+          data={chartData.data}
+          options={chartData.options}
+        />
+      </div>
+    );
   };
   
   return (
@@ -351,11 +365,7 @@ export default function DeepResearchPanel() {
                             )}
                             
                             {/* Render interactive charts and graphs if available */}
-                            {result.extracted_content && (
-                              <div className="mt-4">
-                                <ChartContainer data={result.extracted_content} />
-                              </div>
-                            )}
+                            {result.chartData && renderChart(result.chartData)} {/* Pa123 */}
                           </div>
                         ))}
                       </div>
