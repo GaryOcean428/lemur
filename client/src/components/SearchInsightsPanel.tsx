@@ -8,7 +8,19 @@ import {
   CheckCircle2, Clock, Database, FlaskConical, Loader2, Search, ServerCrash, Waves,
   BarChart3, FileCheck, FilterX, Lightbulb, GitMerge
 } from 'lucide-react';
-import { Chart } from 'react-chartjs-2'; // Import Chart component
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 export interface SearchStep {
   id: string;
@@ -249,6 +261,66 @@ export default function SearchInsightsPanel({
   // Get the currently active step
   const activeStep = steps.find(step => step.status === 'active');
   
+  // Generate chart data for search progress
+  const chartData = {
+    labels: steps.map(step => step.label.split(' ')[0]), // Use just the first word of each label for brevity
+    datasets: [
+      {
+        label: 'Progress',
+        data: steps.map(step => {
+          // Convert status to a numeric value: completed = 100, active = 50, pending/error = 0
+          return step.status === 'completed' ? 100 : 
+                 step.status === 'active' ? 50 : 0;
+        }),
+        backgroundColor: 'rgba(124, 58, 237, 0.2)',
+        borderColor: 'rgba(124, 58, 237, 1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true,
+      }
+    ]
+  };
+  
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
+        grid: {
+          display: false
+        },
+        ticks: {
+          display: false
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: false
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const stepIdx = context.dataIndex;
+            const step = steps[stepIdx];
+            return `${step.label}: ${
+              step.status === 'completed' ? 'Completed' : 
+              step.status === 'active' ? 'In Progress' : 
+              step.status === 'error' ? 'Error' : 'Pending'
+            }`;
+          }
+        }
+      }
+    }
+  };
+  
   // Helper function to get appropriate icon for step
   const getStepIcon = (step: SearchStep) => {
     // When using specific icons for agentic research process steps
@@ -319,6 +391,20 @@ export default function SearchInsightsPanel({
               </div>
             </div>
           )}
+          
+          {/* Progress Chart */}
+          <Card className="border-muted mb-4 overflow-hidden">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-medium mb-2">Progress Visualization</h3>
+              <div className="h-[120px] w-full">
+                <Chart
+                  type="line"
+                  data={chartData}
+                  options={chartOptions}
+                />
+              </div>
+            </CardContent>
+          </Card>
           
           {activeStep && (
             <Card className="bg-primary/5 border-primary/10 mb-4">

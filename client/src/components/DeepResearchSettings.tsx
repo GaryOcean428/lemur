@@ -42,9 +42,9 @@ export default function DeepResearchSettings({
   // If the user isn't pro, we'll show a restricted interface
   if (!isPro) {
     return (
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 rounded-lg shadow-sm">
         <div className="text-center py-6">
-          <h3 className="text-lg font-medium">Advanced Research Settings</h3>
+          <h3 className="text-lg font-medium text-indigo-600 dark:text-indigo-400">Advanced Research Settings</h3>
           <p className="text-sm text-muted-foreground mt-2">
             Upgrade to Pro to customize your deep research experience with advanced settings.
           </p>
@@ -54,9 +54,9 @@ export default function DeepResearchSettings({
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-950/30 dark:to-blue-950/30 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md">
       <div className="text-center py-2">
-        <h3 className="text-lg font-medium">Advanced Research Settings</h3>
+        <h3 className="text-lg font-medium text-indigo-600 dark:text-indigo-400">Advanced Research Settings</h3>
         <p className="text-sm text-muted-foreground mt-1">
           Customize the depth and quality of your research
         </p>

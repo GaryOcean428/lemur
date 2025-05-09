@@ -45,11 +45,7 @@ export default function Header() {
                 Preferences
               </Link>
               
-              {(user.subscriptionTier === 'pro' || user.subscriptionTier === 'developer') && (
-                <Link href="/deep-research" className="text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
-                  Advanced Research
-                </Link>
-              )}
+              {/* Advanced Research page removed in favor of toggle on main page */}
             </>
           )}
           
@@ -130,11 +126,7 @@ export default function Header() {
                   Preferences
                 </Link>
                 
-                {(user.subscriptionTier === 'pro' || user.subscriptionTier === 'developer') && (
-                  <Link href="/deep-research" className="py-2 text-[hsl(var(--neutral-muted))] hover:text-[hsl(var(--primary))] transition-colors">
-                    Advanced Research
-                  </Link>
-                )}
+                {/* Advanced Research page removed in favor of toggle on main page */}
               </>
             )}
             

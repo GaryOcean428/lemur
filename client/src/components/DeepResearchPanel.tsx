@@ -11,10 +11,19 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { Bar, Line } from 'react-chartjs-2';
-import { Responsive, WidthProvider } from "react-grid-layout"; // Import ReactGridLayout
-
-const ReactGridLayout = WidthProvider(Responsive); // Initialize ReactGridLayout
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart, Bar, Line } from 'react-chartjs-2';
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 export interface DeepResearchResult {
   title: string;
@@ -177,13 +186,68 @@ export default function DeepResearchPanel() {
   };
 
   const renderChart = (chartData: any) => {
+    if (!chartData || !chartData.type || !chartData.data) {
+      return null;
+    }
+    
     return (
-      <div className="chart-container">
-        <Chart
-          type={chartData.type}
-          data={chartData.data}
-          options={chartData.options}
-        />
+      <div className="chart-container my-4 p-2 border rounded-md bg-gray-50 dark:bg-gray-900">
+        <h4 className="text-sm font-medium mb-2 text-center">{chartData.title || 'Chart Data'}</h4>
+        <div className="h-64">
+          {chartData.type === 'bar' ? (
+            <Bar
+              data={chartData.data}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                ...chartData.options,
+                plugins: {
+                  legend: {
+                    position: 'top' as const,
+                    labels: {
+                      boxWidth: 10,
+                      font: {
+                        size: 11
+                      }
+                    }
+                  },
+                  tooltip: {
+                    enabled: true,
+                    mode: 'index' as const,
+                    intersect: false
+                  },
+                  ...chartData.options?.plugins
+                }
+              }}
+            />
+          ) : (
+            <Line
+              data={chartData.data}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                ...chartData.options,
+                plugins: {
+                  legend: {
+                    position: 'top' as const,
+                    labels: {
+                      boxWidth: 10,
+                      font: {
+                        size: 11
+                      }
+                    }
+                  },
+                  tooltip: {
+                    enabled: true,
+                    mode: 'index' as const,
+                    intersect: false
+                  },
+                  ...chartData.options?.plugins
+                }
+              }}
+            />
+          )}
+        </div>
       </div>
     );
   };

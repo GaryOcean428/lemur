@@ -2,6 +2,7 @@ import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as HotToaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
@@ -12,9 +13,6 @@ import Footer from "@/components/Footer";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Responsive, WidthProvider } from "react-grid-layout"; // Import ReactGridLayout
-
-const ReactGridLayout = WidthProvider(Responsive); // Initialize ReactGridLayout
 
 // Import all the new pages
 import AboutPage from "@/pages/about";
@@ -31,7 +29,6 @@ import PreferencesPage from "@/pages/preferences";
 import SubscriptionPage from "@/pages/subscription";
 import SubscriptionSuccessPage from "@/pages/subscription-success";
 import ManageSubscriptionPage from "@/pages/manage-subscription";
-import DeepResearchPage from "@/pages/deep-research";
 import AgenticResearchDebug from "@/components/AgenticResearchDebug";
 import AuthDebug from "@/pages/auth-debug";
 import SearchDebug from "@/pages/search-debug";
@@ -79,10 +76,7 @@ function Router() {
         <ProtectedRoute path="/manage-subscription" component={ManageSubscriptionPage} />
       </Route>
       
-      {/* Research pages */}
-      <Route path="/deep-research">
-        <ProtectedRoute path="/deep-research" component={DeepResearchPage} />
-      </Route>
+      {/* Removed Deep Research page - using toggle only */}
       
       {/* Debug pages */}
       <Route path="/debug/agentic-research">
@@ -104,18 +98,11 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
+            <HotToaster position="top-right" />
             <div className="flex flex-col min-h-screen">
               <Header />
               <main className="flex-grow">
-                <ReactGridLayout
-                  className="layout"
-                  breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-                  cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-                  rowHeight={30}
-                  width={1200}
-                >
-                  <Router />
-                </ReactGridLayout>
+                <Router />
               </main>
               <Footer />
             </div>
