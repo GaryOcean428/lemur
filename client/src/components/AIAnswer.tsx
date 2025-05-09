@@ -5,6 +5,7 @@ import { useLocation, Link } from 'wouter';
 import { MessageCircleMore, LogIn, ArrowUpCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { Chart } from 'react-chartjs-2'; // Import Chart component
 
 interface AIAnswerProps {
   answer: string;
@@ -195,6 +196,19 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
     
     // Navigate to search results with the follow-up query and flag
     setLocation(`/search?q=${encodeURIComponent(followUpQuery)}&isFollowUp=true`);
+  };
+
+  // Function to render charts and graphs
+  const renderChart = (chartData: any) => {
+    return (
+      <div className="chart-container">
+        <Chart
+          type={chartData.type}
+          data={chartData.data}
+          options={chartData.options}
+        />
+      </div>
+    );
   };
 
   return (

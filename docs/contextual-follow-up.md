@@ -50,3 +50,165 @@ The system recognizes these as follow-ups and uses the context from the original
 - Limited to the 5 most recent queries (configurable)
 - Context chains can occasionally produce unexpected results if queries shift topics dramatically
 - Session must be maintained (requires cookies enabled)
+
+## Code Examples
+
+### AIAnswer Component
+
+```typescript
+import { useState } from 'react';
+import { useLocation } from 'wouter';
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+
+interface AIAnswerProps {
+  answer: string;
+  sources: Source[];
+  model: string;
+  contextual?: boolean;
+  authRequired?: boolean;
+}
+
+export default function AIAnswer({ answer, sources, model, contextual = false, authRequired = false }: AIAnswerProps) {
+  const [, setLocation] = useLocation();
+  const [followUpQuery, setFollowUpQuery] = useState('');
+  const [showFollowUpInput, setShowFollowUpInput] = useState(false);
+  const { user } = useAuth();
+
+  const handleFollowUpSubmit = () => {
+    if (!followUpQuery.trim()) return;
+    setLocation(`/search?q=${encodeURIComponent(followUpQuery)}&isFollowUp=true`);
+  };
+
+  return (
+    <div>
+      <div>
+        <h3>{contextual ? 'Contextual Follow-up Answer' : 'AI-Generated Answer'}</h3>
+        <div dangerouslySetInnerHTML={{ __html: answer }} />
+      </div>
+      {!showFollowUpInput ? (
+        <Button onClick={() => setShowFollowUpInput(true)}>Ask a follow-up question</Button>
+      ) : (
+        <form onSubmit={(e) => { e.preventDefault(); handleFollowUpSubmit(); }}>
+          <input
+            type="text"
+            value={followUpQuery}
+            onChange={(e) => setFollowUpQuery(e.target.value)}
+            placeholder="Ask a follow-up question..."
+          />
+          <Button type="submit">Search</Button>
+        </form>
+      )}
+    </div>
+  );
+}
+```
+
+### DeepResearchPanel Component
+
+```typescript
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/use-auth';
+
+export default function DeepResearchPanel() {
+  const [query, setQuery] = useState('');
+  const [isResearching, setIsResearching] = useState(false);
+  const [researchResults, setResearchResults] = useState(null);
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const handleResearch = async () => {
+    if (!query.trim()) {
+      toast({
+        title: "Research query required",
+        description: "Please enter a research topic to investigate",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsResearching(true);
+    setResearchResults(null);
+
+    try {
+      const response = await apiRequest('POST', '/api/deep-research', {
+        query: query.trim(),
+        options: {
+          previous_queries: getPreviousQueries()
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setResearchResults(data);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to perform deep research');
+      }
+    } catch (error) {
+      toast({
+        title: "Research failed",
+        description: error.message || "An unexpected error occurred during research",
+        variant: "destructive"
+      });
+    } finally {
+      setIsResearching(false);
+    }
+  };
+
+  const getPreviousQueries = () => {
+    const previousQueries = JSON.parse(localStorage.getItem('previousQueries') || '[]');
+    return previousQueries.slice(-5);
+  };
+
+  return (
+    <div>
+      <Input
+        placeholder="Enter research topic..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        disabled={isResearching}
+      />
+      <Button onClick={handleResearch} disabled={isResearching || !query.trim()}>
+        {isResearching ? 'Researching...' : 'Research'}
+      </Button>
+      {researchResults && (
+        <div>
+          <h3>Research Results: {researchResults.query}</h3>
+          <div>
+            {researchResults.results.map((result, index) => (
+              <div key={index}>
+                <h4>{result.title}</h4>
+                <p>{result.content}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Guidelines for Developers
+
+1. **Implementing Contextual Follow-up Questions**
+   - Ensure that the session context is properly maintained and updated with each new query and answer.
+   - Use the `previous_queries` option in API requests to include context from previous interactions.
+
+2. **Testing Contextual Follow-up Questions**
+   - Test with a variety of follow-up question patterns to ensure accurate context detection.
+   - Verify that the context is correctly applied to enhance the query and provide relevant answers.
+   - Check the visual indicators to ensure users can easily identify contextual follow-up answers.
+
+3. **Improving Citation Links and Styling**
+   - Enhance citation handling to include visual indicators for different citation styles.
+   - Ensure that citation links are styled for better readability and user experience.
+
+4. **Presenting Data, Charts, and Graphs**
+   - Improve the rendering of data, charts, and graphs within AI answers and research results.
+   - Use interactive charts and graphs to enhance the presentation of research data.

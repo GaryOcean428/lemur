@@ -8,6 +8,7 @@ import {
   CheckCircle2, Clock, Database, FlaskConical, Loader2, Search, ServerCrash, Waves,
   BarChart3, FileCheck, FilterX, Lightbulb, GitMerge
 } from 'lucide-react';
+import { Chart } from 'react-chartjs-2'; // Import Chart component
 
 export interface SearchStep {
   id: string;
@@ -26,6 +27,7 @@ export interface SearchInsightsPanelProps {
   currentIteration?: number;
   maxIterations?: number;
   reasoningLog?: string[];
+  previousQueries?: string[]; // Add support for contextual follow-up questions
 }
 
 export default function SearchInsightsPanel({ 
@@ -35,7 +37,8 @@ export default function SearchInsightsPanel({
   isDeepResearch,
   currentIteration = 0,
   maxIterations = 2,
-  reasoningLog = []
+  reasoningLog = [],
+  previousQueries = [] // Add support for contextual follow-up questions
 }: SearchInsightsPanelProps) {
   // Search steps for regular search
   const standardSearchSteps: SearchStep[] = [

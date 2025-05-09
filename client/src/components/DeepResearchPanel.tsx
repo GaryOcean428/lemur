@@ -94,7 +94,8 @@ export default function DeepResearchPanel() {
           crawl_depth: 'medium',
           extract_content: true,
           generate_summary: true,
-          handle_ambiguity: true // Enable handling of ambiguous search criteria
+          handle_ambiguity: true, // Enable handling of ambiguous search criteria
+          previous_queries: getPreviousQueries() // Include previous queries for contextual follow-up
         }
       });
       
@@ -162,6 +163,12 @@ export default function DeepResearchPanel() {
     } finally {
       setIsExtracting(false);
     }
+  };
+  
+  const getPreviousQueries = () => {
+    // Retrieve previous queries from session or local storage
+    const previousQueries = JSON.parse(localStorage.getItem('previousQueries') || '[]');
+    return previousQueries.slice(-5); // Limit to the last 5 queries
   };
   
   return (
@@ -340,6 +347,13 @@ export default function DeepResearchPanel() {
                                     </li>
                                   ))}
                                 </ul>
+                              </div>
+                            )}
+                            
+                            {/* Render interactive charts and graphs if available */}
+                            {result.extracted_content && (
+                              <div className="mt-4">
+                                <ChartContainer data={result.extracted_content} />
                               </div>
                             )}
                           </div>

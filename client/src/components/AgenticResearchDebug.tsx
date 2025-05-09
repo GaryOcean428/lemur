@@ -89,6 +89,13 @@ export default function AgenticResearchDebug() {
             `Response preview: ${JSON.stringify(data, null, 2).substring(0, 500)}...`
           ]);
         }
+
+        // Show success notification
+        toast({
+          title: 'Research completed',
+          description: 'Agentic research process completed successfully.',
+          variant: 'default'
+        });
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to perform deep research');

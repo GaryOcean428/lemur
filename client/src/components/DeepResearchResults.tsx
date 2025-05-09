@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { marked } from 'marked';
+import { Chart } from 'react-chartjs-2'; // Import Chart component
 // Create a synchronous version of marked.parse to avoid Promise issues
 const parseMarkdown = (text: string): string => {
   try {
@@ -33,6 +34,7 @@ interface DeepResearchResult {
   source_quality?: number;
   source_type?: string;
   summary?: string;
+  chartData?: any; // Add chartData property
 }
 
 export interface DeepResearch {
@@ -208,6 +210,17 @@ export default function DeepResearchResults({ research }: DeepResearchResultsPro
                     }}
                   />
                 </div>
+                
+                {/* Render interactive charts and graphs if available */}
+                {result.chartData && (
+                  <div className="mt-4">
+                    <Chart
+                      type={result.chartData.type}
+                      data={result.chartData.data}
+                      options={result.chartData.options}
+                    />
+                  </div>
+                )}
                 
                 {/* Expand/Collapse button if detailed content available */}
                 {result.extracted_content && (
