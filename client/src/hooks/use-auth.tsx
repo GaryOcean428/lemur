@@ -63,28 +63,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchAndUpdateUserStatus = useCallback(async (firebaseUser: FirebaseUser) => {
     try {
+      // First check if we're online
+      if (!navigator.onLine) {
+        console.log("Device is offline, using cached user data if available");
+        
+        // If we already have user data, keep using it
+        if (user) {
+          return;
+        }
+        
+        // Set basic user info we can get from Firebase auth
+        setUser(prevUser => ({
+          ...(prevUser || {} as AppUser),
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          tier: "free", // Default tier when offline
+          searchCount: 0,
+          searchLimit: 5, // Default conservative limit when offline
+          preferences: prevUser?.preferences || { theme: "system", defaultSearchFocus: "web" },
+        }));
+        
+        toast({
+          title: "Offline Mode",
+          description: "You're currently offline. Some features may be limited.",
+          variant: "default",
+        });
+        
+        return;
+      }
+      
       const token = await getIdToken(firebaseUser);
       
-      // Determine the API URL based on environment
-      let apiUrl: string;
-      
-      // Handle cloud workspaces environment
-      const isCloudWorkspace = window.location.hostname.includes('cloudworkstations.dev');
-      if (isCloudWorkspace) {
-        // Construct the URL using the current window location for cloud workspaces
-        // This ensures API calls go to the same port/server as the frontend
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        const port = window.location.port;
-        apiUrl = `${protocol}//${hostname}${port ? ':' + port : ''}/api/user/status`;
-      } else {
-        // For other environments, use environment variable or default to /api path
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
-        apiUrl = apiBaseUrl ? `${apiBaseUrl}/user/status` : '/api/user/status';
-      }
+      // Always use a relative URL for API calls to avoid CSP issues
+      // This will make requests relative to the current origin
+      const apiUrl = '/api/user/status';
       
       // Log the API URL for debugging
       console.log(`Fetching user status from: ${apiUrl}`);
+
+      // Log the token for debugging
+      console.log(`Authorization token: ${token ? 'Exists' : 'Does not exist'}`);
       
       const response = await fetch(apiUrl, {
         headers: {
@@ -129,12 +149,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } catch (e: any) {
       console.error("Error fetching user status from API:", e);
-      setError(e);
-      toast({
-        title: "Could not update user status",
-        description: e.message || "Failed to sync with server.",
-        variant: "destructive",
-      });
+      
+      // If the error is due to being offline, handle it gracefully
+      if (!navigator.onLine || e.message?.includes('offline') || e.message?.includes('network')) {
+        console.log("Network error detected, using offline mode");
+        
+        // Set basic user info we can get from Firebase auth
+        setUser(prevUser => {
+          // Only update if we don't have user data already
+          if (prevUser) return prevUser;
+          
+          return {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            tier: "free", // Default tier when offline
+            searchCount: 0,
+            searchLimit: 5, // Default conservative limit when offline
+            preferences: { theme: "system", defaultSearchFocus: "web" },
+          };
+        });
+        
+        toast({
+          title: "Offline Mode",
+          description: "You're currently offline. Some features may be limited.",
+          variant: "default",
+        });
+      } else {
+        // For other errors, show error toast
+        setError(e);
+        toast({
+          title: "Could not update user status",
+          description: e.message || "Failed to sync with server.",
+          variant: "destructive",
+        });
+      }
     }
   }, [toast]);
 

@@ -12,135 +12,99 @@ import cors from 'cors';
 
 // Middleware to verify Firebase ID token
 export const authenticateFirebaseToken = async (req: Request, res: Response, next: NextFunction) => {
+  console.log(`[Server Auth] Authenticating request for: ${req.method} ${req.path}`); // Log entry into middleware
   const authHeader = req.headers.authorization;
+
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    console.log("[Server Auth] Authorization header missing or not Bearer type.");
     return res.status(401).send({ message: "Unauthorized: No token provided or invalid format." });
   }
 
   const idToken = authHeader.split("Bearer ")[1];
+
+  if (!idToken || idToken === "null" || idToken === "undefined" || idToken.trim() === "") {
+    console.log("[Server Auth] Bearer token is effectively empty (null, undefined, or whitespace).");
+    return res.status(401).send({ message: "Unauthorized: Bearer token is empty or invalid." });
+  }
+
+  // Log a longer portion of the token for better inspection if needed, but be mindful of logging sensitive data.
+  console.log("[Server Auth] Received ID token starts with:", idToken ? idToken.substring(0, 30) + '...' : 'null/undefined');
+
   try {
-    // Use the imported auth instance directly
     const decodedToken = await auth.verifyIdToken(idToken);
+    console.log("[Server Auth] Token verification successful. Decoded token UID:", decodedToken.uid);
     (req as any).user = decodedToken; // Add Firebase user to request object
-    log(`User authenticated: ${decodedToken.uid}`);
+    // The 'log' function below seems to be from './vite.ts', for general server logging.
+    // Using a standard console.log for clarity within auth logic, or use 'log' if preferred.
+    console.log(`[Server Auth] User authenticated: ${decodedToken.uid} for path: ${req.path}`);
     next();
   } catch (error: any) {
-    log("Error verifying Firebase ID token:", error.message || error);
-    return res.status(403).send({ message: "Forbidden: Invalid or expired token." });
+    console.error("[Server Auth] Error verifying Firebase ID token. Code:", error.code, "Message:", error.message);
+    // For more detailed debugging, you might want to log the full error object during development:
+    // console.error("[Server Auth] Full error object during Firebase ID token verification:", error);
+    
+    // Respond with 403 Forbidden for token verification failures, as per common practice.
+    return res.status(403).send({ 
+        message: "Forbidden: Invalid, expired, or malformed token.", 
+        code: error.code, // Send back the Firebase error code if available
+        detail: error.message // Send back the Firebase error message
+    });
   }
 };
 
 const app = express();
 
-// Configure CORS to allow requests from all origins including cloudworkstations.dev
-app.use(cors({
-  origin: true, // Allow all origins or use specific domains: ['https://*.cloudworkstations.dev', 'http://localhost:3000']
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true // Allow cookies to be sent with requests
-}));
+// Setup CORS
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    // Replace with your client's actual origin in production
+    const allowedOrigins = [
+      'http://localhost:5173', // Vite dev server (adjust port if necessary)
+      'http://localhost:9000', // IDX preview
+      // Add your production frontend URL here
+    ];
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true, // Important for cookies, authorization headers with HTTPS
+};
+app.use(cors(corsOptions));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
-// Add Content Security Policy middleware to allow WebAssembly
-app.use((req, res, next) => {
-  // Only apply to HTML requests to avoid affecting API responses
-  const acceptHeader = req.headers.accept || '';
-  if (acceptHeader.includes("text/html")) {
-    // Set Content-Security-Policy header to allow WebAssembly and other needed features
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://replit.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://* wss://*; font-src 'self' data: https://fonts.gstatic.com; frame-src 'self' https://apis.google.com https://*.google.com https://*.firebaseapp.com; object-src 'none'; worker-src 'self' blob:"
-    );
-  }
-  next();
+app.use(express.json()); // Middleware to parse JSON bodies, crucial for POST/PUT requests
+
+// Initialize agent registry
+registerAgent(tavilyAgentDeclaration);
+
+// Set port for the server
+const PORT = process.env.PORT || 3000;
+
+// Register API routes first (before any client-side routing)
+// All /api routes should be authenticated
+app.use('/api', authenticateFirebaseToken); // Apply auth middleware to all /api routes
+registerRoutes(app); // This function should define routes like /api/user/status, /api/search etc.
+
+// Register error handling middleware BEFORE starting server but AFTER routes
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error("[Server Error Handler] An unexpected error occurred:", err.stack);
+  res.status(500).send({ message: 'Something broke!', error: err.message });
 });
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if ((req as any).user) {
-        logLine += ` (User: ${(req as any).user.uid.substring(0,5)}...)`;
-      }
-      if (capturedJsonResponse) {
-        const responseString = JSON.stringify(capturedJsonResponse);
-        if (responseString.length > 50) {
-            logLine += ` :: ${responseString.substring(0, 49)}...`;
-        } else {
-            logLine += ` :: ${responseString}`;
-        }
-      }
-
-      if (logLine.length > 120) { // Adjusted for potentially longer log lines with user ID
-        logLine = logLine.slice(0, 119) + "...";
-      }
-
-      log(logLine);
-    }
+// Setup Vite and static file serving (make sure this is correctly ordered)
+if (process.env.NODE_ENV === "development") {
+  const server = app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+    console.log("Development server running. Vite HMR should be active for the client.");
   });
-
-  next();
-});
-
-(async () => {
-  // Register agents
-  try {
-    await registerAgent(tavilyAgentDeclaration);
-    log("Tavily agent registered successfully.");
-    // Register other agents here as they are developed
-  } catch (error: any) {
-    log("Error registering agents:", error.message || String(error));
-  }
-
-  const server = await registerRoutes(app); // registerRoutes will now need to handle protected routes
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    let logMessage = `Error Handler: ${status} - ${message}`;
-    if (err.stack) {
-      logMessage += `
-Stack: ${err.stack}`;
-    }
-    log(logMessage);
+  setupVite(app, server);
+} else {
+  serveStatic(app); // Serve static files from 'dist/client' in production
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
   });
-
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  // Determine port from command line arguments or default to 8180
-  let port = 8180;
-  const portArgIndex = process.argv.indexOf('--port');
-  if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
-    const parsedPort = parseInt(process.argv[portArgIndex + 1], 10);
-    if (!isNaN(parsedPort)) {
-      port = parsedPort;
-    }
-  }
-
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
-})();
+}

@@ -19,10 +19,10 @@ const isEmulatorMode = shouldUseEmulators();
 if (getApps().length === 0) {
   try {
     if (isEmulatorMode) {
-      // For emulator mode, use demo project credentials
-      console.log("🔑 Running in Firebase Emulator mode - using demo project credentials");
+      // For emulator mode, use correct project credentials
+      console.log("🔑 Running in Firebase Emulator mode - using lemur-86e1b project ID");
       app = initializeApp({
-        projectId: 'demo-lemur-project',
+        projectId: 'lemur-86e1b',
       });
     } else {
       // For production, use real credentials
