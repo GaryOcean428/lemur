@@ -1,6 +1,32 @@
+// server/index.ts
 import express, { type Request, Response, NextFunction } from "express";
+import { auth } from "./firebaseAdmin"; // Import auth from the modular firebaseAdmin.ts
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { registerAgent } from "./services/agentRegistryService"; // Added import
+import { tavilyAgentDeclaration } from "./agents/tavilyAgent"; // Added import
+
+// Firebase Admin SDK is initialized in firebaseAdmin.ts
+
+// Middleware to verify Firebase ID token
+export const authenticateFirebaseToken = async (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).send({ message: "Unauthorized: No token provided or invalid format." });
+  }
+
+  const idToken = authHeader.split("Bearer ")[1];
+  try {
+    // Use the imported auth instance directly
+    const decodedToken = await auth.verifyIdToken(idToken);
+    (req as any).user = decodedToken; // Add Firebase user to request object
+    log(`User authenticated: ${decodedToken.uid}`);
+    next();
+  } catch (error) {
+    log("Error verifying Firebase ID token:", error);
+    return res.status(403).send({ message: "Forbidden: Invalid or expired token." });
+  }
+};
 
 const app = express();
 app.use(express.json());
@@ -9,11 +35,11 @@ app.use(express.urlencoded({ extended: false }));
 // Add Content Security Policy middleware to allow WebAssembly
 app.use((req, res, next) => {
   // Only apply to HTML requests to avoid affecting API responses
-  const acceptHeader = req.headers.accept || '';
-  if (acceptHeader.includes('text/html')) {
+  const acceptHeader = req.headers.accept || 
+  if (acceptHeader.includes("text/html")) {
     // Set Content-Security-Policy header to allow WebAssembly and other needed features
     res.setHeader(
-      'Content-Security-Policy',
+      "Content-Security-Policy",
       "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://* wss://*; font-src 'self' data:; frame-src 'self'; object-src 'none'; worker-src 'self' blob:; wasm-unsafe-eval 'self'"
     );
   }
@@ -35,12 +61,20 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if ((req as any).user) {
+        logLine += ` (User: ${(req as any).user.uid.substring(0,5)}...)`;
+      }
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        const responseString = JSON.stringify(capturedJsonResponse);
+        if (responseString.length > 50) {
+            logLine += ` :: ${responseString.substring(0, 49)}...`;
+        } else {
+            logLine += ` :: ${responseString}`;
+        }
       }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      if (logLine.length > 120) { // Adjusted for potentially longer log lines with user ID
+        logLine = logLine.slice(0, 119) + "...";
       }
 
       log(logLine);
@@ -51,29 +85,32 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  // Register agents
+  try {
+    await registerAgent(tavilyAgentDeclaration);
+    log("Tavily agent registered successfully.");
+    // Register other agents here as they are developed
+  } catch (error) {
+    log("Error registering agents:", error);
+  }
+
+  const server = await registerRoutes(app); // registerRoutes will now need to handle protected routes
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    log(`Error Handler: ${status} - ${message}`, err.stack);
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  const port = 8180;
   server.listen({
     port,
     host: "0.0.0.0",
@@ -82,3 +119,4 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
   });
 })();
+
