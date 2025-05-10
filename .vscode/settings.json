@@ -4,7 +4,7 @@
     "typescript.enablePromptUseWorkspaceTsdk": true,
     "typescript.preferences.importModuleSpecifier": "relative",
     "typescript.updateImportsOnFileMove.enabled": "always",
-    "typescript.surveys.enabled": false,
+    "typescript.surveys.enabled": true,
     "typescript.tsserver.maxTsServerMemory": 4096,
     "typescript.tsserver.watchOptions": {
         "watchFile": "useFsEvents",

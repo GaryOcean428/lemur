@@ -5,25 +5,24 @@
   packages = [
     pkgs.nodejs_22
     pkgs.typescript
-    # pkgs.yarn # Removed to standardize on npm
     pkgs.git
+    pkgs.firebase-tools  # Add Firebase CLI
   ];
 
-  env = { };
+  env = {
+    VITE_FIREBASE_PROJECT_ID = "lemur-86e1b";
+    FIREBASE_PROJECT = "lemur-86e1b";
+  };
 
   idx.extensions = [
-    "svelte.svelte-vscode"
-    "vue.volar"
+    "dbaeumer.vscode-eslint"
     "esbenp.prettier-vscode"
+    "firebase.vscode-firebase"
     "ms-vscode.vscode-typescript-next"
-    "rvest.vs-code-prettier-eslint"
-    "saoudrizwan.claude-dev"
-    "dbaeumer.vscode-eslint"  # Adding ESLint extension
-    "eamodio.gitlens"
-    "ms-azuretools.vscode-docker"
+    "pkief.material-icon-theme"
     "mikestead.dotenv"
     "christian-kohler.pathintellisense"
-    "pkief.material-icon-theme"
+    "eamodio.gitlens"
   ];
 
   idx.previews = {
@@ -31,27 +30,52 @@
     previews = {
       web = {
         command = [
-          "npm"
-          "run"
-          "dev"
-          "--"
+          "cd"
+          "client"
+          "&&"
+          "vite"
           "--port"
           "$PORT"
           "--host"
-          "0.0.0.0"
+          "--clearScreen"
+          "false"
         ];
         manager = "web";
         env = {
           PORT = "$PORT";
-          HOST = "0.0.0.0";
           BROWSER = "none";
+          PREVIEW_URL = "https://$PREVIEW_URL";
+          VITE_FIREBASE_PROJECT_ID = "lemur-86e1b";
+          FIREBASE_AUTH_EMULATOR_HOST = "localhost:9099";
+          FIRESTORE_EMULATOR_HOST = "localhost:8080";
+          FIREBASE_STORAGE_EMULATOR_HOST = "localhost:9199";
         };
       };
     };
   };
 
   idx.workspace = {
-    onCreate = { };
-    onStart = { };
+    onCreate = {
+      deps = {
+        command = [
+          "npm"
+          "install"
+          "&&"
+          "cd"
+          "client"
+          "&&"
+          "npm"
+          "install"
+        ];
+      };
+    };
+    onStart = {
+      emulators = {
+        command = ["firebase", "emulators:start"];
+        env = {
+          FIREBASE_PROJECT = "lemur-86e1b";
+        };
+      };
+    };
   };
 }

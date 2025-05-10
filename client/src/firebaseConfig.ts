@@ -1,5 +1,4 @@
 import { initializeApp } from "firebase/app";
-<<<<<<< HEAD
 import { getAuth, GoogleAuthProvider, GithubAuthProvider, connectAuthEmulator } from "firebase/auth";
 import {
   getFirestore,
@@ -7,15 +6,10 @@ import {
   Firestore,
   enableMultiTabIndexedDbPersistence
 } from "firebase/firestore";
-=======
-import { getAuth, GoogleAuthProvider, GithubAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
->>>>>>> origin/development
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-<<<<<<< HEAD
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -23,20 +17,10 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
-=======
-  apiKey: "AIzaSyDK-sGc06yhE24rUWuXzce87zosdyg6D_M",
-  authDomain: "lemur-86e1b.firebaseapp.com",
-  projectId: "lemur-86e1b",
-  storageBucket: "lemur-86e1b.firebasestorage.app",
-  messagingSenderId: "152028390182",
-  appId: "1:152028390182:web:3b7465b2bf78dbffdfd7e7",
-  measurementId: "G-7KXBY7P514"
->>>>>>> origin/development
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-<<<<<<< HEAD
 
 // Initialize Firebase Authentication and Firestore
 const auth = getAuth(app);
@@ -74,17 +58,8 @@ if (!useEmulators) {
       }
     });
 }
-=======
-const auth = getAuth(app);
-const db = getFirestore(app);
->>>>>>> origin/development
 
 const googleProvider = new GoogleAuthProvider();
 const githubProvider = new GithubAuthProvider();
 
-<<<<<<< HEAD
-export { app, auth, db, googleProvider, githubProvider };
-=======
 export { app, auth, db, googleProvider, githubProvider, firebaseConfig };
-
->>>>>>> origin/development
