@@ -2,12 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 // Import runtimeErrorOverlay to help with error display
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+// import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal"; // Removed
 
 export default defineConfig({
   plugins: [
     react(),
-    runtimeErrorOverlay(), // Enable runtime error overlay
+    // runtimeErrorOverlay(), // Removed
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [
@@ -19,7 +19,7 @@ export default defineConfig({
   ],
   server: {
     hmr: {
-      overlay: false,
+      overlay: true, // Changed to true
       clientPort: 9000, // Match the IDX preview port
       path: "/@vite/client/hmr", // Explicit HMR path to avoid conflicts
     },
