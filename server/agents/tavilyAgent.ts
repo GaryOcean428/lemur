@@ -1,21 +1,15 @@
 // server/agents/tavilyAgent.ts
 
-<<<<<<< HEAD
-=======
-import { TavilySearchResults } from "@langchain/community/tools/tavily_search";
->>>>>>> origin/development
+// Importing TavilySearchResults from @langchain/community requires installing the package
+// For now, using our own tavilySearch implementation
 import {
   AgentCapabilityDeclaration,
   TaskDefinition,
-  TaskResult,
+  TaskResultPayload,
   WebSearchInput,
   WebSearchOutput
 } from "../types/agentProtocols";
-<<<<<<< HEAD
-import { tavilySearch, TavilySearchResponse, TavilySearchResult } from "../tavilySearch"; // Corrected import path and added types
-=======
-import { tavilySearch } from "../server/tavilySearch"; // Assuming this is the refactored Tavily search function
->>>>>>> origin/development
+import { tavilySearch } from "../tavilySearch"; // Corrected import path and added types
 
 export const TAVILY_AGENT_ID = "tavily-search-agent-v1";
 export const TAVILY_AGENT_TYPE = "tavily_web_searcher";
@@ -26,9 +20,11 @@ export const tavilyAgentDeclaration: AgentCapabilityDeclaration = {
   displayName: "Tavily Web Search Agent",
   version: "1.0.0",
   description: "Performs web searches using the Tavily API and returns structured results.",
+  supportedProtocols: ["mcp_v1.1"],
   capabilities: [
     {
       taskType: "web_search",
+      description: "Performs web searches and returns structured results",
       inputSchema: {
         type: "object",
         properties: {
@@ -68,13 +64,11 @@ export const tavilyAgentDeclaration: AgentCapabilityDeclaration = {
  * @param task - The task definition.
  * @returns A promise that resolves to the task result.
  */
-export const handleTavilySearchTask = async (task: TaskDefinition): Promise<TaskResult> => {
+export const handleTavilySearchTask = async (task: TaskDefinition): Promise<TaskResultPayload> => {
   if (task.taskType !== "web_search") {
     return {
       taskId: task.taskId,
-      agentId: TAVILY_AGENT_ID,
-      timestamp: Date.now(),
-      status: "failed",
+      finalStatus: "failed",
       errorDetails: {
         errorCode: "invalid_task_type",
         errorMessage: `Task type ${task.taskType} is not supported by ${TAVILY_AGENT_ID}. Expected 'web_search'.`
@@ -86,9 +80,7 @@ export const handleTavilySearchTask = async (task: TaskDefinition): Promise<Task
   if (!input.query) {
     return {
       taskId: task.taskId,
-      agentId: TAVILY_AGENT_ID,
-      timestamp: Date.now(),
-      status: "failed",
+      finalStatus: "failed",
       errorDetails: {
         errorCode: "missing_input",
         errorMessage: "Query is missing in inputData for web_search task."
@@ -97,15 +89,8 @@ export const handleTavilySearchTask = async (task: TaskDefinition): Promise<Task
   }
 
   try {
-    // Assuming tavilySearch function is adapted or can be used here.
-    // The original tavilySearch in the repo might need slight adjustments
-    // to fit this direct invocation or to accept more structured input like search_depth/max_results.
-    // For now, we'll call it with the query and map results.
-    
-    // The provided tavilySearch function in the repo is: 
-<<<<<<< HEAD
-    // export const tavilySearch = async (query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> => {
-    const tavilyResponse: TavilySearchResponse = await tavilySearch(
+    // The tavilySearch function in the repo is used here
+    const searchResults = await tavilySearch(
         input.query,
         process.env.TAVILY_API_KEY || "", // Assuming TAVILY_API_KEY is in process.env
         {
@@ -115,45 +100,25 @@ export const handleTavilySearchTask = async (task: TaskDefinition): Promise<Task
     );
 
     const output: WebSearchOutput = {
-      results: tavilyResponse.results.map((r: TavilySearchResult) => ({
-        title: r.title,
-        url: r.url,
-        content: r.content,
-        score: r.score, 
-        // raw_content is not directly in TavilySearchResult, handle if needed or remove
-=======
-    // export const tavilySearch = async (query: string, searchDepth: "basic" | "advanced" = "basic", maxResults: number = 5, includeDomains?: string[], excludeDomains?: string[]): Promise<TavilySearchResults[]> => {
-    const searchResults: TavilySearchResults[] = await tavilySearch(
-        input.query,
-        input.search_depth || "basic",
-        input.max_results || 5
-    );
-
-    const output: WebSearchOutput = {
-      results: searchResults.map(r => ({
+      results: searchResults.results.map(r => ({
         title: r.title,
         url: r.url,
         content: r.content, 
         score: r.score, 
-        raw_content: r.raw_content || null
->>>>>>> origin/development
+        raw_content: null // Handle if needed
       }))
     };
 
     return {
       taskId: task.taskId,
-      agentId: TAVILY_AGENT_ID,
-      timestamp: Date.now(),
-      status: "completed",
+      finalStatus: "completed",
       outputData: output
     };
   } catch (error: any) {
     console.error(`Error processing Tavily search task ${task.taskId}:`, error);
     return {
       taskId: task.taskId,
-      agentId: TAVILY_AGENT_ID,
-      timestamp: Date.now(),
-      status: "failed",
+      finalStatus: "failed",
       errorDetails: {
         errorCode: "tavily_api_error",
         errorMessage: error.message || "An unexpected error occurred during Tavily search."
@@ -166,7 +131,3 @@ export const handleTavilySearchTask = async (task: TaskDefinition): Promise<Task
 // if its current direct usage in routes conflicts with this agent structure,
 // or this agent can call a more primitive version of it.
 // For now, we assume `tavilySearch` can be called as shown.
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/development

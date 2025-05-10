@@ -7,9 +7,28 @@ import {
   handleTaskResult,
   handleTaskStatusUpdate
 } from "../services/orchestratorService";
-import { authenticateFirebaseToken } from "../index"; // Assuming this is the auth middleware
+import { auth } from "../firebaseAdmin"; // Import Firebase auth directly
 
 const router = express.Router();
+
+// Firebase Authentication middleware
+const authenticateFirebaseToken = async (req: Request, res: Response, next: Function) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).send({ message: "Unauthorized: No token provided" });
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+  try {
+    const decodedToken = await auth.verifyIdToken(idToken);
+    (req as any).user = decodedToken; // Add Firebase user to request object
+    console.log(`User authenticated: ${decodedToken.uid}`);
+    next();
+  } catch (error: any) {
+    console.error(`Error verifying Firebase ID token: ${error.message || String(error)}`);
+    return res.status(403).send({ message: "Forbidden: Invalid or expired token." });
+  }
+};
 
 // Create a new research project
 router.post("/projects", authenticateFirebaseToken, async (req: Request, res: Response) => {

@@ -1,7 +1,7 @@
-<<<<<<< HEAD
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
+import { Github } from 'lucide-react'; // Assuming lucide-react is installed and has a Github icon
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -50,6 +50,17 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
     }
   };
 
+  const handleGitHubSignIn = async () => {
+    try {
+      await signInWithGitHub();
+      if (onSuccess) onSuccess();
+      if (onClose) onClose();
+    } catch (error: any) {
+      setFormError(error.message || 'Failed to sign in with GitHub.');
+      toast({ title: 'Error', description: error.message || 'Failed to sign in with GitHub.', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-background p-6 rounded-lg shadow-xl w-full max-w-md">
@@ -87,6 +98,10 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
             {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </Button>
         </form>
+        <Button variant="outline" onClick={handleGitHubSignIn} className="w-full mt-4">
+          <Github className="mr-2 h-4 w-4" />
+          Sign in with GitHub
+        </Button>
         <Button variant="link" onClick={() => { setIsSignUp(!isSignUp); setFormError(null); }} className="w-full mt-4">
           {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
         </Button>
@@ -100,7 +115,7 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
             </span>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <Button variant="outline" onClick={async () => {
             try {
               await signInWithGoogle();
@@ -119,81 +134,8 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
             {/* TODO: Add Google Icon e.g. using lucide-react or react-icons */}
             Google
           </Button>
-          <Button variant="outline" onClick={async () => {
-            try {
-              await signInWithGitHub();
-              // Don't close immediately for redirect authentication
-              // The page will be redirected and then back after successful auth
-            } catch (err: any) {
-              // Check if this is a popup-related error that's being handled by redirect
-              if (err.code !== 'auth/popup-blocked' && err.code !== 'auth/popup-closed-by-user') {
-                // For other errors, execute onSuccess/onClose as they won't trigger redirect
-                if (onSuccess) onSuccess();
-                if (onClose) onClose();
-              }
-            }
-          }} disabled={isLoading}>
-            {/* TODO: Add GitHub Icon */}
-            GitHub
-          </Button>
         </div>
       </div>
     </div>
   );
 }
-=======
-```diff
---- a/src/components/AuthForm.tsx
-+++ b/src/components/AuthForm.tsx
-@@ -1,6 +1,7 @@
- import React, { useState } from 'react';
- import { useAuth } from '@/hooks/use-auth';
- import { Button } from '@/components/ui/button';
-+import { Github } from 'lucide-react'; // Assuming lucide-react is installed and has a Github icon
- import { Input } from '@/components/ui/input';
- import { Label } from '@/components/ui/label';
- import { useToast } from '@/hooks/use-toast';
-@@ -9,7 +10,7 @@
-   onSuccess?: () => void;
-   onClose?: () => void;
- }
--
-+ 
- export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
-   const { signUpWithEmailPassword, signInWithEmailPassword, isLoading, error: authHookError } = useAuth();
-   const { toast } = useToast();
-@@ -17,6 +18,7 @@
-   const [password, setPassword] = useState('');
-   const [isSignUp, setIsSignUp] = useState(false);
-   const [formError, setFormError] = useState<string | null>(null);
-+  const { signInWithGitHub } = useAuth(); // Add this line
- 
-   const handleSubmit = async (e: React.FormEvent) => {
-     e.preventDefault();
-@@ -39,6 +41,16 @@
-     }
-   };
- 
-+  const handleGitHubSignIn = async () => {
-+    try {
-+      await signInWithGitHub();
-+      if (onSuccess) onSuccess();
-+      if (onClose) onClose();
-+    } catch (error: any) {
-+      setFormError(error.message || 'Failed to sign in with GitHub.');
-+      toast({ title: 'Error', description: error.message || 'Failed to sign in with GitHub.', variant: 'destructive' });
-+    }
-+  };
-   return (
-     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-       <div className="bg-background p-6 rounded-lg shadow-xl w-full max-w-md">
-@@ -61,6 +73,10 @@
-           {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
-         </Button>
-         <Button variant="outline" onClick={handleGitHubSignIn} className="w-full">
-+          <Github className="mr-2 h-4 w-4" />
-           Sign in with GitHub
-         </Button>
-         <Button variant="link" onClick={() => { setIsSignUp(!isSignUp); setFormError(null); }} className="w-full mt-4">
-```
->>>>>>> origin/development
