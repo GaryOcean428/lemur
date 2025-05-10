@@ -2,11 +2,8 @@ import { createContext, ReactNode, useContext, useEffect, useState, useCallback 
 import {
   User as FirebaseUser,
   signInWithPopup,
-<<<<<<< HEAD
   signInWithRedirect,
   getRedirectResult,
-=======
->>>>>>> origin/development
   signOut as firebaseSignOut,
   onAuthStateChanged,
   getIdToken,
@@ -66,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchAndUpdateUserStatus = useCallback(async (firebaseUser: FirebaseUser) => {
     try {
-<<<<<<< HEAD
       // First check if we're online
       if (!navigator.onLine) {
         console.log("Device is offline, using cached user data if available");
@@ -137,18 +133,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(errorMessage);
       }
 
-=======
-      const token = await getIdToken(firebaseUser);
-      const response = await fetch("/api/user/status", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to fetch user status");
-      }
->>>>>>> origin/development
       const statusData: UserStatusResponse = await response.json();
       
       setUser(prevUser => ({
@@ -165,7 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } catch (e: any) {
       console.error("Error fetching user status from API:", e);
-<<<<<<< HEAD
       
       // If the error is due to being offline, handle it gracefully
       if (!navigator.onLine || e.message?.includes('offline') || e.message?.includes('network')) {
@@ -203,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
     }
-  }, [toast]);
+  }, [toast, user]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
@@ -325,72 +308,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(e);
       toast({
         title: "Sign-up failed",
-=======
-      setError(e);
-      toast({
-        title: "Could not update user status",
-        description: e.message || "Failed to sync with server.",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      setIsLoading(true);
-      setError(null);
-      if (firebaseUser) {
-        const userRef = doc(db, "users", firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          await updateDoc(userRef, { lastLoginAt: serverTimestamp() });
-        } else {
-          // This part handles new user creation for social sign-ins
-          // For email/password, user creation in Firestore is handled by the signUp function
-          // or by the backend if we choose to create user doc there upon first API call.
-          // For now, let's assume social sign-in creates the doc here.
-          if (!firebaseUser.email) { // Email/password sign up might not have email if not set yet
-             console.warn("New user from social sign-in without email, this might be an issue.");
-          }
-          const newUserFirestoreData = {
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-            tier: "free",
-            searchCount: 0,
-            createdAt: serverTimestamp(),
-            lastLoginAt: serverTimestamp(),
-            preferences: { theme: "system", defaultSearchFocus: "web" },
-          };
-          await setDoc(userRef, newUserFirestoreData);
-          console.log("New user (social) created in Firestore:", newUserFirestoreData);
-        }
-        await fetchAndUpdateUserStatus(firebaseUser);
-      } else {
-        setUser(null);
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [fetchAndUpdateUserStatus]);
-
-  const handleSignIn = async (provider: typeof googleProvider | typeof githubProvider) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await signInWithPopup(auth, provider);
-      toast({
-        title: "Signed in successfully",
-        description: `Welcome, ${result.user.displayName || result.user.email}!`,
-      });
-      // onAuthStateChanged will handle user state update and API fetch
-    } catch (e: any) {
-      console.error("Social sign-in error:", e);
-      setError(e);
-      toast({
-        title: "Sign-in failed",
->>>>>>> origin/development
         description: e.message || "An unknown error occurred.",
         variant: "destructive",
       });
@@ -399,66 +316,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-<<<<<<< HEAD
-  const signInWithEmailPassword = async ({ email, password }: EmailPasswordCredentials) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle user state update and API fetch
-      toast({
-        title: "Signed in successfully",
-        description: `Welcome back, ${userCredential.user.email}!`,
-      });
-    } catch (e: any) {
-      console.error("Email sign-in error:", e);
-      setError(e);
-      toast({
-        title: "Sign-in failed",
-=======
-  const signInWithGoogle = () => handleSignIn(googleProvider);
-  const signInWithGitHub = () => handleSignIn(githubProvider);
-
-  const signUpWithEmailPassword = async ({ email, password }: EmailPasswordCredentials) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
-      // Create user document in Firestore
-      const userRef = doc(db, "users", firebaseUser.uid);
-      const newUserFirestoreData = {
-        email: firebaseUser.email,
-        displayName: firebaseUser.email, // Or prompt for display name
-        photoURL: null,
-        tier: "free",
-        searchCount: 0,
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-        preferences: { theme: "system", defaultSearchFocus: "web" },
-      };
-      await setDoc(userRef, newUserFirestoreData);
-      // onAuthStateChanged will handle setting the user state and fetching API status
-      toast({
-        title: "Account created successfully",
-        description: `Welcome, ${firebaseUser.email}!`,
-      });
-    } catch (e: any) {
-      console.error("Sign-up error:", e);
-      setError(e);
-      toast({
-        title: "Sign-up failed",
->>>>>>> origin/development
-        description: e.message || "An unknown error occurred.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-<<<<<<< HEAD
-=======
   const signInWithEmailPassword = async ({ email, password }: EmailPasswordCredentials) => {
     setIsLoading(true);
     setError(null);
@@ -482,15 +339,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
->>>>>>> origin/development
   const logout = async () => {
     setIsLoading(true);
     setError(null);
     try {
       await firebaseSignOut(auth);
+      setUser(null);
       toast({
         title: "Signed out",
-        description: "You have been signed out successfully.",
+        description: "You have been signed out.",
       });
     } catch (e: any) {
       console.error("Sign-out error:", e);
@@ -505,13 +362,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const manualFetchUserStatus = useCallback(async () => {
-    if (auth.currentUser) {
-      setIsLoading(true);
-      await fetchAndUpdateUserStatus(auth.currentUser);
-      setIsLoading(false);
+  // Function to manually refresh user status
+  const fetchUserStatus = async () => {
+    if (!auth.currentUser) {
+      console.warn("Cannot fetch user status: no logged in user");
+      return;
     }
-  }, [fetchAndUpdateUserStatus]);
+    await fetchAndUpdateUserStatus(auth.currentUser);
+  };
 
   return (
     <AuthContext.Provider
@@ -524,7 +382,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUpWithEmailPassword,
         signInWithEmailPassword,
         logout,
-        fetchUserStatus: manualFetchUserStatus,
+        fetchUserStatus,
       }}
     >
       {children}
@@ -534,9 +392,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === null) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
-

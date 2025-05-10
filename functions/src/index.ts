@@ -1,26 +1,7 @@
-<<<<<<< HEAD
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
-import {onRequest} from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
-
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
-=======
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import {onRequest} from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
 
 // Initialize Firebase Admin SDK if not already initialized (typically done once)
 // Ensure your service account key is available in the functions environment
@@ -42,7 +23,7 @@ export const resetMonthlySearchCounts = functions.https.onRequest(async (request
   // For simplicity, this example is open but should be secured in production.
   // A common pattern is to check `request.headers['x-scheduler-token'] === functions.config().scheduler.token`
 
-  console.log("Starting monthly search count reset process.");
+  logger.info("Starting monthly search count reset process.", {structuredData: true});
 
   try {
     const usersRef = db.collection("users");
@@ -52,7 +33,7 @@ export const resetMonthlySearchCounts = functions.https.onRequest(async (request
       .get();
 
     if (snapshot.empty) {
-      console.log("No users found on 'free' or 'basic' tiers. No counts to reset.");
+      logger.info("No users found on 'free' or 'basic' tiers. No counts to reset.", {structuredData: true});
       response.status(200).send("No users on relevant tiers to reset.");
       return;
     }
@@ -61,7 +42,7 @@ export const resetMonthlySearchCounts = functions.https.onRequest(async (request
     let usersResetCount = 0;
 
     snapshot.forEach(doc => {
-      console.log(`Processing user ${doc.id} with tier ${doc.data().tier}`);
+      logger.info(`Processing user ${doc.id} with tier ${doc.data().tier}`, {structuredData: true});
       const userRef = usersRef.doc(doc.id);
       batch.update(userRef, {
         searchCount: 0,
@@ -72,11 +53,11 @@ export const resetMonthlySearchCounts = functions.https.onRequest(async (request
 
     await batch.commit();
     const successMessage = `Successfully reset search counts for ${usersResetCount} users.`;
-    console.log(successMessage);
+    logger.info(successMessage, {structuredData: true});
     response.status(200).send(successMessage);
 
   } catch (error) {
-    console.error("Error resetting monthly search counts:", error);
+    logger.error("Error resetting monthly search counts:", error, {structuredData: true});
     response.status(500).send("An error occurred while resetting search counts.");
   }
 });
@@ -86,7 +67,7 @@ export const resetMonthlySearchCounts = functions.https.onRequest(async (request
 //   .schedule("0 0 1 * *") // Runs at 00:00 on the 1st day of every month
 //   .timeZone("UTC") // Specify your timezone
 //   .onRun(async (context) => {
-//     console.log("Scheduled monthly search count reset triggered.");
+//     logger.info("Scheduled monthly search count reset triggered.", {structuredData: true});
 //     // ... (copy the logic from the https.onRequest function above)
 //     // Note: For pub/sub, you don't send an HTTP response.
 //     // Instead, ensure the promise resolves or rejects correctly.
@@ -94,7 +75,7 @@ export const resetMonthlySearchCounts = functions.https.onRequest(async (request
 //       const usersRef = db.collection("users");
 //       const snapshot = await usersRef.where("tier", "in", ["free", "basic"]).get();
 //       if (snapshot.empty) {
-//         console.log("No users on relevant tiers to reset.");
+//         logger.info("No users on relevant tiers to reset.", {structuredData: true});
 //         return null;
 //       }
 //       const batch = db.batch();
@@ -108,12 +89,10 @@ export const resetMonthlySearchCounts = functions.https.onRequest(async (request
 //         usersResetCount++;
 //       });
 //       await batch.commit();
-//       console.log(`Successfully reset search counts for ${usersResetCount} users.`);
+//       logger.info(`Successfully reset search counts for ${usersResetCount} users.`, {structuredData: true});
 //       return null;
 //     } catch (error) {
-//       console.error("Error in scheduled reset of search counts:", error);
+//       logger.error("Error in scheduled reset of search counts:", error, {structuredData: true});
 //       return null; // Or throw error to indicate failure for retries
 //     }
 //   });
-
->>>>>>> origin/development
