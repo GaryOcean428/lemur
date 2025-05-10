@@ -1,4 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { auth } from "@/firebaseConfig"; // Corrected import path
+import { getIdToken } from "firebase/auth";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -12,11 +14,22 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const headers: HeadersInit = data ? { "Content-Type": "application/json" } : {};
+  if (auth.currentUser) {
+    try {
+      const token = await getIdToken(auth.currentUser);
+      headers['Authorization'] = `Bearer ${token}`;
+    } catch (error) {
+      console.error("Error getting ID token:", error);
+      // Optionally handle token error, e.g., by redirecting to login
+    }
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: "omit", // 'include' is for cookies, not typically used with Bearer tokens
   });
 
   await throwIfResNotOk(res);
@@ -29,8 +42,19 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    const headers: HeadersInit = {};
+    if (auth.currentUser) {
+      try {
+        const token = await getIdToken(auth.currentUser);
+        headers['Authorization'] = `Bearer ${token}`;
+      } catch (error) {
+        console.error("Error getting ID token for queryFn:", error);
+      }
+    }
+
     const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
+      headers,
+      credentials: "omit", // 'include' is for cookies, not typically used with Bearer tokens
     });
 
     if (res.status === 401) {

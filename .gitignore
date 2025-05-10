@@ -7,3 +7,5 @@ vite.config.ts.*
 .env
 .env.local
 /attached_assets/*
+server/serviceAccountKey.json
+*.backup

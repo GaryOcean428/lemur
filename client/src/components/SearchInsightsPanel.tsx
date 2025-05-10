@@ -366,7 +366,7 @@ export default function SearchInsightsPanel({
         <SheetHeader>
           <SheetTitle>Search Insights</SheetTitle>
           <SheetDescription>
-            Live activity for your "{query.length > 30 ? query.substring(0, 30) + '...' : query}" search
+            {query ? `Live activity for your "${query.length > 30 ? query.substring(0, 30) + '...' : query}" search` : "Reviewing search activity..."}
           </SheetDescription>
         </SheetHeader>
         

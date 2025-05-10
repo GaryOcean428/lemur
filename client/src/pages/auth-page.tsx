@@ -1,85 +1,43 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AuthForm } from "@/components/AuthForm"; // Import the new AuthForm
 import { useAuth } from "@/hooks/use-auth";
 import lemurLogo from "../assets/images/Lemur6.png";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-const loginSchema = z.object({
-  username: z.string().min(3, {
-    message: "Username must be at least 3 characters.",
-  }),
-  password: z.string().min(6, {
-    message: "Password must be at least 6 characters.",
-  }),
-});
-
-const registerSchema = z.object({
-  username: z.string().min(3, {
-    message: "Username must be at least 3 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  password: z.string().min(6, {
-    message: "Password must be at least 6 characters.",
-  }),
-});
 
 const AuthPage = () => {
-  const [activeTab, setActiveTab] = useState("login");
   const [, navigate] = useLocation();
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { user, isLoading } = useAuth(); // isLoading from useAuth can be used
 
-  const loginForm = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
-  });
+  useEffect(() => {
+    if (user && !isLoading) {
+      navigate("/");
+    }
+  }, [user, isLoading, navigate]);
 
-  const registerForm = useForm<z.infer<typeof registerSchema>>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      username: "",
-      email: "",
-      password: "",
-    },
-  });
-  
-  // Redirect if already logged in - AFTER all hooks are called
-  if (user) {
-    // Use setTimeout to avoid rendering issues
-    setTimeout(() => navigate("/"), 0);
+  const handleAuthSuccess = () => {
+    navigate("/"); // Navigate to home on successful auth
+  };
+
+  // If loading or user is already defined (and redirect is about to happen),
+  // you might want to show a loader or null to prevent form flash.
+  if (isLoading || user) {
+    return (
+      <div className="container mx-auto py-10 flex justify-center items-center min-h-[calc(100vh-200px)]">
+        <p>Loading...</p> {/* Or a spinner component */}
+      </div>
+    );
   }
-
-  const onLoginSubmit = async (values: z.infer<typeof loginSchema>) => {
-    await loginMutation.mutateAsync(values);
-  };
-
-  const onRegisterSubmit = async (values: z.infer<typeof registerSchema>) => {
-    await registerMutation.mutateAsync(values);
-  };
-
+  
   return (
-    <div className="container mx-auto py-10">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-start">
-        {/* Left Column: Auth Forms */}
-        <Card className="w-full">
+    <div className="container mx-auto py-10 flex justify-center items-center min-h-[calc(100vh-200px)]">
+      {/* The AuthForm component will be rendered as a modal overlay by its own definition */}
+      {/* We can keep the surrounding page structure if desired, or simplify */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-start max-w-4xl w-full">
+        {/* Left Column: Auth Forms (now handled by modal AuthForm) */}
+        {/* We can keep the welcome card here or integrate it into a layout where AuthForm is modal */}
+        <Card className="w-full lg:col-span-2"> {/* Make card span full width if AuthForm is modal */}
           <CardHeader className="flex flex-col items-center text-center">
             <div className="w-10 h-10 mb-2 relative group">
               <div className="absolute -inset-2 bg-[hsl(var(--glow-neon))] rounded-full blur-md group-hover:blur-lg opacity-70 group-hover:opacity-100 transition-all duration-300 -z-10"></div>
@@ -87,107 +45,18 @@ const AuthPage = () => {
             </div>
             <CardTitle>Welcome to Lemur</CardTitle>
             <CardDescription>
-              Sign in to access your search history and save your favorite searches.
+              Sign in or create an account to unlock the full power of Lemur.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register</TabsTrigger>
-              </TabsList>
-              <TabsContent value="login" className="py-4">
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                    <FormField
-                      control={loginForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input placeholder="username" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="******" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={loginMutation.isPending}
-                    >
-                      {loginMutation.isPending ? "Signing in..." : "Sign In"}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-              <TabsContent value="register" className="py-4">
-                <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
-                    <FormField
-                      control={registerForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input placeholder="username" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="you@example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="******" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={registerMutation.isPending}
-                    >
-                      {registerMutation.isPending ? "Creating account..." : "Create Account"}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-            </Tabs>
+          <CardContent className="flex justify-center">
+            {/* Button to trigger modal, or AuthForm can be directly embedded if not modal */}
+            {/* For now, assuming AuthForm is modal and might be triggered by a header button or similar */}
+            {/* If AuthForm is not modal, it would be placed here. */}
+            {/* Since AuthForm itself creates a modal overlay, we might not need to render it here explicitly if it's triggered elsewhere (e.g. Header) */}
+            {/* However, if this IS the dedicated auth page, we render it here. */}
+            {/* The provided AuthForm is a modal, so it will overlay. */}
+            {/* We need a way to show/hide it. Let's assume it's always shown on this page for now. */}
+            <AuthForm onSuccess={handleAuthSuccess} />
           </CardContent>
           <CardFooter className="flex justify-center border-t pt-6">
             <p className="text-sm text-gray-500">
@@ -196,7 +65,7 @@ const AuthPage = () => {
           </CardFooter>
         </Card>
 
-        {/* Right Column: Hero Section */}
+        {/* Right Column: Hero Section (Optional, can be removed if page is just the modal trigger) */}
         <div className="flex flex-col justify-center h-full">
           <div className="space-y-4">
             <h1 className="text-3xl font-bold">Unlock the power of Lemur</h1>
