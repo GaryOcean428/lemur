@@ -8,4 +8,7 @@ vite.config.ts.*
 .env.local
 /attached_assets/*
 server/serviceAccountKey.json
+<<<<<<< HEAD
 *.backup
+=======
+>>>>>>> origin/development

@@ -1,5 +1,9 @@
 // server/agents/tavilyAgent.ts
 
+<<<<<<< HEAD
+=======
+import { TavilySearchResults } from "@langchain/community/tools/tavily_search";
+>>>>>>> origin/development
 import {
   AgentCapabilityDeclaration,
   TaskDefinition,
@@ -7,7 +11,11 @@ import {
   WebSearchInput,
   WebSearchOutput
 } from "../types/agentProtocols";
+<<<<<<< HEAD
 import { tavilySearch, TavilySearchResponse, TavilySearchResult } from "../tavilySearch"; // Corrected import path and added types
+=======
+import { tavilySearch } from "../server/tavilySearch"; // Assuming this is the refactored Tavily search function
+>>>>>>> origin/development
 
 export const TAVILY_AGENT_ID = "tavily-search-agent-v1";
 export const TAVILY_AGENT_TYPE = "tavily_web_searcher";
@@ -95,6 +103,7 @@ export const handleTavilySearchTask = async (task: TaskDefinition): Promise<Task
     // For now, we'll call it with the query and map results.
     
     // The provided tavilySearch function in the repo is: 
+<<<<<<< HEAD
     // export const tavilySearch = async (query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> => {
     const tavilyResponse: TavilySearchResponse = await tavilySearch(
         input.query,
@@ -112,6 +121,22 @@ export const handleTavilySearchTask = async (task: TaskDefinition): Promise<Task
         content: r.content,
         score: r.score, 
         // raw_content is not directly in TavilySearchResult, handle if needed or remove
+=======
+    // export const tavilySearch = async (query: string, searchDepth: "basic" | "advanced" = "basic", maxResults: number = 5, includeDomains?: string[], excludeDomains?: string[]): Promise<TavilySearchResults[]> => {
+    const searchResults: TavilySearchResults[] = await tavilySearch(
+        input.query,
+        input.search_depth || "basic",
+        input.max_results || 5
+    );
+
+    const output: WebSearchOutput = {
+      results: searchResults.map(r => ({
+        title: r.title,
+        url: r.url,
+        content: r.content, 
+        score: r.score, 
+        raw_content: r.raw_content || null
+>>>>>>> origin/development
       }))
     };
 
@@ -141,3 +166,7 @@ export const handleTavilySearchTask = async (task: TaskDefinition): Promise<Task
 // if its current direct usage in routes conflicts with this agent structure,
 // or this agent can call a more primitive version of it.
 // For now, we assume `tavilySearch` can be called as shown.
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/development
