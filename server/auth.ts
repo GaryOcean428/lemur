@@ -273,7 +273,16 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized", message: "Authentication required to access this resource." });
+    }
+    res.json(req.user);
+  });
+
+  app.get("/api/user/status", (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized", message: "Authentication required to access this resource." });
+    }
     res.json(req.user);
   });
 

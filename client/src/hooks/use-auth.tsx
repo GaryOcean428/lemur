@@ -67,10 +67,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           Authorization: `Bearer ${token}`,
         },
       });
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to fetch user status");
+        let errorMessage = `Failed to fetch user status (${response.status})`;
+        // Clone the response before trying to read it, so it can be read again if JSON parsing fails
+        const responseClone = response.clone();
+        try {
+          const errorData = await response.json(); // Attempt to parse as JSON
+          errorMessage = errorData.error || errorData.message || `API Error: ${response.status}`;
+        } catch (parseError) {
+          // If JSON parsing fails, try to get the error message as plain text from the cloned response
+          try {
+            const textError = await responseClone.text();
+            errorMessage = textError || `API Error: ${response.status} - ${response.statusText}`;
+          } catch (textReadError) {
+            // If reading as text also fails, use a generic message
+            errorMessage = `API Error: ${response.status} - ${response.statusText} (Could not read error response)`;
+          }
+        }
+        throw new Error(errorMessage);
       }
+
       const statusData: UserStatusResponse = await response.json();
       
       setUser(prevUser => ({
