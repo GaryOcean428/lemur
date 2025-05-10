@@ -1,14 +1,24 @@
+// server/routes.ts
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db, FieldValue } from "./firebaseAdmin"; // Import db and FieldValue from the modular firebaseAdmin.ts
 import { authenticateFirebaseToken } from "./index"; // Import the middleware
+import express from "express"; // Import express for raw body parsing
 
 import { directGroqCompoundSearch } from "./directCompound";
 import { validateGroqModel, mapModelPreference, APPROVED_MODELS } from "./utils/modelValidation";
 import fetch from "node-fetch";
 
-// Stripe import and initialization from remote
+// Stripe imports
 import Stripe from "stripe";
+import {
+  getOrCreateStripeCustomer,
+  createSubscriptionCheckoutSession,
+  createBillingPortalSession,
+  handleStripeWebhook,
+  PRICE_IDS, // Import PRICE_IDS for use in routes
+} from "./services/stripeService";
+
 if (!process.env.STRIPE_SECRET_KEY) {
   console.warn("Warning: Missing STRIPE_SECRET_KEY environment variable");
 }
@@ -18,7 +28,7 @@ let stripe: Stripe | null = null;
 try {
   if (process.env.STRIPE_SECRET_KEY) {
     stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16', // Use the latest stable API version
+      apiVersion: "2023-10-16", // Use the latest stable API version
     });
     console.log(`Stripe initialized successfully with API version 2023-10-16. Key starts with: ${process.env.STRIPE_SECRET_KEY.substring(0, 8)}...`);
   }
@@ -30,9 +40,12 @@ try {
 import { serperGoogleScholarSearch, SerperGoogleScholarSearchResponse } from "./integrations/serperGoogleScholarSearch";
 
 // Import Tavily search interfaces from the dedicated module
-import { tavilySearch, TavilySearchResult, TavilySearchResponse } from './tavilySearch';
-import { tavilyDeepResearch, tavilyExtractContent, TavilyDeepResearchResponse } from './utils/tavilyDeepResearch';
-import { executeAgenticResearch, ResearchState, AgenticResearchProgress } from './utils/agenticResearch';
+import { tavilySearch, TavilySearchResult, TavilySearchResponse } from "./tavilySearch";
+import { tavilyDeepResearch, tavilyExtractContent, TavilyDeepResearchResponse } from "./utils/tavilyDeepResearch";
+import { executeAgenticResearch, ResearchState, AgenticResearchProgress } from "./utils/agenticResearch";
+
+// Import Orchestrator routes
+import orchestratorRoutes from "./routes/orchestratorRoutes"; // Added import
 
 // Firebase Admin SDK is initialized in firebaseAdmin.ts, and db is imported from there.
 
@@ -108,7 +121,7 @@ async function incrementSearchCount(userId: string) {
   }
 }
 
-async function groqSearchWithTiers(query: string, sources: TavilySearchResult[], apiKey: string, userId: string, requestedModelPref: string = 'auto'): Promise<{answer: string; model: string; error?: string}> {
+async function groqSearchWithTiers(query: string, sources: TavilySearchResult[], apiKey: string, userId: string, requestedModelPref: string = "auto"): Promise<{answer: string; model: string; error?: string}> {
   const tierCheck = await checkUserTierAndLimits(userId, requestedModelPref);
   if (!tierCheck.allowed) {
     return { answer: "", model: tierCheck.modelToUse, error: tierCheck.message };
@@ -154,15 +167,38 @@ async function groqSearchWithTiers(query: string, sources: TavilySearchResult[],
     return { answer: data.choices[0].message.content, model: data.model };
 
   } catch (error) {
-    console.error('Error during Groq API call for user', userId, error);
+    console.error("Error during Groq API call for user", userId, error);
     return { answer: "", model: model, error: error instanceof Error ? error.message : "Groq API Error" };
   }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Stripe Webhook - IMPORTANT: This route must be before express.json() if that middleware is global,
+  // as Stripe requires the raw body.
+  app.post("/api/stripe/webhook", express.raw({type: "application/json"}), async (req: Request, res: Response) => {
+    const sig = req.headers["stripe-signature"];
+    try {
+      const handled = await handleStripeWebhook(sig, req.body);
+      if (handled) {
+        res.json({ received: true });
+      } else {
+        res.status(400).send("Webhook Error: Could not handle event");
+      }
+    } catch (err: any) {
+      console.error("Stripe Webhook Error:", err.message);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+  });
+
+  // Regular JSON parsing middleware for other routes
+  app.use(express.json());
+
+  // Mount orchestrator routes
+  app.use("/api/orchestrator", orchestratorRoutes);
+
   app.post("/api/search", authenticateFirebaseToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.uid;
-    const { query, sources = [], modelPreference = 'auto', searchType = 'web' } = req.body;
+    const { query, sources = [], modelPreference = "auto", searchType = "web" } = req.body;
     const groqApiKey = process.env.GROQ_API_KEY || "";
 
     if (!query) return res.status(400).json({ error: "Query is required" });
@@ -172,13 +208,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let searchResults: TavilySearchResult[] = sources;
       let academicResults: any[] = [];
 
-      if (searchType === 'web' && searchResults.length === 0) {
+      if (searchType === "web" && searchResults.length === 0) {
         const tavilyApiKey = process.env.TAVILY_API_KEY || "";
         if (!tavilyApiKey) return res.status(500).json({ error: "Tavily API key not configured" });
         const tavilyResponse = await tavilySearch(query, tavilyApiKey, { search_depth: "basic" });
         searchResults = tavilyResponse.results || [];
-      } else if (searchType === 'academic') {
-        const serperApiKey = process.env.SERPER_API_KEY; // Use SERPER_API_KEY from .env
+      } else if (searchType === "academic") {
+        const serperApiKey = process.env.SERPER_API_KEY;
         if (!serperApiKey) return res.status(500).json({ error: "Serper API key not configured" });
         const scholarResponse = await serperGoogleScholarSearch(query, serperApiKey, { num_results: 5 });
         academicResults = scholarResponse.organic || []; 
@@ -203,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/scholar-search", authenticateFirebaseToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.uid;
     const { query, num_results, page } = req.body;
-    const serperApiKey = process.env.SERPER_API_KEY; // Use SERPER_API_KEY from .env
+    const serperApiKey = process.env.SERPER_API_KEY;
 
     if (!query) return res.status(400).json({ error: "Query is required" });
     if (!serperApiKey) return res.status(500).json({ error: "Serper API key not configured" });
@@ -292,7 +328,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tier: userData?.tier || "free",
             searchCount: userData?.searchCount || 0,
             searchLimit: (TIERS[ (userData?.tier?.toUpperCase() || "FREE") as keyof typeof TIERS ] || TIERS.FREE).searchLimit,
-            preferences: userData?.preferences || {} // Include preferences
+            preferences: userData?.preferences || {},
+            stripeCustomerId: userData?.stripeCustomerId, // Send stripeCustomerId
+            stripeSubscriptionId: userData?.stripeSubscriptionId, // Send stripeSubscriptionId
+            stripeCurrentPeriodEnd: userData?.stripeCurrentPeriodEnd, // Send stripeCurrentPeriodEnd
+            stripePriceId: userData?.stripePriceId // Send stripePriceId
         });
     } catch (error) {
         console.error("Error fetching user status:", error);
@@ -300,23 +340,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- New route for User Preferences ---
   app.put("/api/user/preferences", authenticateFirebaseToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.uid;
     const { preferences } = req.body;
 
-    if (typeof preferences !== 'object' || preferences === null) {
+    if (typeof preferences !== "object" || preferences === null) {
         return res.status(400).json({ error: "Invalid preferences format. Expected an object." });
     }
 
     try {
         const userRef = db.collection("users").doc(userId);
-        // Ensure user document exists, or create one if it's the first time setting preferences
-        // For simplicity, we'll assume the user document is created on sign-up or first status check.
-        // If not, a .set({ preferences, ...other_initial_data }, { merge: true }) might be better.
         await userRef.update({
             preferences: preferences,
-            updatedAt: FieldValue.serverTimestamp() // Also update a general user updatedAt field
+            updatedAt: FieldValue.serverTimestamp()
         });
         res.status(200).json({ message: "Preferences updated successfully.", preferences });
     } catch (error) {
@@ -325,8 +361,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-  // --- Routes for Saved Searches (already implemented) ---
   app.post("/api/user/saved-searches", authenticateFirebaseToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.uid;
     const { query, answer, sources, modelUsed, title } = req.body;
@@ -344,10 +378,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             modelUsed: modelUsed || "unknown",
             title: title || query.substring(0, 50) + (query.length > 50 ? "..." : ""),
             createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
         };
         await savedSearchRef.set(newSavedSearch);
-        res.status(201).json({ id: savedSearchRef.id, ...newSavedSearch });
+        res.status(201).json({ message: "Search saved successfully.", id: savedSearchRef.id });
     } catch (error) {
         console.error("Error saving search:", error);
         res.status(500).json({ error: "Failed to save search." });
@@ -357,29 +390,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/user/saved-searches", authenticateFirebaseToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.uid;
     try {
-        const snapshot = await db.collection("users").doc(userId).collection("savedSearches")
-                                .orderBy("createdAt", "desc")
-                                .get();
-        const savedSearches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const searchesSnapshot = await db.collection("users").doc(userId).collection("savedSearches")
+                                      .orderBy("createdAt", "desc").limit(50).get();
+        const savedSearches = searchesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(savedSearches);
     } catch (error) {
         console.error("Error fetching saved searches:", error);
         res.status(500).json({ error: "Failed to fetch saved searches." });
-    }
-  });
-
-  app.get("/api/user/saved-searches/:searchId", authenticateFirebaseToken, async (req: Request, res: Response) => {
-    const userId = (req as any).user.uid;
-    const { searchId } = req.params;
-    try {
-        const doc = await db.collection("users").doc(userId).collection("savedSearches").doc(searchId).get();
-        if (!doc.exists) {
-            return res.status(404).json({ error: "Saved search not found." });
-        }
-        res.json({ id: doc.id, ...doc.data() });
-    } catch (error) {
-        console.error("Error fetching saved search:", error);
-        res.status(500).json({ error: "Failed to fetch saved search." });
     }
   });
 
@@ -388,60 +405,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { searchId } = req.params;
     try {
         await db.collection("users").doc(userId).collection("savedSearches").doc(searchId).delete();
-        res.status(200).json({ message: "Saved search deleted successfully." });
+        res.status(200).json({ message: "Search deleted successfully." });
     } catch (error) {
         console.error("Error deleting saved search:", error);
-        res.status(500).json({ error: "Failed to delete saved search." });
+        res.status(500).json({ error: "Failed to delete search." });
     }
   });
 
-  // --- Routes for Deep Research Projects (already implemented) ---
-  app.get("/api/user/deep-research-projects", authenticateFirebaseToken, async (req: Request, res: Response) => {
+  // --- Stripe Routes ---
+  app.post("/api/stripe/create-checkout-session", authenticateFirebaseToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.uid;
+    const userEmail = (req as any).user.email;
+    const { priceId, successUrl, cancelUrl } = req.body;
+
+    if (!priceId || !successUrl || !cancelUrl) {
+      return res.status(400).json({ error: "priceId, successUrl, and cancelUrl are required." });
+    }
+
+    if (!stripe) return res.status(500).json({ error: "Stripe service not available." });
+
     try {
-        const snapshot = await db.collection("deepResearchProjects")
-                                .where("userId", "==", userId)
-                                .orderBy("createdAt", "desc")
-                                .get();
-        const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        res.json(projects);
+      const customer = await getOrCreateStripeCustomer(userId, userEmail);
+      if (!customer) {
+        return res.status(500).json({ error: "Could not create or retrieve Stripe customer." });
+      }
+
+      const session = await createSubscriptionCheckoutSession(customer.id, priceId, successUrl, cancelUrl);
+      if (!session || !session.url) {
+        return res.status(500).json({ error: "Could not create Stripe Checkout session." });
+      }
+      res.json({ sessionId: session.id, checkoutUrl: session.url });
     } catch (error) {
-        console.error("Error fetching deep research projects:", error);
-        res.status(500).json({ error: "Failed to fetch deep research projects." });
+      console.error("Error in /api/stripe/create-checkout-session:", error);
+      res.status(500).json({ error: "Failed to create checkout session." });
     }
   });
 
-  app.get("/api/user/deep-research-projects/:projectId", authenticateFirebaseToken, async (req: Request, res: Response) => {
+  app.post("/api/stripe/create-portal-session", authenticateFirebaseToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.uid;
-    const { projectId } = req.params;
-    try {
-        const doc = await db.collection("deepResearchProjects").doc(projectId).get();
-        if (!doc.exists || doc.data()?.userId !== userId) {
-            return res.status(404).json({ error: "Deep research project not found or access denied." });
-        }
-        res.json({ id: doc.id, ...doc.data() });
-    } catch (error) {
-        console.error("Error fetching deep research project:", error);
-        res.status(500).json({ error: "Failed to fetch deep research project." });
-    }
-  });
-  
-  app.put("/api/internal/deep-research-projects/:projectId", async (req: Request, res: Response) => {
-    const { projectId } = req.params;
-    const { status, content, steps, error } = req.body;
-    try {
-        const projectRef = db.collection("deepResearchProjects").doc(projectId);
-        const updateData: any = { updatedAt: FieldValue.serverTimestamp() };
-        if (status) updateData.status = status;
-        if (content) updateData.content = content;
-        if (steps) updateData.steps = steps;
-        if (error) updateData.error = error;
+    const { returnUrl } = req.body;
 
-        await projectRef.update(updateData);
-        res.status(200).json({ message: "Deep research project updated." });
+    if (!returnUrl) {
+      return res.status(400).json({ error: "returnUrl is required." });
+    }
+
+    if (!stripe) return res.status(500).json({ error: "Stripe service not available." });
+
+    try {
+      const userDoc = await db.collection("users").doc(userId).get();
+      const stripeCustomerId = userDoc.data()?.stripeCustomerId;
+
+      if (!stripeCustomerId) {
+        return res.status(404).json({ error: "Stripe customer ID not found for this user." });
+      }
+
+      const portalSession = await createBillingPortalSession(stripeCustomerId, returnUrl);
+      if (!portalSession || !portalSession.url) {
+        return res.status(500).json({ error: "Could not create Stripe Billing Portal session." });
+      }
+      res.json({ portalUrl: portalSession.url });
     } catch (error) {
-        console.error("Error updating deep research project:", error);
-        res.status(500).json({ error: "Failed to update deep research project." });
+      console.error("Error in /api/stripe/create-portal-session:", error);
+      res.status(500).json({ error: "Failed to create portal session." });
     }
   });
 

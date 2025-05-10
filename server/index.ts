@@ -1,7 +1,10 @@
+// server/index.ts
 import express, { type Request, Response, NextFunction } from "express";
 import { auth } from "./firebaseAdmin"; // Import auth from the modular firebaseAdmin.ts
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { registerAgent } from "./services/agentRegistryService"; // Added import
+import { tavilyAgentDeclaration } from "./agents/tavilyAgent"; // Added import
 
 // Firebase Admin SDK is initialized in firebaseAdmin.ts
 
@@ -32,11 +35,11 @@ app.use(express.urlencoded({ extended: false }));
 // Add Content Security Policy middleware to allow WebAssembly
 app.use((req, res, next) => {
   // Only apply to HTML requests to avoid affecting API responses
-  const acceptHeader = req.headers.accept || '';
-  if (acceptHeader.includes('text/html')) {
+  const acceptHeader = req.headers.accept || 
+  if (acceptHeader.includes("text/html")) {
     // Set Content-Security-Policy header to allow WebAssembly and other needed features
     res.setHeader(
-      'Content-Security-Policy',
+      "Content-Security-Policy",
       "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://* wss://*; font-src 'self' data:; frame-src 'self'; object-src 'none'; worker-src 'self' blob:; wasm-unsafe-eval 'self'"
     );
   }
@@ -64,14 +67,14 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         const responseString = JSON.stringify(capturedJsonResponse);
         if (responseString.length > 50) {
-            logLine += ` :: ${responseString.substring(0, 49)}…`;
+            logLine += ` :: ${responseString.substring(0, 49)}...`;
         } else {
             logLine += ` :: ${responseString}`;
         }
       }
 
       if (logLine.length > 120) { // Adjusted for potentially longer log lines with user ID
-        logLine = logLine.slice(0, 119) + "…";
+        logLine = logLine.slice(0, 119) + "...";
       }
 
       log(logLine);
@@ -82,6 +85,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Register agents
+  try {
+    await registerAgent(tavilyAgentDeclaration);
+    log("Tavily agent registered successfully.");
+    // Register other agents here as they are developed
+  } catch (error) {
+    log("Error registering agents:", error);
+  }
+
   const server = await registerRoutes(app); // registerRoutes will now need to handle protected routes
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
