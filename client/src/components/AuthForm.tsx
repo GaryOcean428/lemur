@@ -103,9 +103,17 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
           <Button variant="outline" onClick={async () => {
             try {
               await signInWithGoogle();
-              if (onSuccess) onSuccess();
-              if (onClose) onClose();
-            } catch (err) { /* error already handled by useAuth toast */ }
+              // Don't close immediately for redirect authentication
+              // The page will be redirected and then back after successful auth
+              // onSuccess and onClose will be handled by the redirect result handler
+            } catch (err: any) {
+              // Check if this is a popup-related error that's being handled by redirect
+              if (err.code !== 'auth/popup-blocked' && err.code !== 'auth/popup-closed-by-user') {
+                // For other errors, execute onSuccess/onClose as they won't trigger redirect
+                if (onSuccess) onSuccess();
+                if (onClose) onClose();
+              }
+            }
           }} disabled={isLoading}>
             {/* TODO: Add Google Icon e.g. using lucide-react or react-icons */}
             Google
@@ -113,9 +121,16 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
           <Button variant="outline" onClick={async () => {
             try {
               await signInWithGitHub();
-              if (onSuccess) onSuccess();
-              if (onClose) onClose();
-            } catch (err) { /* error already handled by useAuth toast */ }
+              // Don't close immediately for redirect authentication
+              // The page will be redirected and then back after successful auth
+            } catch (err: any) {
+              // Check if this is a popup-related error that's being handled by redirect
+              if (err.code !== 'auth/popup-blocked' && err.code !== 'auth/popup-closed-by-user') {
+                // For other errors, execute onSuccess/onClose as they won't trigger redirect
+                if (onSuccess) onSuccess();
+                if (onClose) onClose();
+              }
+            }
           }} disabled={isLoading}>
             {/* TODO: Add GitHub Icon */}
             GitHub

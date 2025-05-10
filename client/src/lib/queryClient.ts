@@ -25,11 +25,23 @@ export async function apiRequest(
     }
   }
 
-  const res = await fetch(url, {
+  // Handle API base URL
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  
+  // If the URL is a relative API path and we have a base URL, prepend it
+  let fullUrl = url;
+  if (url.startsWith('/api/') && apiBaseUrl) {
+    // Remove the /api prefix as the base URL may already include it
+    const apiPath = url.substring(5);
+    fullUrl = `${apiBaseUrl}/${apiPath}`;
+    console.log(`Rewriting API URL from ${url} to ${fullUrl}`);
+  }
+
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "omit", // 'include' is for cookies, not typically used with Bearer tokens
+    credentials: "include", // Changed to include credentials for cross-origin requests
   });
 
   await throwIfResNotOk(res);
@@ -52,9 +64,21 @@ export const getQueryFn: <T>(options: {
       }
     }
 
-    const res = await fetch(queryKey[0] as string, {
+    // Handle API base URL like in the apiRequest function
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    let url = queryKey[0] as string;
+    
+    // If the URL is a relative API path and we have a base URL, prepend it
+    if (url.startsWith('/api/') && apiBaseUrl) {
+      // Remove the /api prefix as the base URL may already include it
+      const apiPath = url.substring(5);
+      url = `${apiBaseUrl}/${apiPath}`;
+      console.log(`Rewriting API URL from ${queryKey[0]} to ${url}`);
+    }
+
+    const res = await fetch(url, {
       headers,
-      credentials: "omit", // 'include' is for cookies, not typically used with Bearer tokens
+      credentials: "include", // Changed to match apiRequest for cross-origin requests
     });
 
     if (res.status === 401) {

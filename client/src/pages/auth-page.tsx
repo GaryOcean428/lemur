@@ -1,14 +1,49 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AuthForm } from "@/components/AuthForm"; // Import the new AuthForm
 import { useAuth } from "@/hooks/use-auth";
 import lemurLogo from "../assets/images/Lemur6.png";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, XCircle } from "lucide-react";
 
 
 const AuthPage = () => {
   const [, navigate] = useLocation();
-  const { user, isLoading } = useAuth(); // isLoading from useAuth can be used
+  const { user, isLoading, error: authError } = useAuth();
+  const [authState, setAuthState] = useState<{
+    showPopupError: boolean;
+    errorCode: string | null;
+  }>({
+    showPopupError: false,
+    errorCode: null,
+  });
+
+  // Check URL parameters for error information
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get('error');
+    
+    if (errorCode === 'popup_blocked') {
+      setAuthState({
+        showPopupError: true,
+        errorCode: errorCode,
+      });
+    }
+  }, []);
+
+  // Watch for auth errors
+  useEffect(() => {
+    if (authError && (
+      authError.message?.includes('popup') || 
+      (authError as any)?.code?.includes('popup')
+    )) {
+      setAuthState({
+        showPopupError: true,
+        errorCode: (authError as any)?.code || 'popup_error',
+      });
+    }
+  }, [authError]);
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -18,6 +53,13 @@ const AuthPage = () => {
 
   const handleAuthSuccess = () => {
     navigate("/"); // Navigate to home on successful auth
+  };
+
+  const dismissPopupError = () => {
+    setAuthState({
+      showPopupError: false,
+      errorCode: null,
+    });
   };
 
   // If loading or user is already defined (and redirect is about to happen),
@@ -31,7 +73,39 @@ const AuthPage = () => {
   }
   
   return (
-    <div className="container mx-auto py-10 flex justify-center items-center min-h-[calc(100vh-200px)]">
+    <div className="container mx-auto py-10 flex flex-col justify-center items-center min-h-[calc(100vh-200px)]">
+      {/* Popup error alert */}
+      {authState.showPopupError && (
+        <Alert variant="destructive" className="mb-6 max-w-4xl">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Authentication Error</AlertTitle>
+          <AlertDescription>
+            <div className="flex flex-col space-y-2">
+              <p>
+                It looks like your browser is blocking popup windows, which are required for social sign-in.
+                Please enable popups for this site and try again.
+              </p>
+              <div className="mt-2">
+                <strong>How to fix this:</strong>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li>Check your browser's address bar for a popup blocker icon and click it to allow popups</li>
+                  <li>Try using a different browser</li>
+                  <li>Use email/password authentication instead</li>
+                  <li>Ensure third-party cookies are enabled in your browser settings</li>
+                </ul>
+              </div>
+              <button 
+                onClick={dismissPopupError}
+                className="self-end mt-2 flex items-center text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                Dismiss
+              </button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+    
       {/* The AuthForm component will be rendered as a modal overlay by its own definition */}
       {/* We can keep the surrounding page structure if desired, or simplify */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12 items-start max-w-4xl w-full">

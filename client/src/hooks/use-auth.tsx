@@ -2,6 +2,8 @@ import { createContext, ReactNode, useContext, useEffect, useState, useCallback 
 import {
   User as FirebaseUser,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   getIdToken,
@@ -62,10 +64,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchAndUpdateUserStatus = useCallback(async (firebaseUser: FirebaseUser) => {
     try {
       const token = await getIdToken(firebaseUser);
-      const response = await fetch("/api/user/status", {
+      
+      // Determine the API URL based on environment
+      let apiUrl: string;
+      
+      // Handle cloud workspaces environment
+      const isCloudWorkspace = window.location.hostname.includes('cloudworkstations.dev');
+      if (isCloudWorkspace) {
+        // Construct the URL using the current window location for cloud workspaces
+        // This ensures API calls go to the same port/server as the frontend
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+        apiUrl = `${protocol}//${hostname}${port ? ':' + port : ''}/api/user/status`;
+      } else {
+        // For other environments, use environment variable or default to /api path
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+        apiUrl = apiBaseUrl ? `${apiBaseUrl}/user/status` : '/api/user/status';
+      }
+      
+      // Log the API URL for debugging
+      console.log(`Fetching user status from: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        credentials: 'include', // Include cookies to handle cross-origin requests
       });
 
       if (!response.ok) {
@@ -153,16 +178,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [fetchAndUpdateUserStatus]);
 
+  // Check for redirect result when the component mounts
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          toast({
+            title: "Signed in successfully",
+            description: `Welcome, ${result.user.displayName || result.user.email}!`,
+          });
+          // onAuthStateChanged will handle user state update and API fetch
+        }
+      } catch (e: any) {
+        console.error("Redirect sign-in error:", e);
+        setError(e);
+        toast({
+          title: "Sign-in failed",
+          description: e.message || "An unknown error occurred.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    handleRedirectResult();
+  }, [toast]);
+
+  // Directly use redirect method, since popup is causing issues in many browsers
   const handleSignIn = async (provider: typeof googleProvider | typeof githubProvider) => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await signInWithPopup(auth, provider);
-      toast({
-        title: "Signed in successfully",
-        description: `Welcome, ${result.user.displayName || result.user.email}!`,
-      });
-      // onAuthStateChanged will handle user state update and API fetch
+      // Use redirect method directly instead of popup
+      console.log('Using redirect method for authentication');
+      await signInWithRedirect(auth, provider);
+      // No toast here as page will refresh from redirect
+      // Result will be handled by getRedirectResult() in useEffect
     } catch (e: any) {
       console.error("Social sign-in error:", e);
       setError(e);
@@ -171,7 +222,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: e.message || "An unknown error occurred.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
