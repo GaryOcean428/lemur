@@ -7,6 +7,8 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import createMemoryStore from "memorystore";
+import { auth, db } from "./firebaseAdmin";
+import { shouldUseEmulators } from "./firebaseEmulators";
 
 declare global {
   namespace Express {
@@ -279,11 +281,112 @@ export function setupAuth(app: Express) {
     res.json(req.user);
   });
 
-  app.get("/api/user/status", (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Unauthorized", message: "Authentication required to access this resource." });
+  app.get("/api/user/status", async (req, res) => {
+    // First check for Firebase token in Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const idToken = authHeader.split("Bearer ")[1];
+        // Use Firebase Admin to verify the token
+        const decodedToken = await auth.verifyIdToken(idToken);
+        
+        // Get user data from Firestore
+        const userRef = db.collection('users').doc(decodedToken.uid);
+        const userDoc = await userRef.get();
+        
+        // In development, we might not have a user document yet if using emulators
+        const isEmulatorEnv = shouldUseEmulators();
+        if (!userDoc.exists) {
+          console.log(`User document not found for uid: ${decodedToken.uid}`);
+          
+          // In emulator environment, create a default user document if it doesn't exist
+          if (isEmulatorEnv) {
+            console.log(`Creating default user document for emulator user: ${decodedToken.uid}`);
+            const defaultUserData = {
+              email: decodedToken.email || 'test@example.com',
+              displayName: decodedToken.name || 'Test User',
+              photoURL: null,
+              tier: "pro", // Give pro access in development
+              searchCount: 0,
+              createdAt: new Date(),
+              lastLoginAt: new Date(),
+              preferences: { theme: "system", defaultSearchFocus: "web" }
+            };
+            
+            try {
+              await userRef.set(defaultUserData);
+              console.log(`Created default user document for ${decodedToken.uid}`);
+              
+              // Return the default user data
+              return res.json({
+                uid: decodedToken.uid,
+                email: defaultUserData.email,
+                displayName: defaultUserData.displayName,
+                tier: defaultUserData.tier,
+                searchCount: defaultUserData.searchCount,
+                searchLimit: "Infinity",
+                preferences: defaultUserData.preferences
+              });
+            } catch (createError) {
+              console.error("Error creating default user document:", createError);
+              // Continue with the response below, treating as if no user exists
+            }
+          } else {
+            // In production, return a 404 if user doesn't exist
+            return res.status(404).json({ 
+              error: "User not found", 
+              message: "User document not found in Firestore."
+            });
+          }
+        }
+        
+        // If we get here, either the user document exists or we couldn't create a default one
+        const userData = userDoc.exists ? userDoc.data() || {} : {};
+        
+        // Get user tier with fallback to free
+        const userTier = userData.tier || "free";
+        // In emulator environment, always treat as pro tier
+        const effectiveTier = isEmulatorEnv ? "pro" : userTier;
+        
+        return res.json({
+          uid: decodedToken.uid,
+          email: decodedToken.email || userData.email || "",
+          displayName: decodedToken.name || userData.displayName || decodedToken.uid,
+          tier: effectiveTier,
+          searchCount: userData.searchCount || 0,
+          searchLimit: effectiveTier === "pro" ? "Infinity" : (effectiveTier === "basic" ? 100 : 20),
+          preferences: userData.preferences || {}
+        });
+      } catch (error: any) {
+        console.error("Error verifying Firebase ID token:", error);
+        
+        // In development, we might want to provide more detailed error information
+        if (shouldUseEmulators()) {
+          console.log("Running in emulator mode, providing detailed error:");
+          console.log(error);
+          return res.status(401).json({ 
+            error: "Unauthorized", 
+            message: "Invalid Firebase token in emulator environment.",
+            details: error.message || "Unknown error"
+          });
+        }
+        
+        return res.status(401).json({ 
+          error: "Unauthorized", 
+          message: "Invalid Firebase token."
+        });
+      }
     }
-    res.json(req.user);
+    
+    // Fall back to session-based authentication
+    if (req.isAuthenticated()) {
+      return res.json(req.user);
+    }
+    
+    return res.status(401).json({ 
+      error: "Unauthorized", 
+      message: "Authentication required to access this resource."
+    });
   });
 
 

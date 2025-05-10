@@ -6,6 +6,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { registerAgent } from "./services/agentRegistryService"; // Added import
 import { tavilyAgentDeclaration } from "./agents/tavilyAgent"; // Added import
+import cors from 'cors';
 
 // Firebase Admin SDK is initialized in firebaseAdmin.ts
 
@@ -30,6 +31,15 @@ export const authenticateFirebaseToken = async (req: Request, res: Response, nex
 };
 
 const app = express();
+
+// Configure CORS to allow requests from all origins including cloudworkstations.dev
+app.use(cors({
+  origin: true, // Allow all origins or use specific domains: ['https://*.cloudworkstations.dev', 'http://localhost:3000']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true // Allow cookies to be sent with requests
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
