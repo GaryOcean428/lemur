@@ -1,16 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>Lemur - AI-Powered Search Engine</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- We'll use the imported logo from the Header component, no need for a separate favicon declaration -->
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
-    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lemur App - AI-powered Search Platform</title>
+  <!-- Avoid CSP issues with frame embedding -->
+  <meta http-equiv="Content-Security-Policy" content="frame-ancestors *;">
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+
+  <!-- Add Error Detection Script for debugging -->
+  <script>
+    window.addEventListener('error', function(e) {
+      console.error('Global error caught:', e.error || e.message);
+    });
+
+    // Check if Replit environment - add connection debugging
+    const isReplit = window.location.hostname.includes('replit');
+    if (isReplit) {
+      console.log('Running in Replit environment - enabling special handling');
+      
+      // Override fetch to add CORS headers for all requests
+      const originalFetch = window.fetch;
+      window.fetch = function(...args) {
+        console.log('Fetch request:', args[0]);
+        
+        // If it's a Request object, clone it and modify
+        if (args[0] instanceof Request) {
+          const request = args[0].clone();
+          const newHeaders = new Headers(request.headers);
+          newHeaders.set('X-Requested-From', window.location.origin);
+          
+          const newRequest = new Request(request, {
+            headers: newHeaders,
+            mode: 'cors',
+            credentials: 'include'
+          });
+          
+          args[0] = newRequest;
+        }
+        // If it's a URL string and options
+        else if (typeof args[0] === 'string' && args[1]) {
+          args[1] = {
+            ...args[1],
+            mode: 'cors',
+            credentials: 'include',
+            headers: {
+              ...args[1]?.headers,
+              'X-Requested-From': window.location.origin
+            }
+          };
+        }
+        
+        return originalFetch.apply(this, args)
+          .then(response => {
+            console.log('Fetch response:', response.status, response.url);
+            return response;
+          })
+          .catch(err => {
+            console.error('Fetch error:', err);
+            throw err;
+          });
+      };
+    }
+  </script>
+</body>
 </html>

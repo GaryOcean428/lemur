@@ -7,6 +7,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { registerAgent } from "./services/agentRegistryService"; // Added import
 import { tavilyAgentDeclaration } from "./agents/tavilyAgent"; // Added import
 import cors from 'cors';
+import path from 'path';
 
 // Firebase Admin SDK is initialized in firebaseAdmin.ts
 
@@ -42,32 +43,42 @@ app.use((req, res, next) => {
     // Set Content-Security-Policy header to allow WebAssembly and other needed features
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://* wss://*; font-src 'self' data:; frame-src 'self'; object-src 'none'; worker-src 'self' blob:; wasm-unsafe-eval 'self'"
+      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://* wss://*; font-src 'self' data:; frame-src 'self'; object-src 'none'; worker-src 'self' blob:;"
     );
   }
+  
+  // Replit-specific: Allow embedding in Replit frames
+  res.removeHeader('X-Frame-Options');
+  
+  // Add CORS headers for Replit environment
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
   next();
 });
 
-// Setup CORS
+// Setup CORS - using more permissive options for Replit environment
 const corsOptions = {
-  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    // Replace with your client's actual origin in production
-    const allowedOrigins = [
-      'http://localhost:5173', // Vite dev server (adjust port if necessary)
-      'http://localhost:9000', // IDX preview
-      // Add your production frontend URL here
-    ];
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true, // Important for cookies, authorization headers with HTTPS
+  origin: '*', // Allow all origins in Replit environment
+  methods: ['GET', 'POST', 'DELETE', 'UPDATE', 'PUT', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
+
+// Apply CORS to all routes
 app.use(cors(corsOptions));
+
+// Log information about the CORS setup
+log(`CORS configured to allow all origins in Replit environment`);
 
 // Add request logging middleware
 app.use((req, res, next) => {
@@ -110,6 +121,24 @@ app.use((req, res, next) => {
 
 
 app.use(express.json()); // Middleware to parse JSON bodies, crucial for POST/PUT requests
+
+// Add a simple test route to verify server is working
+app.get('/test', (req, res) => {
+  log('Test route accessed');
+  res.json({ 
+    message: 'Server is running correctly',
+    time: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    host: req.headers.host,
+    origin: req.headers.origin || 'unknown'
+  });
+});
+
+// Add a test page route that serves the HTML directly to bypass Vite
+app.get('/testpage', (req, res) => {
+  log('Test page accessed');
+  res.sendFile(path.resolve(import.meta.dirname, '..', 'client', 'public', 'test.html'));
+});
 
 // All /api routes should be authenticated
 app.use('/api', authenticateFirebaseToken); // Apply auth middleware to all /api routes
