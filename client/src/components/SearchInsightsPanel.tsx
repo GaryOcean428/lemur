@@ -8,10 +8,10 @@ import {
   CheckCircle2, Clock, Database, FlaskConical, Loader2, Search, ServerCrash, Waves,
   BarChart3, FileCheck, FilterX, Lightbulb, GitMerge
 } from 'lucide-react';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
 
-// Register ChartJS components
+// Register ChartJS components including Filler for area charts
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -19,7 +19,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 export interface SearchStep {
