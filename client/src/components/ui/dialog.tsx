@@ -29,10 +29,27 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+  hasExplicitTitle?: boolean;
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+  DialogContentProps
+>(({ className, children, hasExplicitTitle = false, ...props }, ref) => {
+  // Find if there's a DialogTitle among children
+  let hasTitle = hasExplicitTitle;
+  
+  React.Children.forEach(children, child => {
+    if (React.isValidElement(child) && child.type === DialogHeader) {
+      React.Children.forEach(child.props.children, headerChild => {
+        if (React.isValidElement(headerChild) && headerChild.type === DialogTitle) {
+          hasTitle = true;
+        }
+      });
+    }
+  });
+  
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -44,10 +61,11 @@ const DialogContent = React.forwardRef<
         )}
         {...props}
       >
-        {/* Add a visually hidden title for accessibility if no explicit title is provided */}
-        <DialogPrimitive.Title className="sr-only">
-          Dialog
-        </DialogPrimitive.Title>
+        {!hasTitle && (
+          <DialogPrimitive.Title className="sr-only">
+            Dialog
+          </DialogPrimitive.Title>
+        )}
         {children}
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
           <X className="h-4 w-4" />
