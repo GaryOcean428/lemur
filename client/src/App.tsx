@@ -11,6 +11,7 @@ import AuthPage from "@/pages/auth-page";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/hooks/use-auth";
+import { SettingsProvider } from "@/hooks/use-settings";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -96,17 +97,19 @@ function App() {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <HotToaster position="top-right" />
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <Router />
-              </main>
-              <Footer />
-            </div>
-          </TooltipProvider>
+          <SettingsProvider>
+            <TooltipProvider>
+              <Toaster />
+              <HotToaster position="top-right" />
+              <div className="flex flex-col min-h-screen">
+                <Header />
+                <main className="flex-grow">
+                  <Router />
+                </main>
+                <Footer />
+              </div>
+            </TooltipProvider>
+          </SettingsProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

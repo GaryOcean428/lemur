@@ -9,34 +9,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useSettings } from "@/hooks/use-settings";
 import { useToast } from "@/hooks/use-toast";
 import { Clipboard, RefreshCw, Globe, Shield, Bell, Eye, Search, Palette, Lock, CreditCard } from "lucide-react";
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { settings, updateSettings, resetSettings, isLoading } = useSettings();
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState("•••••••••••••••••••••••••••••••");
-  const [saveHistory, setSaveHistory] = useState(true);
-  const [regionAutodetect, setRegionAutodetect] = useState(true);
-  const [defaultRegion, setDefaultRegion] = useState("AU");
-  const [searchMode, setSearchMode] = useState("balanced");
-  const [theme, setTheme] = useState("system");
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(false);
-  const [safeSearch, setSafeSearch] = useState("moderate");
 
   const handleSaveSettings = (section: string) => {
-    toast({
-      title: "Settings updated",
-      description: `Your ${section} settings have been saved successfully.`,
-    });
+    // Build the settings object based on the section
+    if (section === 'search') {
+      updateSettings({
+        resultsPerPage: parseInt(document.getElementById('results-per-page')?.querySelector('span')?.textContent?.split(' ')[0] || '10'),
+        defaultTab: (document.getElementById('default-tab')?.querySelector('span')?.textContent?.toLowerCase() || 'all') as any,
+        searchMode: settings.searchMode,
+        regionAutodetect: settings.regionAutodetect,
+        defaultRegion: settings.defaultRegion
+      });
+    } else if (section === 'appearance') {
+      const fontSize = document.querySelector('input[name="fontsize"]:checked')?.id || 'medium';
+      updateSettings({
+        theme: settings.theme,
+        fontSize: fontSize as any
+      });
+    } else if (section === 'privacy') {
+      updateSettings({
+        saveHistory: settings.saveHistory,
+        safeSearch: settings.safeSearch
+      });
+    }
   };
 
   const handleResetSettings = () => {
-    toast({
-      title: "Settings reset",
-      description: "All settings have been reset to default values.",
-    });
+    resetSettings();
   };
 
   const handleCopyApiKey = () => {
@@ -131,7 +141,11 @@ export default function SettingsPage() {
 
               <div className="space-y-4">
                 <h3 className="text-lg font-medium dark:text-white">Search Mode</h3>
-                <RadioGroup value={searchMode} onValueChange={setSearchMode} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <RadioGroup 
+                  value={settings.searchMode} 
+                  onValueChange={(value) => updateSettings({ searchMode: value as 'balanced' | 'comprehensive' | 'recent' })} 
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4"
+                >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="balanced" id="balanced" />
                     <Label htmlFor="balanced">Balanced</Label>
@@ -161,15 +175,18 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     id="auto-region"
-                    checked={regionAutodetect}
-                    onCheckedChange={setRegionAutodetect}
+                    checked={settings.regionAutodetect}
+                    onCheckedChange={(checked) => updateSettings({ regionAutodetect: checked })}
                   />
                 </div>
                 
-                {!regionAutodetect && (
+                {!settings.regionAutodetect && (
                   <div className="pt-2">
                     <Label htmlFor="default-region">Default region</Label>
-                    <Select value={defaultRegion} onValueChange={setDefaultRegion}>
+                    <Select 
+                      value={settings.defaultRegion} 
+                      onValueChange={(value) => updateSettings({ defaultRegion: value })}
+                    >
                       <SelectTrigger id="default-region" className="w-full">
                         <SelectValue placeholder="Select region" />
                       </SelectTrigger>
@@ -249,7 +266,11 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-medium dark:text-white">Theme</h3>
-                <RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <RadioGroup 
+                  value={settings.theme} 
+                  onValueChange={(value) => updateSettings({ theme: value as 'light' | 'dark' | 'system' })} 
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4"
+                >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="light" id="light" />
                     <Label htmlFor="light">Light</Label>
@@ -269,7 +290,12 @@ export default function SettingsPage() {
 
               <div className="space-y-4">
                 <h3 className="text-lg font-medium dark:text-white">Font Size</h3>
-                <RadioGroup defaultValue="medium" className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <RadioGroup 
+                  value={settings.fontSize} 
+                  onValueChange={(value) => updateSettings({ fontSize: value as 'small' | 'medium' | 'large' | 'x-large' })}
+                  name="fontsize"
+                  className="grid grid-cols-1 md:grid-cols-4 gap-4"
+                >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="small" id="small" />
                     <Label htmlFor="small">Small</Label>
