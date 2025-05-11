@@ -362,7 +362,7 @@ export default function SearchInsightsPanel({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md">
+      <SheetContent className="sm:max-w-md" useGridLayout={false}>
         <SheetHeader>
           <SheetTitle>Search Insights</SheetTitle>
           <SheetDescription>

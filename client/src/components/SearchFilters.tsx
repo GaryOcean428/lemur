@@ -100,7 +100,7 @@ export default function SearchFiltersPanel() {
           <span>Filters</span>
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[300px] sm:w-[400px] md:w-[500px] overflow-y-auto">
+      <SheetContent className="w-[300px] sm:w-[400px] md:w-[500px] overflow-y-auto" useGridLayout={false}>
         <SheetHeader className="mb-4">
           <SheetTitle>Advanced Search Filters</SheetTitle>
           <SheetDescription>
