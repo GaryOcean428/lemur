@@ -1249,18 +1249,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Handle conversation context for follow-up queries
-      if (isFollowUp) {
-        req.session.conversationContext = req.session.conversationContext || [];
-        req.session.conversationContext.push({
-          query,
-          timestamp: Date.now()
-        });
-        
-        if (req.session.conversationContext.length > 5) {
-          req.session.conversationContext = req.session.conversationContext.slice(-5);
-        }
+      // Initialize and manage conversation context
+      req.session.conversationContext = req.session.conversationContext || [];
+      
+      // For all queries (follow-up or new), add to context
+      req.session.conversationContext.push({
+        query,
+        timestamp: Date.now()
+      });
+      
+      // Limit context to last 5 queries
+      if (req.session.conversationContext.length > 5) {
+        req.session.conversationContext = req.session.conversationContext.slice(-5);
       }
+      
+      console.log(`${isFollowUp ? 'Follow-up' : 'New'} query added to context: "${query}". Context size: ${req.session.conversationContext.length}`);
+      
+      // Only reset context if explicitly requested (can be added as a future feature)
+      // if (req.query.resetContext === 'true') {
+      //   req.session.conversationContext = [{
+      //     query,
+      //     timestamp: Date.now()
+      //   }];
+      //   console.log(`Conversation context reset with new query: "${query}"`);
+      // }
       
       // For free tier and anonymous users, force the use of a lighter model
       if (userTier === 'free' || userTier === 'anonymous') {
@@ -1268,12 +1280,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       try {
-        // Load conversation context for follow-up queries
+        // Load conversation context for queries
         let conversationContext: string[] = [];
-        if (isFollowUp && req.session.conversationContext) {
-          conversationContext = req.session.conversationContext.map(
+        
+        // Use context even for non-follow-up queries if context exists and has previous questions
+        // This improves continuity even for queries not explicitly marked as follow-ups
+        if (req.session.conversationContext && req.session.conversationContext.length > 1) {
+          // For explicit follow-ups, use all context
+          // For regular queries, still use prior context but with reduced weight
+          const contextToUse = isFollowUp 
+            ? req.session.conversationContext 
+            : req.session.conversationContext.slice(0, -1); // Exclude current query for regular searches
+            
+          conversationContext = contextToUse.map(
             (ctx: any) => `User: ${ctx.query}${ctx.answer ? `\nAssistant: ${ctx.answer}` : ''}`
           );
+          
+          console.log(`Using conversation context with ${contextToUse.length} entries for ${isFollowUp ? 'follow-up' : 'regular'} query`);
         }
         
         let ai;
