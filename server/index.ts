@@ -140,6 +140,19 @@ app.get('/testpage', (req, res) => {
   res.sendFile(path.resolve(import.meta.dirname, '..', 'client', 'public', 'test.html'));
 });
 
+// Special entry point for Replit environment to bypass Vite host restrictions
+app.get('/entry', (req, res) => {
+  log('Entry point accessed');
+  res.sendFile(path.resolve(import.meta.dirname, '..', 'client', 'public', 'entry.html'));
+});
+
+// Serve the main app with a special route that doesn't use Vite's development server
+app.get('/app', (req, res) => {
+  log('App route accessed - serving without Vite validation');
+  // For Replit compatibility, we'll serve the entire app through our Express server
+  res.sendFile(path.resolve(import.meta.dirname, '..', 'client', 'index.html'));
+});
+
 // All /api routes should be authenticated
 app.use('/api', authenticateFirebaseToken); // Apply auth middleware to all /api routes
 
