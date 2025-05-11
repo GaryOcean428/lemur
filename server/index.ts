@@ -8,6 +8,19 @@ import { registerAgent } from "./services/agentRegistryService"; // Added import
 import { tavilyAgentDeclaration } from "./agents/tavilyAgent"; // Added import
 import cors from 'cors';
 import path from 'path';
+import session from 'express-session';
+
+// Extend express-session with our custom properties
+declare module 'express-session' {
+  interface SessionData {
+    anonymousSearchCount?: number;
+    conversationContext?: Array<{
+      query: string;
+      answer?: string;
+      timestamp: number;
+    }>;
+  }
+}
 
 // Firebase Admin SDK is initialized in firebaseAdmin.ts
 
@@ -76,6 +89,17 @@ const corsOptions = {
 
 // Apply CORS to all routes
 app.use(cors(corsOptions));
+
+// Configure session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'lemur-search-secret-key',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
 // Log information about the CORS setup
 log(`CORS configured to allow all origins in Replit environment`);
@@ -146,6 +170,52 @@ app.get('/entry', (req, res) => {
   res.sendFile(path.resolve(import.meta.dirname, '..', 'client', 'public', 'entry.html'));
 });
 
+// Standalone HTML that works without Vite - fully functional client app
+app.get('/standalone', (req, res) => {
+  log('Standalone HTML accessed');
+  res.sendFile(path.resolve(import.meta.dirname, '..', 'client', 'public', 'standalone.html'));
+});
+
+// Anonymous search API - doesn't require authentication
+app.post('/api/anonymous-search', async (req, res) => {
+  try {
+    log('Anonymous search accessed');
+    const { query } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Missing search query' });
+    }
+    
+    // Increment session-based search count
+    let anonymousSearchCount = req.session?.anonymousSearchCount || 0;
+    anonymousSearchCount++;
+    
+    if (req.session) {
+      req.session.anonymousSearchCount = anonymousSearchCount;
+    }
+    
+    // Limit anonymous searches per session
+    if (anonymousSearchCount > 1) {
+      return res.status(429).json({ 
+        error: 'Anonymous search limit reached',
+        message: 'You have reached the limit for anonymous searches. Please sign in to continue searching.' 
+      });
+    }
+
+    // Just return a simple example response for now
+    res.json({
+      answer: `This is a placeholder response for the query: "${query}"`,
+      sources: [
+        { title: "Example Source 1", url: "https://example.com/1" },
+        { title: "Example Source 2", url: "https://example.com/2" }
+      ]
+    });
+  } catch (err: any) {
+    log('Error in anonymous search: ' + err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Serve the main app with a special route that doesn't use Vite's development server
 app.get('/app', (req, res) => {
   log('App route accessed - serving without Vite validation');
@@ -153,7 +223,7 @@ app.get('/app', (req, res) => {
   res.sendFile(path.resolve(import.meta.dirname, '..', 'client', 'index.html'));
 });
 
-// All /api routes should be authenticated
+// All /api routes should be authenticated (except anonymous search which is defined above)
 app.use('/api', authenticateFirebaseToken); // Apply auth middleware to all /api routes
 
 (async () => {
