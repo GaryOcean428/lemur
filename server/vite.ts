@@ -19,32 +19,29 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-export async function setupVite(app: Express, server?: Server) {
+export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
-    hmr: server ? { server } : true,
-    // Fix type error: allowedHosts should be string[] or true, not boolean
-    allowedHosts: ['localhost'],
+    hmr: { server },
+    allowedHosts: true,
   };
 
-  try {
-    const vite = await createViteServer({
-      ...viteConfig,
-      configFile: false,
-      customLogger: {
-        ...viteLogger,
-        error: (msg, options) => {
-          viteLogger.error(msg, options);
-          // Don't exit process on error during development
-          console.error("[Vite Error]", msg);
-        },
+  const vite = await createViteServer({
+    ...viteConfig,
+    configFile: false,
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+        process.exit(1);
       },
-      server: serverOptions,
-      appType: "custom",
-    });
+    },
+    server: serverOptions,
+    appType: "custom",
+  });
 
-    app.use(vite.middlewares);
-    app.use("*", async (req, res, next) => {
+  app.use(vite.middlewares);
+  app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
     try {
@@ -65,19 +62,9 @@ export async function setupVite(app: Express, server?: Server) {
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
-      console.error("[Vite Template Error]", e);
       next(e);
     }
   });
-  } catch (err) {
-    console.error("[Vite Server Setup Error]", err);
-    // Fallback to basic static file serving if Vite fails to initialize
-    console.log("Falling back to basic static file serving");
-    app.use(express.static(path.resolve(import.meta.dirname, "..", "client")));
-    app.use("*", (_req, res) => {
-      res.status(500).send("Error initializing development server. Check console for details.");
-    });
-  }
 }
 
 export function serveStatic(app: Express) {

@@ -33,18 +33,6 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  // Simple approach: Just add hidden accessibility elements to every dialog
-  // This ensures screen readers have context without complex child checking
-  const accessibleChildren = (
-    <>
-      <div className="sr-only">
-        <DialogPrimitive.Title>Dialog</DialogPrimitive.Title>
-        <DialogPrimitive.Description>Dialog content</DialogPrimitive.Description>
-      </div>
-      {children}
-    </>
-  );
-
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -56,7 +44,11 @@ const DialogContent = React.forwardRef<
         )}
         {...props}
       >
-        {accessibleChildren}
+        {/* Add a visually hidden title for accessibility if no explicit title is provided */}
+        <DialogPrimitive.Title className="sr-only">
+          Dialog
+        </DialogPrimitive.Title>
+        {children}
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
