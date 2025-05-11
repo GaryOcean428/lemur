@@ -343,8 +343,8 @@ export default function SettingsPage() {
                 </div>
                 <Switch
                   id="save-history"
-                  checked={saveHistory}
-                  onCheckedChange={setSaveHistory}
+                  checked={settings.saveHistory}
+                  onCheckedChange={(checked) => updateSettings({ saveHistory: checked })}
                 />
               </div>
               
@@ -352,7 +352,10 @@ export default function SettingsPage() {
               
               <div className="space-y-4">
                 <h3 className="text-lg font-medium dark:text-white">SafeSearch</h3>
-                <RadioGroup value={safeSearch} onValueChange={setSafeSearch} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <RadioGroup 
+                  value={settings.safeSearch} 
+                  onValueChange={(value) => updateSettings({ safeSearch: value as 'strict' | 'moderate' | 'off' })} 
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="strict" id="strict" />
                     <Label htmlFor="strict">Strict</Label>
