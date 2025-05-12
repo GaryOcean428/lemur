@@ -1,8 +1,9 @@
-/**
+git add .idx/dev.nix
+git commit -m "fix: update IDX configuration to use workspace instead of preview"/**
  * Postinstall Script for Firebase Project 2025 Best Practices
- * 
+ *
  * Chain of Draft: Check → Setup → Link → Configure
- * 
+ *
  * Ensures consistent workspace setup across environments by:
  * 1. Checking and creating required directories
  * 2. Configuring tsconfig.json files
@@ -10,9 +11,9 @@
  * 4. Configuring Firebase emulators for development
  */
 
-import fs from 'fs';
-import path from 'path';
-import { execSync } from 'child_process';
+import { execSync } from 'child_process'
+import fs from 'fs'
+import path from 'path'
 
 // Root directory
 const rootDir = path.resolve('.');
@@ -32,17 +33,17 @@ const clientTsConfigPath = path.join(rootDir, 'client', 'tsconfig.node.json');
 if (fs.existsSync(clientTsConfigPath)) {
   console.log('🔍 Updating client TypeScript configuration...');
   const tsConfig = JSON.parse(fs.readFileSync(clientTsConfigPath, 'utf8'));
-  
+
   // Fix Vite configuration path
   tsConfig.include = ['../vite.config.ts'];
-  
+
   // Add recommended compiler options
   tsConfig.compilerOptions = {
     ...tsConfig.compilerOptions,
     strict: true,
     forceConsistentCasingInFileNames: true,
   };
-  
+
   fs.writeFileSync(clientTsConfigPath, JSON.stringify(tsConfig, null, 2));
 }
 
@@ -51,7 +52,7 @@ const firebaseStudioConfigDir = path.join(rootDir, '.firebase-studio');
 if (!fs.existsSync(firebaseStudioConfigDir)) {
   console.log('🔗 Setting up Firebase Studio integration...');
   fs.mkdirSync(firebaseStudioConfigDir, { recursive: true });
-  
+
   // Create Studio configuration
   const studioConfig = {
     projectId: 'lemur-86e1b',
@@ -63,9 +64,9 @@ if (!fs.existsSync(firebaseStudioConfigDir)) {
       port: packageJson.config.vite_port
     }
   };
-  
+
   fs.writeFileSync(
-    path.join(firebaseStudioConfigDir, 'config.json'), 
+    path.join(firebaseStudioConfigDir, 'config.json'),
     JSON.stringify(studioConfig, null, 2)
   );
 }
@@ -77,13 +78,13 @@ let envContent = '';
 
 if (fs.existsSync(envLocalPath)) {
   envContent = fs.readFileSync(envLocalPath, 'utf8');
-  
+
   // Add FirebaseUI config if not present
   if (!envContent.includes('VITE_FIREBASE_UI_CONFIG')) {
     envContent += '\n\n# FirebaseUI Configuration\n';
     envContent += 'VITE_FIREBASE_UI_CONFIG={"signInFlow":"popup","signInOptions":["google.com","facebook.com","password"]}\n';
   }
-  
+
   fs.writeFileSync(envLocalPath, envContent);
 }
 
