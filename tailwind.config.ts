@@ -100,5 +100,17 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+  plugins: [
+    // Handle plugin resolution more robustly for IDX environment
+    // First try direct require, then fallback for virtual paths
+    (function() {
+      try {
+        return require("tailwindcss-animate");
+      } catch (e) {
+        console.warn('Failed to load tailwindcss-animate via require, animations may not work');
+        return {};
+      }
+    })(),
+    require("@tailwindcss/typography")
+  ],
 } satisfies Config;

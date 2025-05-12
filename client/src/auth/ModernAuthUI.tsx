@@ -225,8 +225,16 @@ export const ModernAuthUI: React.FC<ModernAuthUIProps> = ({
     }
   };
   
+  // Apply custom styles through class composition rather than inline styles
+  const containerClassName = [
+    'modern-auth-ui',
+    className,
+    // Add conditional classes based on props if needed
+    isLoading ? 'auth-loading-state' : ''
+  ].filter(Boolean).join(' ');
+  
   return (
-    <div className={`modern-auth-ui ${className}`} style={style}>
+    <div className={containerClassName}>
       <h2 className="auth-title">{labels.title}</h2>
       
       {error && (

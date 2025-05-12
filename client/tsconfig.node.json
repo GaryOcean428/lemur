@@ -8,8 +8,15 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    /* Fix for IDX environment */
+    "rootDir": "..",
+    "baseUrl": ".."
   },
-  "include": ["../vite.config.ts"],
-  "files": ["../vite.config.ts"]
+  "include": [
+    "../vite.config.ts"
+  ],
+  "files": [
+    "../vite.config.ts"
+  ]
 }

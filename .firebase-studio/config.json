@@ -1,0 +1,10 @@
+{
+  "projectId": "lemur-86e1b",
+  "emulators": {
+    "enabled": true,
+    "port": 4000
+  },
+  "devServer": {
+    "port": 9000
+  }
+}
