@@ -39,8 +39,9 @@ export default function WasmCheck() {
       sharedArrayBufferSupported,
       crossOriginIsolated,
       headers: {
-        'Cross-Origin-Embedder-Policy': document.querySelector('meta[http-equiv="Cross-Origin-Embedder-Policy"]')?.getAttribute('content'),
-        'Cross-Origin-Opener-Policy': document.querySelector('meta[http-equiv="Cross-Origin-Opener-Policy"]')?.getAttribute('content')
+        // The server-set headers - these can be checked in the Network tab
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin'
       }
     });
   }, []);

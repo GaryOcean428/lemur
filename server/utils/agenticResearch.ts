@@ -350,10 +350,11 @@ Please critique this draft and identify specific areas for improvement.`
       const response = await Promise.race([apiPromise, timeoutPromise]);
       console.log("Critique draft completed successfully");
       return safeGetContent(response);
-    } catch (raceError) {
+    } catch (error) {
       // Handle timeout or API error
-      console.error(`Critique failed in race condition: ${raceError.message}`);
-      throw raceError; // Re-throw to be caught by outer catch
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Critique failed in race condition: ${errorMessage}`);
+      throw error; // Re-throw to be caught by outer catch
     }
   } catch (error) {
     console.error("Error critiquing draft:", error);
@@ -718,23 +719,73 @@ export async function executeAgenticResearch(
     while (iterations < maxIterations) {
       iterations++;
       
-      // Analyze step - initial synthesis or follow-up
-      processSteps.push(`Analysis iteration ${iterations}: Synthesizing information...`);
-      updateProgress({ status: 'analyzing', results: currentResults });
-      currentDraft = await analyzeResults(query, currentResults, iterations);
-      
-      // Check if we should do another iteration
-      if (iterations >= maxIterations) break;
-      
-      // Critique step (Reflexion pattern)
-      processSteps.push(`Critique iteration ${iterations}: Evaluating analysis quality...`);
-      updateProgress({ status: 'critiquing', draft: currentDraft, results: currentResults });
-      currentCritique = await critiqueDraft(query, currentDraft, currentResults);
-      
-      // Refine step
-      processSteps.push(`Refinement iteration ${iterations}: Improving analysis based on critique...`);
-      updateProgress({ status: 'refining', critique: currentCritique, draft: currentDraft, results: currentResults });
-      currentDraft = await refineDraft(query, currentDraft, currentCritique, currentResults);
+      try {
+        // Set a timeout for the entire iteration
+        const iterationTimeoutMs = 45000; // 45 seconds timeout for the entire iteration
+        const iterationStartTime = Date.now();
+        
+        console.log(`Starting iteration ${iterations} of ${maxIterations}, with timeout ${iterationTimeoutMs}ms`);
+        
+        // Analyze step - initial synthesis or follow-up
+        processSteps.push(`Analysis iteration ${iterations}: Synthesizing information...`);
+        updateProgress({ status: 'analyzing', results: currentResults });
+        
+        // Check if we've already spent too much time
+        if (Date.now() - iterationStartTime > iterationTimeoutMs * 0.4) {
+          throw new Error(`Analysis phase timeout in iteration ${iterations}`);
+        }
+        
+        currentDraft = await analyzeResults(query, currentResults, iterations);
+        
+        // Check if we should do another iteration
+        if (iterations >= maxIterations) break;
+        
+        // Critique step (Reflexion pattern)
+        processSteps.push(`Critique iteration ${iterations}: Evaluating analysis quality...`);
+        updateProgress({ status: 'critiquing', draft: currentDraft, results: currentResults });
+        
+        // Check if we've already spent too much time
+        if (Date.now() - iterationStartTime > iterationTimeoutMs * 0.7) {
+          throw new Error(`Critique phase timeout in iteration ${iterations}`);
+        }
+        
+        currentCritique = await critiqueDraft(query, currentDraft, currentResults);
+        
+        // Refine step
+        processSteps.push(`Refinement iteration ${iterations}: Improving analysis based on critique...`);
+        updateProgress({ status: 'refining', critique: currentCritique, draft: currentDraft, results: currentResults });
+        
+        // Check if we've already spent too much time
+        if (Date.now() - iterationStartTime > iterationTimeoutMs * 0.9) {
+          throw new Error(`Refinement phase timeout in iteration ${iterations}`);
+        }
+        
+        currentDraft = await refineDraft(query, currentDraft, currentCritique, currentResults);
+        
+        console.log(`Successfully completed iteration ${iterations}`);
+      } catch (error) {
+        // Handle errors within the iteration loop
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`Error in research iteration ${iterations}: ${errorMessage}`);
+        
+        // Add to process steps for visibility
+        processSteps.push(`⚠️ Iteration ${iterations} encountered an issue: ${errorMessage}`);
+        
+        // If we don't have a draft yet (first iteration failed completely), create a simple one
+        if (iterations === 1 && !currentDraft) {
+          currentDraft = `Initial analysis of "${query}" based on available sources:\n\n` +
+            `Based on the ${currentResults.length} sources gathered, this topic appears to involve ` +
+            `[brief summary would normally appear here].\n\n` +
+            `Due to processing limitations, only a basic analysis could be generated. ` +
+            `The information gathered from sources will be used for further refinement.`;
+          
+          processSteps.push("Generated fallback initial analysis due to processing limitation");
+        }
+        
+        // If we've hit the max iterations or this is the final one, we'll break
+        // Otherwise, we'll try the next iteration with what we have
+        if (iterations >= maxIterations - 1) break;
+      }
     }
     
     // If we have web search results, enhance the final draft with current information
