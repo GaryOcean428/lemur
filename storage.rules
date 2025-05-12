@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// Firebase Storage Rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isUserOwned(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function hasValidAppCheck() {
+      return request.auth.token.app_check == true;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        request.auth.token.role == 'admin';
+    }
+    
+    // User profile images
+    match /users/{userId}/profile/{fileName} {
+      // Users can read, update, and delete their own profile images
+      // Anyone can read profile images (they're public)
+      // Admin can read all profile images
+      allow read: if true; // Public read access to profile images
+      allow write: if isUserOwned(userId) && hasValidAppCheck();
+      allow delete: if isUserOwned(userId) || isAdmin();
+      
+      // Validate image upload size and type
+      function isValidImage() {
+        return request.resource.size < 5 * 1024 * 1024 // 5MB max
+          && request.resource.contentType.matches('image/.*'); // Must be an image
+      }
+      
+      // Additional rules for image uploads
+      allow create: if isUserOwned(userId) && 
+                     hasValidAppCheck() && 
+                     isValidImage();
+    }
+    
+    // Public assets - can be read by anyone
+    match /public/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && hasValidAppCheck();
+    }
+    
+    // Deny all other access by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

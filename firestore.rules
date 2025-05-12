@@ -2,7 +2,9 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions for security rules
+    // ===== HELPER FUNCTIONS =====
+    
+    // Authentication checks
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -11,23 +13,96 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    function hasValidAppCheck() {
+      return request.auth.token.app_check == true;
+    }
+    
+    // Role-based access control
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && userExists() && getUserData().role == role;
+    }
+    
     function isAdmin() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return hasRole('admin');
+    }
+    
+    function isPremiumUser() {
+      return hasRole('premium') || hasRole('pro') || isAdmin();
+    }
+    
+    // Data validation
+    function isValidEmail(email) {
+      return email.matches('^[^@]+@[^@]+\\.[^@]+$');
+    }
+    
+    function isValidUsername(username) {
+      return username.size() >= 3 && username.size() <= 30 && username.matches('^[a-zA-Z0-9_-]+$');
+    }
+    
+    function isValidSearchQuery(query) {
+      return query is string && query.size() > 0 && query.size() < 1000;
+    }
+    
+    function timestampIsRecent(timestamp) {
+      return timestamp is timestamp && 
+        timestamp <= request.time && 
+        timestamp >= request.time - duration.value(5, 'm');
+    }
+    
+    // Rate limiting
+    function withinRateLimit(userId, collection, limitPerHour) {
+      let hourAgo = request.time - duration.value(1, 'h');
+      let recentItems = count(
+        /databases/$(database)/documents/users/$(userId)/$(collection)/
+        where createTime > hourAgo
+      );
+      return recentItems < limitPerHour;
     }
 
-    // Users collection
+    // ===== COLLECTIONS =====
+    
+    // Users collection - core user data
     match /users/{userId} {
-      // Users can read and write their own data
-      // Admins can read all user data but cannot modify it
+      // Schema validation for user document
+      function isValidUserData() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['email', 'username', 'createdAt']) && 
+          data.email is string && isValidEmail(data.email) &&
+          data.username is string && isValidUsername(data.username) &&
+          data.createdAt is timestamp;
+      }
+      
+      // Read and write rules
       allow read: if isUserOwned(userId) || isAdmin();
-      allow write: if isUserOwned(userId);
+      allow create: if isUserOwned(userId) && isValidUserData();
+      allow update: if isUserOwned(userId) && 
+        (request.resource.data.diff(resource.data).affectedKeys()
+         .hasAny(['username', 'displayName', 'photoURL', 'preferences']) ||
+         isAdmin());
       
       // User search history subcollection
       match /searchHistory/{searchId} {
-        allow read, write: if isUserOwned(userId);
-        allow read: if isAdmin();
+        function isValidSearchHistoryItem() {
+          let data = request.resource.data;
+          return data.keys().hasAll(['query', 'timestamp']) &&
+            isValidSearchQuery(data.query) &&
+            data.timestamp is timestamp && timestampIsRecent(data.timestamp);
+        }
+        
+        allow read: if isUserOwned(userId);
+        allow create: if isUserOwned(userId) && 
+          isValidSearchHistoryItem() && 
+          withinRateLimit(userId, 'searchHistory', isPremiumUser() ? 1000 : 100);
+        allow delete: if isUserOwned(userId);
+        allow update: if false; // Search history items should be immutable
       }
       
       // User subscriptions subcollection
@@ -36,12 +111,39 @@ service cloud.firestore {
         // Only Firebase Functions should write to subscriptions
         allow write: if false;
       }
+      
+      // User saved searches
+      match /savedSearches/{savedSearchId} {
+        function isValidSavedSearch() {
+          let data = request.resource.data;
+          return data.keys().hasAll(['query', 'createdAt']) &&
+            isValidSearchQuery(data.query) &&
+            data.createdAt is timestamp;
+        }
+        
+        allow read: if isUserOwned(userId);
+        allow create, update: if isUserOwned(userId) && isValidSavedSearch() &&
+          withinRateLimit(userId, 'savedSearches', isPremiumUser() ? 100 : 20);
+        allow delete: if isUserOwned(userId);
+      }
     }
     
-    // Public documents available to all authenticated users
+    // Public documents available to all authenticated users with App Check
     match /publicContent/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read: if isAuthenticated() && hasValidAppCheck();
+      allow write: if isAdmin() && hasValidAppCheck();
+    }
+    
+    // System settings - admin only
+    match /systemSettings/{settingId} {
+      allow read: if isAuthenticated() && hasValidAppCheck();
+      allow write: if isAdmin() && hasValidAppCheck();
+    }
+    
+    // Analytics collection for aggregated data
+    match /analytics/{docId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only writable via Firebase Functions
     }
     
     // Deny all other access by default
