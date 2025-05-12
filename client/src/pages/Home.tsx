@@ -1,7 +1,11 @@
 import SearchForm from "@/components/SearchForm";
 import lemurLogo from "../assets/images/Lemur6.png";
+import WasmCheck from "@/components/WasmCheck";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
+  const [showWasmCheck, setShowWasmCheck] = useState(false);
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
       <div className="w-full max-w-3xl flex flex-col items-center">
