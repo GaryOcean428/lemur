@@ -12,18 +12,29 @@ import { tavilySearch, TavilySearchResponse, TavilySearchResult } from "../tavil
 export const TAVILY_AGENT_ID = "tavily-search-agent";
 export const TAVILY_AGENT_TYPE = "web-search";
 
-export const tavilyAgentDeclaration: AgentCapabilityDeclaration = {
-  agentId: "tavily-search-agent",
-  agentType: "web-search",
+// Extend AgentCapabilityDeclaration with runtime methods
+interface RuntimeAgentDeclaration extends AgentCapabilityDeclaration {
+  healthCheck: () => Promise<boolean>;
+  handleTask: (task: TaskDefinition) => Promise<TaskResultPayload>;
+}
+
+export const tavilyAgentDeclaration: RuntimeAgentDeclaration = {
+  agentId: TAVILY_AGENT_ID,
+  agentType: TAVILY_AGENT_TYPE,
+  displayName: "Tavily Web Search Agent",
+  version: "1.0.0",
+  description: "Performs web searches using the Tavily API",
+  supportedProtocols: ["mcp_v1.1"],
   capabilities: [
     {
-      taskType: "web-search",
+      taskType: "web_search",
+      description: "Performs web searches with configurable depth and result limits",
       inputSchema: {
         type: "object",
         properties: {
           query: { type: "string" },
-          searchDepth: { type: "string", enum: ["basic", "advanced"] },
-          maxResults: { type: "number" },
+          search_depth: { type: "string", enum: ["basic", "advanced"] },
+          max_results: { type: "number" },
         },
         required: ["query"],
       },
@@ -57,37 +68,54 @@ export const tavilyAgentDeclaration: AgentCapabilityDeclaration = {
     }
   },
   handleTask: async (task: TaskDefinition): Promise<TaskResultPayload> => {
-    if (task.type !== "web-search") {
-      throw new Error(`Tavily agent cannot handle task type: ${task.type}`);
+    if (task.taskType !== "web_search") {
+      return {
+        taskId: task.taskId,
+        finalStatus: "failed",
+        errorDetails: {
+          errorCode: "UNSUPPORTED_TASK_TYPE",
+          errorMessage: `Tavily agent cannot handle task type: ${task.taskType}`,
+        },
+      };
     }
 
-    const input = task.input as WebSearchInput;
+    const input = task.inputData as WebSearchInput;
     const apiKey = process.env.TAVILY_API_KEY;
     if (!apiKey) {
-      throw new Error("TAVILY_API_KEY not configured");
+      return {
+        taskId: task.taskId,
+        finalStatus: "failed",
+        errorDetails: {
+          errorCode: "CONFIGURATION_ERROR",
+          errorMessage: "TAVILY_API_KEY not configured",
+        },
+      };
     }
 
     try {
       const searchResponse = await tavilySearch(input.query, apiKey, {
-        search_depth: input.searchDepth || "basic",
-        max_results: input.maxResults || 5,
+        search_depth: input.search_depth || "basic",
+        max_results: input.max_results || 5,
       });
 
-      const output: WebSearchOutput = {
+      const outputData: WebSearchOutput = {
         results: searchResponse.results || [],
       };
 
       return {
         taskId: task.taskId,
-        status: "completed",
-        output,
+        finalStatus: "completed",
+        outputData,
       };
     } catch (error) {
       console.error("Tavily search error:", error);
       return {
         taskId: task.taskId,
-        status: "failed",
-        error: error instanceof Error ? error.message : "Unknown error during search",
+        finalStatus: "failed",
+        errorDetails: {
+          errorCode: "SEARCH_ERROR",
+          errorMessage: error instanceof Error ? error.message : "Unknown error during search",
+        },
       };
     }
   },

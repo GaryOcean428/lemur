@@ -5,8 +5,12 @@
  * directly using Groq Compound Beta's built-in Tavily integration.
  */
 
-import { validateGroqModel, mapModelPreference, supportsToolCalling, APPROVED_MODELS } from "./utils/modelValidation";
-import { normalizeRegionCode, enforceRegionPreference, getRegionalInstructionForCode } from "./utils/regionUtil";
+import { type Request, type Response } from "express";
+import { type GroqResponse } from "./types/groqTypes.js";
+import { type Source, type SearchResult } from "./types/searchTypes.js";
+import { validateGroqModel, mapModelPreference, supportsToolCalling, APPROVED_MODELS } from "./utils/modelValidation.js";
+import { normalizeRegionCode, enforceRegionPreference, getRegionalInstructionForCode } from "./utils/regionUtil.js";
+import fetch from "node-fetch";
 
 // Using getRegionalInstructionForCode imported from regionUtil.ts
 

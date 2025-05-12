@@ -1,12 +1,14 @@
 import 'dotenv/config'; // Load environment variables
-import express, { type Request, Response, NextFunction } from "express";
-import cors from 'cors';
-import { auth } from "./firebaseAdmin"; // Import auth from the modular firebaseAdmin.ts
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic } from "./vite";
-import { registerAgent } from "./services/agentRegistryService";
-import { tavilyAgentDeclaration } from "./agents/tavilyAgent";
-import { authenticateFirebaseToken } from "./middleware/authMiddleware";
+import express, { type Request, type Response, type NextFunction } from "express";
+import cors from "cors";
+import { registerRoutes } from "./routes.js";
+import { auth } from "./firebaseAdmin.js"; // Import auth from the modular firebaseAdmin.ts
+import { setupAuth } from "./auth.js";
+import { shouldUseEmulators } from "./firebaseEmulators.js";
+import { registerAgent } from "./services/agentRegistryService.js";
+import { tavilyAgentDeclaration } from "./agents/tavilyAgent.js";
+import { setupVite } from "./vite.js";
+import { serveStatic } from "./vite.js";
 
 // Middleware to verify Firebase ID token
 export const authenticateFirebaseToken = async (req: Request, res: Response, next: NextFunction) => {

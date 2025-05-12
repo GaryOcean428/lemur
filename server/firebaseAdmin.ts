@@ -1,16 +1,17 @@
-import { initializeApp, cert, getApps, App as FirebaseApp } from 'firebase-admin/app';
-import { getFirestore, Firestore, FieldValue } from 'firebase-admin/firestore';
-import { getAuth, Auth } from 'firebase-admin/auth';
-import 'dotenv/config'; // Ensure environment variables are loaded
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { createRequire } from "node:module";
+import { shouldUseEmulators, FIREBASE_EMULATOR_PORTS, FIREBASE_EMULATOR_HOST } from './firebaseEmulators.js';
 
 // Import Firebase emulator configuration
-import { shouldUseEmulators, FIREBASE_EMULATOR_PORTS, FIREBASE_EMULATOR_HOST } from './firebaseEmulators';
+import 'dotenv/config'; // Ensure environment variables are loaded
 
-// We will use console.log for this module to avoid circular dependencies or complex logger setup here.
-
-let app: FirebaseApp;
-let dbInstance: Firestore;
-let authInstance: Auth;
+let app;
+let dbInstance;
+let authInstance;
+let storageInstance;
 
 // Check if we should use emulators
 const isEmulatorMode = shouldUseEmulators();
@@ -47,7 +48,7 @@ if (getApps().length === 0) {
         // Fallback to service account file (only for development)
         try {
           // Import dynamically to avoid build-time dependency on the file
-          const serviceAccount = require('./serviceAccountKey.json');
+          const serviceAccount = createRequire(import.meta.url)('./serviceAccountKey.json');
           app = initializeApp({
             credential: cert(serviceAccount),
           });
@@ -72,6 +73,7 @@ if (getApps().length === 0) {
 // Initialize Firestore and Auth
 dbInstance = getFirestore(app);
 authInstance = getAuth(app);
+storageInstance = getStorage(app);
 
 // Connect to emulators if in development environment
 if (shouldUseEmulators()) {
@@ -90,4 +92,4 @@ if (shouldUseEmulators()) {
   console.log(`🔑 Auth connected to emulator at ${host}:${FIREBASE_EMULATOR_PORTS.auth}`);
 }
 
-export { app, dbInstance as db, authInstance as auth, FieldValue };
+export { app, dbInstance as db, authInstance as auth, FieldValue, storageInstance };

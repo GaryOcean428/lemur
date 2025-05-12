@@ -45,13 +45,13 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: express.Application) {
-  const MemoryStore = createMemoryStore(session);
+  const MemStore = MemoryStore(session);
 
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "find-search-secret-key",
     resave: false,
     saveUninitialized: true, 
-    store: new MemoryStore({
+    store: new MemStore({
       checkPeriod: 86400000, 
     }),
     cookie: {
@@ -218,19 +218,20 @@ export function setupAuth(app: express.Application) {
         }
         
         try {
-          if (req.user && req.user.subscriptionTier === 'free') {
-            const isDeveloperUser = req.user.email?.endsWith('@replit.com') || 
-                                  req.user.email?.endsWith('@example.com') ||
-                                  req.user.username === 'GaryOcean';
+          const currentUser = req.user;
+          if (currentUser?.subscriptionTier === 'free') {
+            const isDeveloperUser = currentUser.email?.endsWith('@replit.com') || 
+                                  currentUser.email?.endsWith('@example.com') ||
+                                  currentUser.username === 'GaryOcean';
             
-            if (isDeveloperUser) {
+            if (isDeveloperUser && currentUser.id) {
               const updatedUser = await storage.updateUserSubscription(
-                req.user.id, 
+                currentUser.id, 
                 'pro',
                 new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) 
               );
               req.user = updatedUser;
-              console.log(`User ${req.user.username} automatically upgraded to Pro tier (developer account)`); 
+              console.log(`User ${currentUser.username || 'unknown'} automatically upgraded to Pro tier (developer account)`); 
             }
           }
           res.status(200).json(req.user);
