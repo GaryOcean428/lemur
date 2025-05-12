@@ -401,8 +401,8 @@ export default function SubscriptionPage() {
     );
   }
 
-  // Handle plan selection with proper Stripe integration
-  const handleSelectPlan = async (type: 'free' | 'basic' | 'pro') => {
+  // Handle plan selection with Stripe Checkout integration
+  const handleSelectPlan = async (type: 'free' | 'basic' | 'pro', billingInterval: 'month' | 'year' = 'month') => {
     setPlanType(type);
     
     if (!user) {
@@ -417,7 +417,10 @@ export default function SubscriptionPage() {
     if (type === 'free') {
       // Free plan doesn't need payment processing
       try {
-        const response = await apiRequest('POST', '/api/change-subscription', { planType: type });
+        const response = await apiRequest('POST', '/api/create-checkout-session', { 
+          planType: type,
+          billingInterval
+        });
         const data = await response.json();
         
         if (data.success) {
@@ -425,8 +428,13 @@ export default function SubscriptionPage() {
             title: "Free Plan Activated",
             description: "You're now on the free plan with 20 searches per month."
           });
-          // Redirect to home page
-          setTimeout(() => setLocation('/'), 2000);
+          
+          // Redirect to the specified URL or home page
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+          } else {
+            setTimeout(() => setLocation('/'), 2000);
+          }
         } else {
           toast({
             title: "Subscription Error",
@@ -444,12 +452,15 @@ export default function SubscriptionPage() {
       return;
     }
     
-    // For paid plans, we need to collect payment details
+    // For paid plans, redirect to Stripe Checkout
     setIsLoadingPayment(true);
     
     try {
-      // This will create a payment intent and return a client secret
-      const response = await apiRequest('POST', '/api/create-subscription', { planType: type });
+      // This will create a Checkout Session and return the URL
+      const response = await apiRequest('POST', '/api/create-checkout-session', { 
+        planType: type,
+        billingInterval
+      });
       const data = await response.json();
       
       // Handle developer account auto-subscription
@@ -460,33 +471,60 @@ export default function SubscriptionPage() {
           variant: "default",
         });
         
-        // Reload to get updated user data
-        window.location.href = '/';
+        // Redirect to the specified URL or home page
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          window.location.href = '/';
+        }
         return;
       }
       
-      if (data.clientSecret) {
-        // Set the client secret which will display the payment form
-        setClientSecret(data.clientSecret);
+      // Handle development mode
+      if (data.devMode) {
+        toast({
+          title: "Development Mode",
+          description: data.message || `Your ${type} subscription has been activated in development mode!`
+        });
+        
+        // Redirect to the specified URL or home page
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          setTimeout(() => setLocation('/'), 2000);
+        }
+        return;
+      }
+      
+      // For normal checkout flow - redirect to the Stripe Checkout page
+      if (data.sessionUrl) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.sessionUrl;
       } else if (data.success) {
         // Some accounts might not need payment processing
         toast({
           title: "Subscription Activated",
           description: `Your ${type} subscription has been activated!`
         });
-        setTimeout(() => setLocation('/'), 2000);
+        
+        // Redirect to the specified URL or home page
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          setTimeout(() => setLocation('/'), 2000);
+        }
       } else {
         // Error case
         toast({
-          title: "Payment Setup Error",
-          description: data.message || "Could not setup payment. Please try again.",
+          title: "Checkout Error",
+          description: data.message || "Could not create checkout session. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || `Could not setup payment for ${type} plan`,
+        description: error.message || `Could not setup checkout for ${type} plan`,
         variant: "destructive",
       });
     } finally {

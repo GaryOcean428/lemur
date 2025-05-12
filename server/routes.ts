@@ -1826,7 +1826,225 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe payment routes
-  // Create a subscription setup
+  // Create a checkout session for subscription
+  app.post("/api/create-checkout-session", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      // Accept either 'tier' or 'planType' parameter for better compatibility
+      const tier = req.body.tier || req.body.planType;
+      const billingInterval = req.body.billingInterval || 'month'; // 'month' or 'year'
+      
+      if (!tier || (tier !== 'free' && tier !== 'basic' && tier !== 'pro')) {
+        return res.status(400).json({ message: "Valid subscription tier (free, basic, or pro) is required" });
+      }
+      
+      // Special case for developer account - auto-approve without payment
+      if (req.user.username === 'GaryOcean' || req.user.isDeveloper) {
+        console.log(`Auto-approving subscription for developer account: ${req.user.username}`);
+        
+        // Set expiration date (1 year from now for developer accounts)
+        const expiresAt = new Date();
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        
+        await storage.updateUserSubscription(req.user.id, tier, expiresAt);
+        return res.json({
+          success: true,
+          isDeveloperAccount: true,
+          message: `Developer account automatically subscribed to ${tier} tier`,
+          redirectUrl: `${req.headers.origin || ''}/`
+        });
+      }
+      
+      // Handle free tier differently - no Stripe subscription needed
+      if (tier === 'free') {
+        // Just update the user's subscription tier and return success
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now
+        await storage.updateUserSubscription(req.user.id, 'free', expiresAt);
+        
+        return res.json({
+          success: true,
+          message: "Free tier activated",
+          redirectUrl: `${req.headers.origin || ''}/`
+        });
+      }
+      
+      // For development mode, we'll set up a simulated checkout
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEV MODE] Simulating subscription checkout for', tier, 'tier');
+        // Set expiration based on billing interval
+        const expiresAt = new Date();
+        if (billingInterval === 'year') {
+          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        } else {
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+        }
+        
+        await storage.updateUserSubscription(req.user.id, tier, expiresAt);
+        
+        return res.json({
+          success: true,
+          devMode: true,
+          message: `Development mode: ${tier} subscription activated with ${billingInterval}ly billing`,
+          redirectUrl: `${req.headers.origin || ''}/`
+        });
+      }
+      
+      // For production, we need to ensure Stripe is configured
+      if (!stripe) {
+        return res.status(500).json({ message: "Stripe not configured" });
+      }
+      
+      // Get or create customer record
+      let customerId = req.user.stripeCustomerId;
+      const email = req.user.email;
+      
+      if (!email) {
+        return res.status(400).json({ message: "User email is required for subscription" });
+      }
+      
+      if (!customerId) {
+        console.log(`Creating new Stripe customer with email: ${email}`);
+        
+        const customer = await stripe.customers.create({
+          email,
+          name: req.user.username,
+          metadata: {
+            userId: req.user.id.toString()
+          }
+        });
+        customerId = customer.id;
+        console.log(`Created new Stripe customer with ID: ${customerId}`);
+        
+        // Update the customer ID in the database
+        await storage.updateStripeInfo(
+          req.user.id,
+          customer.id,
+          null
+        );
+      } else {
+        console.log(`Using existing Stripe customer: ${customerId}`);
+      }
+      
+      // Define the pricing for plans
+      // In production, these prices should be created in the Stripe dashboard
+      const prices = {
+        basic: {
+          month: {
+            unit_amount: 1999, // $19.99
+            name: 'Lemur - Basic (Monthly)',
+            id: process.env.STRIPE_BASIC_MONTH_PRICE_ID
+          },
+          year: {
+            unit_amount: 22789, // $19.99 * 12 * 0.95 = $227.89 (5% discount for annual)
+            name: 'Lemur - Basic (Yearly)',
+            id: process.env.STRIPE_BASIC_YEAR_PRICE_ID
+          }
+        },
+        pro: {
+          month: {
+            unit_amount: 4999, // $49.99
+            name: 'Lemur - Pro (Monthly)',
+            id: process.env.STRIPE_PRO_MONTH_PRICE_ID
+          },
+          year: {
+            unit_amount: 56989, // $49.99 * 12 * 0.95 = $569.89 (5% discount for annual)
+            name: 'Lemur - Pro (Yearly)',
+            id: process.env.STRIPE_PRO_YEAR_PRICE_ID
+          }
+        }
+      };
+      
+      // Get the price details for the selected tier and billing interval
+      const selectedPrice = prices[tier][billingInterval];
+      let priceId = selectedPrice.id;
+      
+      // If no price ID is configured in environment variables, we need to create one dynamically
+      // Note: In a production system, you would typically create these in the Stripe dashboard
+      // and store the IDs in environment variables
+      if (!priceId) {
+        console.log(`Creating dynamic price for ${tier} ${billingInterval}`);
+        
+        // First check if we need to create a product
+        const productName = `Lemur - ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+        
+        // Try to find an existing product
+        const existingProducts = await stripe.products.list({
+          active: true
+        });
+        
+        let product = existingProducts.data.find(p => p.name === productName);
+        
+        // Create the product if it doesn't exist
+        if (!product) {
+          product = await stripe.products.create({
+            name: productName,
+            description: `Lemur ${tier} subscription with ${billingInterval}ly billing`
+          });
+          console.log(`Created new product: ${product.id}`);
+        }
+        
+        // Create the price
+        const price = await stripe.prices.create({
+          product: product.id,
+          unit_amount: selectedPrice.unit_amount,
+          currency: 'usd',
+          recurring: {
+            interval: billingInterval
+          },
+          nickname: selectedPrice.name
+        });
+        
+        console.log(`Created new price: ${price.id}`);
+        priceId = price.id;
+      }
+      
+      // Create Checkout Session for subscription
+      const session = await stripe.checkout.sessions.create({
+        billing_address_collection: 'auto',
+        customer: customerId,
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${req.headers.origin || ''}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin || ''}/subscription`,
+        subscription_data: {
+          metadata: {
+            userId: req.user.id.toString(),
+            tier: tier
+          }
+        },
+        metadata: {
+          userId: req.user.id.toString(),
+          tier: tier
+        }
+      });
+      
+      console.log(`Created checkout session with ID: ${session.id}`);
+      
+      // Return the session URL to redirect to
+      return res.json({
+        success: true,
+        sessionId: session.id,
+        sessionUrl: session.url,
+      });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      return res.status(500).json({ 
+        message: "Error creating checkout session", 
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+  
+  // Legacy endpoint for backward compatibility
   app.post("/api/create-subscription", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -1999,33 +2217,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "Stripe webhook signature or secret missing" });
     }
     
+    let event;
+    
     try {
-      const event = stripe.webhooks.constructEvent(
+      // Verify the event came from Stripe
+      event = stripe.webhooks.constructEvent(
         req.body, 
         sig, 
         process.env.STRIPE_WEBHOOK_SECRET
       );
       
+      console.log(`Stripe webhook received: ${event.type}`);
+      
       // Handle specific events
       switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          
+          // Check if this is a subscription checkout
+          if (session.mode === 'subscription') {
+            await handleSuccessfulSubscription(session);
+          }
+          break;
+        }
+        
         case 'customer.subscription.created':
-        case 'customer.subscription.updated':
+        case 'customer.subscription.updated': {
           const subscription = event.data.object;
-          // Update user's subscription status
-          // Logic would go here to find the user by subscription.customer
-          // and update their subscription status
+          await handleSubscriptionUpdated(subscription);
           break;
-          
-        case 'invoice.payment_succeeded':
+        }
+        
+        case 'invoice.payment_succeeded': {
           const invoice = event.data.object;
-          // Process successful payment
-          // Update subscription status to active
+          if (invoice.subscription) {
+            // This is a subscription invoice
+            await handleSuccessfulSubscriptionPayment(invoice);
+          }
           break;
-          
-        case 'invoice.payment_failed':
-          // Handle failed payment
+        }
+        
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object;
+          if (invoice.subscription) {
+            await handleFailedSubscriptionPayment(invoice);
+          }
           break;
-          
+        }
+        
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object;
+          await handleSubscriptionCancelled(subscription);
+          break;
+        }
+        
         default:
           console.log(`Unhandled event type: ${event.type}`);
       }
@@ -2036,6 +2281,183 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: "Webhook error" });
     }
   });
+  
+  // Helper functions for webhook event handling
+  
+  // Process a successful checkout session for subscription
+  async function handleSuccessfulSubscription(session) {
+    try {
+      // Extract metadata from the session
+      const userId = session.metadata?.userId;
+      const tier = session.metadata?.tier;
+      const subscriptionId = session.subscription;
+      const customerId = session.customer;
+      
+      if (!userId || !tier || !subscriptionId) {
+        console.error('Missing required metadata in checkout session:', session.id);
+        return;
+      }
+      
+      console.log(`Processing successful subscription checkout: User ${userId}, Tier ${tier}, Subscription ${subscriptionId}`);
+      
+      // Retrieve the subscription to get more details
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      // Calculate expiration based on billing interval
+      const currentPeriodEnd = subscription.current_period_end;
+      const expiresAt = new Date(currentPeriodEnd * 1000);
+      
+      // Update user subscription in database
+      await storage.updateStripeInfo(parseInt(userId), customerId, subscriptionId);
+      await storage.updateUserSubscription(parseInt(userId), tier, expiresAt);
+      
+      console.log(`Updated user ${userId} to ${tier} tier, expires at ${expiresAt}`);
+    } catch (error) {
+      console.error('Error processing successful subscription:', error);
+    }
+  }
+  
+  // Handle subscription updated events
+  async function handleSubscriptionUpdated(subscription) {
+    try {
+      // Get the customer ID from the subscription
+      const customerId = subscription.customer;
+      
+      // Try to get the user ID from metadata
+      let userId = subscription.metadata?.userId;
+      
+      // If not found in metadata, look up by customer ID
+      if (!userId) {
+        // This requires additional query to find the user by stripeCustomerId
+        // Implement if your storage has such a method
+        console.log('User ID not found in metadata, would need to look up by customer ID:', customerId);
+        return;
+      }
+      
+      // Determine subscription status
+      const status = subscription.status;
+      const currentPeriodEnd = subscription.current_period_end;
+      const expiresAt = new Date(currentPeriodEnd * 1000);
+      
+      // Get the tier from metadata or determine from the product/price
+      let tier = subscription.metadata?.tier;
+      
+      if (!tier) {
+        // Attempt to determine tier from subscription items/products
+        // This is a simplified approach - in production you might need more robust mapping
+        const itemData = subscription.items.data[0];
+        if (itemData) {
+          const priceId = itemData.price.id;
+          // Map price IDs to tiers based on your configuration
+          if (priceId === process.env.STRIPE_BASIC_MONTH_PRICE_ID || 
+              priceId === process.env.STRIPE_BASIC_YEAR_PRICE_ID) {
+            tier = 'basic';
+          } else if (priceId === process.env.STRIPE_PRO_MONTH_PRICE_ID || 
+                     priceId === process.env.STRIPE_PRO_YEAR_PRICE_ID) {
+            tier = 'pro';
+          }
+        }
+      }
+      
+      if (!tier) {
+        console.error('Could not determine subscription tier from metadata or price');
+        return;
+      }
+      
+      // Only update if subscription is active or trialing
+      if (status === 'active' || status === 'trialing') {
+        await storage.updateUserSubscription(parseInt(userId), tier, expiresAt);
+        console.log(`Updated subscription for user ${userId}: tier=${tier}, expires=${expiresAt}`);
+      } else {
+        console.log(`Subscription ${subscription.id} for user ${userId} has status ${status}, not updating`);
+      }
+    } catch (error) {
+      console.error('Error handling subscription updated event:', error);
+    }
+  }
+  
+  // Handle successful subscription payment
+  async function handleSuccessfulSubscriptionPayment(invoice) {
+    try {
+      const subscriptionId = invoice.subscription;
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      // Process the same way as subscription update
+      await handleSubscriptionUpdated(subscription);
+    } catch (error) {
+      console.error('Error handling successful payment:', error);
+    }
+  }
+  
+  // Handle failed subscription payment
+  async function handleFailedSubscriptionPayment(invoice) {
+    try {
+      // Get the subscription
+      const subscriptionId = invoice.subscription;
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      // Get user ID from metadata
+      const userId = subscription.metadata?.userId;
+      
+      if (!userId) {
+        console.error('No user ID found in subscription metadata:', subscriptionId);
+        return;
+      }
+      
+      // Determine action based on your business logic:
+      // 1. You could downgrade the user to a free tier
+      // 2. You could mark their account as past due but keep access
+      // 3. You could send them an email notification
+      
+      // For now, we'll downgrade to free tier after repeated failures
+      const attemptCount = invoice.attempt_count || 0;
+      
+      if (attemptCount >= 3) {
+        console.log(`Payment failed ${attemptCount} times for user ${userId}, downgrading to free tier`);
+        
+        // Set expiry to 7 days from now for grace period
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+        
+        await storage.updateUserSubscription(parseInt(userId), 'free', expiresAt);
+      } else {
+        console.log(`Payment failed for user ${userId}, attempt ${attemptCount}. Waiting for retry.`);
+      }
+    } catch (error) {
+      console.error('Error handling failed payment:', error);
+    }
+  }
+  
+  // Handle subscription cancellation
+  async function handleSubscriptionCancelled(subscription) {
+    try {
+      // Get user ID from metadata
+      const userId = subscription.metadata?.userId;
+      
+      if (!userId) {
+        console.error('No user ID found in cancelled subscription metadata:', subscription.id);
+        return;
+      }
+      
+      // Set user to free tier when their current period ends
+      // Note: We could immediately downgrade them, but it's common practice to let 
+      // them keep access until the end of their current billing period
+      
+      const currentPeriodEnd = subscription.current_period_end;
+      const expiresAt = new Date(currentPeriodEnd * 1000);
+      
+      console.log(`Subscription cancelled for user ${userId}, access until ${expiresAt}`);
+      
+      // Schedule downgrade to free tier at period end
+      // For now, we'll just update the tier but keep the same expiry date
+      await storage.updateUserSubscription(parseInt(userId), 'free', expiresAt);
+      
+      // Clear subscription ID but keep customer ID for future subscriptions
+      await storage.updateStripeInfo(parseInt(userId), subscription.customer, null);
+    } catch (error) {
+      console.error('Error handling subscription cancellation:', error);
+    }
+  }
 
   // Get subscription details
   app.get("/api/subscription", async (req, res) => {
