@@ -681,21 +681,28 @@ export default function SubscriptionPage() {
         
         <Card className={`border-2 ${planType === 'pro' ? 'border-primary' : 'border-transparent'}`}>
           <CardHeader>
-            <CardTitle>Pro Plan</CardTitle>
-            <CardDescription>$29.99/month</CardDescription>
+            <CardTitle>Lemur - Pro</CardTitle>
+            <CardDescription>
+              {billingInterval === 'month' ? (
+                <>$49.99/month</>
+              ) : (
+                <>$569.89/year <span className="text-xs text-emerald-500">(Save 5%)</span></>
+              )}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-2">
             <ul className="space-y-2">
-              <li className="flex items-center">✓ 300 Searches per month</li>
-              <li className="flex items-center">✓ Access to full compound-beta model</li>
-              <li className="flex items-center">✓ Deep Research capability</li>
-              <li className="flex items-center">✓ Advanced filters and personalization</li>
+              <li className="flex items-center">✓ Unlimited searches</li>
+              <li className="flex items-center">✓ Access to compound-beta model</li>
+              <li className="flex items-center">✓ Advanced search capabilities</li>
+              <li className="flex items-center">✓ Deep Research mode</li>
+              <li className="flex items-center">✓ Advanced filters & organization</li>
               <li className="flex items-center">✓ Priority support</li>
             </ul>
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => handleSelectPlan('pro')} 
+              onClick={() => handleSelectPlan('pro', billingInterval)} 
               variant={planType === 'pro' ? "default" : "outline"}
               className="w-full"
               disabled={isLoadingPayment}
@@ -703,7 +710,7 @@ export default function SubscriptionPage() {
               {planType === 'pro' && isLoadingPayment ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading...
+                  Processing...
                 </>
               ) : (
                 'Select Pro'
