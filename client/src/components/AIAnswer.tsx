@@ -49,11 +49,11 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         }
         return match;
       })
-      // Handle [X] pattern citation links with visual enhancement
+      // Handle [X] pattern citation links with visual enhancement - FIXED TO SHOW THE NUMBER IN TEXT
       .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-0.5 w-4 h-4 rounded-full bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span></span></a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-0.5 w-4 h-4 rounded-full bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>[${sourceIndex + 1}]</span></a>`;
         }
         return match;
       })
