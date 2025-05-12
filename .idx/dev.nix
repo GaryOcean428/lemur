@@ -18,10 +18,6 @@
 
   # Environment variables with enhanced security
   env = {
-    # Firebase configuration
-    VITE_FIREBASE_PROJECT_ID = "lemur-86e1b";
-    FIREBASE_PROJECT = "lemur-86e1b";
-    
     # Development configuration
     TS_NODE_PROJECT = "./client/tsconfig.json";
     NODE_ENV = "development";
@@ -35,6 +31,9 @@
     FIREBASE_EMULATOR_MODE = "true";
     FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
     FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+    
+    # NOTE: Sensitive values like API keys and project IDs should be stored in .env.local
+    # which is gitignored and not in dev.nix which is committed to version control
   };
   
   # Configure preview environments for full-stack development (Firebase Studio 2025)
