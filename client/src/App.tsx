@@ -28,7 +28,7 @@ import HelpPage from "@/pages/help";
 import APIPage from "@/pages/api";
 import PreferencesPage from "@/pages/preferences";
 import SubscriptionPage from "@/pages/subscription";
-import SubscriptionSuccessPage from "@/pages/subscription-success";
+import SubscriptionSuccessPage from "@/pages/subscription/success";
 import ManageSubscriptionPage from "@/pages/manage-subscription";
 import AgenticResearchDebug from "@/components/AgenticResearchDebug";
 import AuthDebug from "@/pages/auth-debug";

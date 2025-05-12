@@ -2044,6 +2044,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Verify a Stripe checkout session and activate the subscription
+  app.post("/api/verify-subscription", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const { sessionId } = req.body;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID is required" });
+      }
+      
+      if (!stripe) {
+        return res.status(500).json({ message: "Stripe not configured" });
+      }
+      
+      // Retrieve the checkout session from Stripe
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ['subscription']
+      });
+      
+      // Check that the session belongs to this user
+      if (session.metadata?.userId && parseInt(session.metadata.userId) !== req.user.id) {
+        return res.status(403).json({ message: "Session does not belong to this user" });
+      }
+      
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ 
+          success: false,
+          message: "Payment has not been completed for this session" 
+        });
+      }
+      
+      // Get the subscription details
+      const subscription = session.subscription;
+      
+      if (!subscription) {
+        return res.status(400).json({ 
+          success: false,
+          message: "No subscription found for this session" 
+        });
+      }
+      
+      // Get the tier from the metadata
+      const tier = session.metadata?.tier || 'basic';
+      
+      // Look up the actual subscription to get its current status
+      const subscriptionDetails = await stripe.subscriptions.retrieve(
+        typeof subscription === 'string' ? subscription : subscription.id
+      );
+      
+      // Calculate expiration date
+      const currentPeriodEnd = subscriptionDetails.current_period_end;
+      const expiresAt = new Date(currentPeriodEnd * 1000);
+      
+      // Update user subscription in our database
+      const customerId = session.customer;
+      const subscriptionId = typeof subscription === 'string' ? subscription : subscription.id;
+      
+      // First update the Stripe info if needed
+      if (customerId && typeof customerId === 'string') {
+        await storage.updateStripeInfo(
+          req.user.id,
+          customerId,
+          subscriptionId
+        );
+      }
+      
+      // Then update the subscription details
+      await storage.updateUserSubscription(req.user.id, tier, expiresAt);
+      
+      // Get the updated user record
+      const user = await storage.getUser(req.user.id);
+      
+      // Return success with subscription details
+      return res.json({
+        success: true,
+        message: `Subscription verified and activated`,
+        subscription: {
+          tier,
+          status: subscriptionDetails.status,
+          expiresAt: expiresAt.toISOString(),
+          customerId: typeof customerId === 'string' ? customerId : null,
+          subscriptionId
+        }
+      });
+    } catch (error) {
+      console.error("Error verifying subscription:", error);
+      return res.status(500).json({ 
+        success: false,
+        message: "Error verifying subscription", 
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+  
   // Legacy endpoint for backward compatibility
   app.post("/api/create-subscription", async (req, res) => {
     if (!req.isAuthenticated()) {

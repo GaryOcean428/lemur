@@ -131,13 +131,13 @@ export default function SubscriptionSuccessPage() {
           </div>
           <CardTitle className="text-center text-emerald-700 dark:text-emerald-400">Subscription Successful!</CardTitle>
           <CardDescription className="text-center">
-            Thank you for subscribing to Lemur {subscriptionDetails?.tier.charAt(0).toUpperCase() + subscriptionDetails?.tier.slice(1)}
+            Thank you for subscribing to Lemur {subscriptionDetails?.tier ? subscriptionDetails.tier.charAt(0).toUpperCase() + subscriptionDetails.tier.slice(1) : 'Plan'}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <div className="space-y-4">
             <p className="text-center">
-              Your subscription is now active. You can start enjoying all the benefits of your {subscriptionDetails?.tier} plan immediately.
+              Your subscription is now active. You can start enjoying all the benefits of your {subscriptionDetails?.tier || 'subscription'} plan immediately.
             </p>
             
             <div className="bg-muted p-4 rounded-lg">
@@ -145,7 +145,7 @@ export default function SubscriptionSuccessPage() {
               <ul className="space-y-2">
                 <li className="flex justify-between">
                   <span className="text-muted-foreground">Plan:</span>
-                  <span className="font-medium">Lemur - {subscriptionDetails?.tier.charAt(0).toUpperCase() + subscriptionDetails?.tier.slice(1)}</span>
+                  <span className="font-medium">Lemur - {subscriptionDetails?.tier ? subscriptionDetails.tier.charAt(0).toUpperCase() + subscriptionDetails.tier.slice(1) : 'Plan'}</span>
                 </li>
                 <li className="flex justify-between">
                   <span className="text-muted-foreground">Status:</span>
