@@ -7,14 +7,15 @@ export default defineConfig({
   server: {
     hmr: {
       overlay: true,
-      protocol: 'wss',
-      host: process.env.PREVIEW_URL ? new URL(process.env.PREVIEW_URL).hostname : '0.0.0.0',
-      clientPort: process.env.PREVIEW_URL ? 443 : 9000,
-      path: "/@vite/client/hmr",
+      // Use standard WebSocket protocol instead of wss for local development
+      protocol: 'ws',
+      // Use localhost instead of 0.0.0.0 for WebSocket connections
+      host: 'localhost', 
+      port: 9000,
     },
-    host: '0.0.0.0',
+    host: '0.0.0.0', // Keep this for the server to listen on all interfaces
     port: parseInt(process.env.PORT || "9000", 10),
-    strictPort: true,
+    strictPort: false, // Allow Vite to use a different port if 9000 is occupied
     cors: true,
     fs: {
       strict: false,
@@ -50,7 +51,7 @@ export default defineConfig({
   build: {
     target: 'es2020',
     sourcemap: true,
-    outDir: path.resolve(__dirname, "dist/public"),
+    outDir: path.resolve(__dirname, "dist"),
     emptyOutDir: true,
     rollupOptions: {
       output: {

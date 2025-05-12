@@ -1,17 +1,28 @@
 {
   "compilerOptions": {
     "module": "NodeNext",
-    "esModuleInterop": true,
-    "moduleResolution": "nodenext",
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "outDir": "lib",
+    "moduleResolution": "NodeNext",
+    "target": "ES2020",
+    "outDir": "dist",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../server/*"],
+      "@shared/*": ["../shared/*"]
+    }
   },
-  "compileOnSave": true,
   "include": [
-    "src"
+    "*.ts",
+    "../server/**/*.ts",
+    "../shared/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
   ]
 }

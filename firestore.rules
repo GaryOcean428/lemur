@@ -2,18 +2,51 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper functions for security rules
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isUserOwned(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
+    // Users collection
+    match /users/{userId} {
+      // Users can read and write their own data
+      // Admins can read all user data but cannot modify it
+      allow read: if isUserOwned(userId) || isAdmin();
+      allow write: if isUserOwned(userId);
+      
+      // User search history subcollection
+      match /searchHistory/{searchId} {
+        allow read, write: if isUserOwned(userId);
+        allow read: if isAdmin();
+      }
+      
+      // User subscriptions subcollection
+      match /subscriptions/{subscriptionId} {
+        allow read: if isUserOwned(userId);
+        // Only Firebase Functions should write to subscriptions
+        allow write: if false;
+      }
+    }
+    
+    // Public documents available to all authenticated users
+    match /publicContent/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Deny all other access by default
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 6, 9);
+      allow read, write: if false;
     }
   }
 }

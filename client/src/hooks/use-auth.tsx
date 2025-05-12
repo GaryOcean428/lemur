@@ -11,7 +11,8 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
-import { auth, db, googleProvider, githubProvider } from "../firebaseConfig";
+// Import from direct config file instead of environment variable-based config
+import { auth, db, googleProvider, githubProvider } from "../firebaseConfigDirect";
 import { useToast } from "@/hooks/use-toast";
 
 // Define our application-specific User type
