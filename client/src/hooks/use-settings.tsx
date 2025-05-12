@@ -105,6 +105,29 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
       setTheme(settings.theme);
     }
   }, [settings.theme, setTheme]);
+  
+  // Detect system theme preference for accurate UI display
+  useEffect(() => {
+    if (settings.theme === 'system') {
+      // Check if system preference is dark
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      // Update the UI to show the correct selected theme without changing the actual theme setting
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      
+      // Listen for changes to system theme
+      const handleChange = (e: MediaQueryListEvent) => {
+        // Only update if we're still using system theme
+        if (settings.theme === 'system') {
+          // This will force a re-render with the new system preference
+          setSettings(prev => ({...prev}));
+        }
+      };
+      
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [settings.theme]);
 
   // Apply font size whenever it changes
   useEffect(() => {
