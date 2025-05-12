@@ -1,40 +1,88 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://firebase.google.com/docs/studio/customize-workspace
+# Firebase Studio Configuration with 2025 Best Practices
+# https://firebase.google.com/docs/studio/customize-workspace
 {pkgs}: {
-  # Which nixpkgs channel to use.
-  channel = "unstable"; # Maintained from previous configuration
+  # Use latest stable channel for maximum compatibility
+  channel = "unstable";
 
-  # Use https://search.nixos.org/packages to find packages
+  # Comprehensive development tools
   packages = [
     pkgs.nodejs_22
     pkgs.typescript
     pkgs.git
     pkgs.firebase-tools
+    pkgs.jq               # JSON processing for Firebase configs
+    pkgs.gh               # GitHub CLI for CI/CD integration
+    pkgs.python311        # For AI-powered tooling
+    pkgs.concurrently     # Run multiple commands concurrently
   ];
 
-  # Sets environment variables in the workspace
+  # Environment variables with enhanced security
   env = {
-    # Firebase project configuration (from previous)
+    # Firebase configuration
     VITE_FIREBASE_PROJECT_ID = "lemur-86e1b";
     FIREBASE_PROJECT = "lemur-86e1b";
     
-    # TypeScript configuration (from previous)
+    # Development configuration
     TS_NODE_PROJECT = "./client/tsconfig.json";
-    
-    # Development environment settings (from previous)
     NODE_ENV = "development";
+    
+    # Port configuration for consistent development
+    PORT = "9000";
+    VITE_PORT = "9000";
+    API_PORT = "5080";
+    
+    # Enable Firebase Emulator detection
+    FIREBASE_EMULATOR_MODE = "true";
+    FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
+    FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
   };
-
+  
+  # Configure preview environments for full-stack development
+  preview = {
+    # Main client application
+    web = {
+      directory = "";
+      command = "npm run dev:client";
+      port = 9000;
+      processReadyPattern = "Local:";
+    };
+    
+    # Firebase Emulators UI
+    emulators = {
+      directory = "";
+      command = "npm run emulators";
+      port = 4000;
+      processReadyPattern = "All emulators ready";
+    };
+    
+    # API Server
+    api = {
+      directory = "";
+      command = "npm run dev";
+      port = 5080;
+      processReadyPattern = "server started";
+    };
+  };
+  
   idx = {
-    # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
+    # Extensions for optimal Firebase development (2025 recommended)
     extensions = [
       # Core development tools
-      "dbaeumer.vscode-eslint"
-      "esbenp.prettier-vscode"
-      "pkief.material-icon-theme"
-      "mikestead.dotenv"
-      "eamodio.gitlens"
-      "bradlc.vscode-tailwindcss"
+      "dbaeumer.vscode-eslint"              # JavaScript/TypeScript linting
+      "esbenp.prettier-vscode"              # Consistent code formatting
+      "ms-azuretools.vscode-docker"         # Container management
+      "pkief.material-icon-theme"           # Enhanced file icons
+      "mikestead.dotenv"                    # Environment file support
+      "eamodio.gitlens"                     # Git integration
+      "bradlc.vscode-tailwindcss"           # Tailwind CSS support
+      
+      # Firebase-specific extensions
+      "firebase.vscode-firebase"            # Firebase integration
+      
+      # AI development tools (2025 features)
+      "github.copilot"                      # AI code assistance
+      "github.copilot-chat"                 # AI development chat
+      "firebase.genkit-ai"                  # Firebase Genkit AI integration
       
       # Documentation and quality
       "DavidAnson.vscode-markdownlint"

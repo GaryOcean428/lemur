@@ -5,8 +5,8 @@
     "target": "ES2020",
     "outDir": "dist",
     "sourceMap": true,
-    "strict": false,          /* Temporarily disable strict mode until type issues are resolved */
-    "noImplicitAny": false,   /* Allow implicit any to resolve Firebase Function types */
+    "strict": true,           /* Enable strict mode for type safety */
+    "noImplicitAny": true,    /* Ensure all types are explicitly declared */
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,

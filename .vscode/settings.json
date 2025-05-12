@@ -8,5 +8,6 @@
   },
   "javascript.updateImportsOnFileMove.enabled": "always",
   "typescript.updateImportsOnFileMove.enabled": "always",
-  "IDX.aI.enableCodebaseIndexing": true
+  "IDX.aI.enableCodebaseIndexing": true,
+  "browse-lite.chromeExecutable": "/usr/local/bin/chrome-canary"
 }

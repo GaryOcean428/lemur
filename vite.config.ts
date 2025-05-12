@@ -11,11 +11,11 @@ export default defineConfig({
       protocol: 'ws',
       // Use localhost instead of 0.0.0.0 for WebSocket connections
       host: 'localhost', 
-      port: 9000,
+      port: parseInt(process.env.VITE_PORT || "9000", 10),
     },
     host: '0.0.0.0', // Keep this for the server to listen on all interfaces
     port: parseInt(process.env.PORT || "9000", 10),
-    strictPort: false, // Allow Vite to use a different port if 9000 is occupied
+    strictPort: true, // Force Vite to use the specified port only
     cors: true,
     fs: {
       strict: false,
