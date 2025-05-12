@@ -37,8 +37,8 @@
     FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
   };
   
-  # Configure preview environments for full-stack development
-  preview = {
+  # Configure workspace environments for full-stack development (Firebase Studio 2025)
+  workspace = {
     # Main client application
     web = {
       directory = "";
