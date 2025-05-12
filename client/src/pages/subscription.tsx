@@ -355,6 +355,7 @@ export default function SubscriptionPage() {
   const { user, isLoading } = useAuth();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [planType, setPlanType] = useState<'free' | 'basic' | 'pro'>('pro');
+  const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -580,10 +581,36 @@ export default function SubscriptionPage() {
     <div className="container max-w-5xl mx-auto py-12">
       <h1 className="text-3xl font-bold mb-8">Upgrade Your Lemur Experience</h1>
       
+      {/* Billing interval toggle */}
+      <div className="flex justify-center items-center mb-10">
+        <div className="bg-muted rounded-lg p-1 flex">
+          <button
+            onClick={() => setBillingInterval('month')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              billingInterval === 'month' 
+                ? 'bg-primary text-primary-foreground' 
+                : 'hover:bg-muted-foreground/10'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingInterval('year')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              billingInterval === 'year' 
+                ? 'bg-primary text-primary-foreground' 
+                : 'hover:bg-muted-foreground/10'
+            }`}
+          >
+            Yearly <span className="text-xs text-emerald-500 font-medium">Save 5%</span>
+          </button>
+        </div>
+      </div>
+      
       <div className="grid md:grid-cols-3 gap-8 mb-12">
         <Card className="border-2 border-gray-200 dark:border-gray-700">
           <CardHeader>
-            <CardTitle>Free Plan</CardTitle>
+            <CardTitle>Lemur - Free</CardTitle>
             <CardDescription>$0/month</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -596,40 +623,33 @@ export default function SubscriptionPage() {
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => {
-                // Direct API call for free tier
-                apiRequest('POST', '/api/change-subscription', { planType: 'free' })
-                  .then(response => response.json())
-                  .then(data => {
-                    if (data.success) {
-                      toast({
-                        title: "Free Plan Activated",
-                        description: "You're now on the free plan with 20 searches per month."
-                      });
-                      // Redirect to home page
-                      setTimeout(() => setLocation('/'), 2000);
-                    }
-                  })
-                  .catch(error => {
-                    toast({
-                      title: "Error",
-                      description: error.message || "Could not activate free plan",
-                      variant: "destructive",
-                    });
-                  });
-              }}
+              onClick={() => handleSelectPlan('free', billingInterval)}
               variant="outline"
               className="w-full"
+              disabled={isLoadingPayment}
             >
-              Continue with Free
+              {isLoadingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>Continue with Free</>
+              )}
             </Button>
           </CardFooter>
         </Card>
         
         <Card className={`border-2 ${planType === 'basic' ? 'border-primary' : 'border-transparent'}`}>
           <CardHeader>
-            <CardTitle>Basic Plan</CardTitle>
-            <CardDescription>$9.99/month</CardDescription>
+            <CardTitle>Lemur - Basic</CardTitle>
+            <CardDescription>
+              {billingInterval === 'month' ? (
+                <>$19.99/month</>
+              ) : (
+                <>$227.89/year <span className="text-xs text-emerald-500">(Save 5%)</span></>
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <ul className="space-y-2">
@@ -637,12 +657,12 @@ export default function SubscriptionPage() {
               <li className="flex items-center">✓ Access to compound-beta-mini model</li>
               <li className="flex items-center">✓ Standard search capabilities</li>
               <li className="flex items-center">✓ Basic filters</li>
-              <li className="flex items-center">✓ Upgrade from 20 free searches</li>
+              <li className="flex items-center">✓ Save and organize searches</li>
             </ul>
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => handleSelectPlan('basic')} 
+              onClick={() => handleSelectPlan('basic', billingInterval)} 
               variant={planType === 'basic' ? "default" : "outline"}
               className="w-full"
               disabled={isLoadingPayment}
@@ -650,7 +670,7 @@ export default function SubscriptionPage() {
               {planType === 'basic' && isLoadingPayment ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading...
+                  Processing...
                 </>
               ) : (
                 'Select Basic'
