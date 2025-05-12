@@ -30,7 +30,7 @@ export default function WasmCheck() {
     setWasmSupport({
       wasmSupported,
       sharedArrayBufferSupported,
-      crossOriginIsolated
+      crossOriginIsolated: isCrossOriginIsolated
     });
     
     // Log to console for debugging

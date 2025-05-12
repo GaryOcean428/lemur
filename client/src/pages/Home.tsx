@@ -29,7 +29,24 @@ export default function Home() {
           </p>
         </div>
         
-        {/* Removed feature highlights as requested */}
+        {/* Diagnostic button for Vercel deployment */}
+        <div className="mt-6">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowWasmCheck(!showWasmCheck)}
+            className="text-xs"
+          >
+            {showWasmCheck ? "Hide" : "Show"} WebAssembly Diagnostics
+          </Button>
+        </div>
+        
+        {/* WebAssembly diagnostic component */}
+        {showWasmCheck && (
+          <div className="w-full max-w-2xl mt-4">
+            <WasmCheck />
+          </div>
+        )}
       </div>
     </div>
   );
