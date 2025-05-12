@@ -21,7 +21,7 @@
     "dev:functions": "npm run dev -w functions",
     "dev:emulate": "concurrently -n 'emulators,server,client' -c 'yellow,green,blue' \"npm run emulators\" \"npm run dev\" \"npm run dev:client\"",
     "dev:full": "concurrently -n 'emulators,server,client' -c 'yellow,green,blue' \"npm run emulators:all\" \"npm run dev\" \"npm run dev:client\"",
-    "dev:studio": "firebase projectid:exec lemur-86e1b:preview",
+    "dev:studio": "firebase emulators:start --project=lemur-86e1b --import=./dev-data --ui",
     "build": "npm run build -w client",
     "build:functions": "npm run build -w functions",
     "build:all": "npm run build && npm run build:functions",

@@ -37,30 +37,34 @@
     FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
   };
   
-  # Configure workspace environments for full-stack development (Firebase Studio 2025)
-  workspace = {
-    # Main client application
-    web = {
-      directory = "";
-      command = "npm run dev:client";
-      port = 9000;
-      processReadyPattern = "Local:";
-    };
-    
-    # Firebase Emulators UI
-    emulators = {
-      directory = "";
-      command = "npm run emulators";
-      port = 4000;
-      processReadyPattern = "All emulators ready";
-    };
-    
-    # API Server
-    api = {
-      directory = "";
-      command = "npm run dev";
-      port = 5080;
-      processReadyPattern = "server started";
+  # Configure preview environments for full-stack development (Firebase Studio 2025)
+  idx.previews = {
+    enable = true;
+    previews = {
+      # Main client application
+      web = {
+        command = [ "npm" "run" "dev:client" "--" "--port" "$PORT" "--host" "0.0.0.0" "--disable-host-check" ];
+        manager = "web";
+        port = 9000;
+        # Pattern to detect when the process is ready
+        processReadyPattern = "Local:";
+      };
+      
+      # Firebase Emulators UI
+      emulators = {
+        command = [ "npm" "run" "emulators" ];
+        manager = "web";
+        port = 4000;
+        processReadyPattern = "All emulators ready";
+      };
+      
+      # API Server
+      api = {
+        command = [ "npm" "run" "dev" ];
+        manager = "web";
+        port = 5080;
+        processReadyPattern = "server started";
+      };
     };
   };
   
