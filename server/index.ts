@@ -1,3 +1,4 @@
+console.log("[Server Index] server/index.ts starting...");
 import 'dotenv/config'; // Load environment variables
 import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
@@ -12,31 +13,31 @@ import { serveStatic } from "./vite.js";
 
 // Middleware to verify Firebase ID token
 export const authenticateFirebaseToken = async (req: Request, res: Response, next: NextFunction) => {
-  console.log(`[Server Auth] Authenticating request for: ${req.method} ${req.path}`);
+  console.log(`[Server Auth Middleware] Attempting to authenticate: ${req.method} ${req.path}`);
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.log("[Server Auth] Authorization header missing or not Bearer type.");
+    console.warn("[Server Auth Middleware] FAIL: Authorization header missing or not Bearer type.");
     return res.status(401).send({ message: "Unauthorized: No token provided or invalid format." });
   }
 
   const idToken = authHeader.split("Bearer ")[1];
 
   if (!idToken || idToken === "null" || idToken === "undefined" || idToken.trim() === "") {
-    console.log("[Server Auth] Bearer token is effectively empty (null, undefined, or whitespace).");
+    console.warn("[Server Auth Middleware] FAIL: Bearer token is effectively empty.");
     return res.status(401).send({ message: "Unauthorized: Bearer token is empty or invalid." });
   }
 
-  console.log("[Server Auth] Received ID token starts with:", idToken ? idToken.substring(0, 30) + '...' : 'null/undefined');
+  // console.log("[Server Auth Middleware] Received ID token starts with:", idToken ? idToken.substring(0, 30) + '...' : 'null/undefined');
 
   try {
     const decodedToken = await auth.verifyIdToken(idToken);
-    console.log("[Server Auth] Token verification successful. Decoded token UID:", decodedToken.uid);
+    // console.log("[Server Auth Middleware] Token verification successful. UID:", decodedToken.uid);
     (req as any).user = decodedToken;
-    console.log(`[Server Auth] User authenticated: ${decodedToken.uid} for path: ${req.path}`);
+    console.log(`[Server Auth Middleware] SUCCESS: User ${decodedToken.uid} authenticated for path: ${req.path}. Calling next().`);
     next();
   } catch (error: any) {
-    console.error("[Server Auth] Error verifying Firebase ID token. Code:", error.code, "Message:", error.message);
+    console.error("[Server Auth Middleware] FAIL: Error verifying Firebase ID token. Code:", error.code, "Message:", error.message);
     return res.status(403).send({
         message: "Forbidden: Invalid, expired, or malformed token.",
         code: error.code,
@@ -45,9 +46,11 @@ export const authenticateFirebaseToken = async (req: Request, res: Response, nex
   }
 };
 
+console.log("[Server Index] Initializing Express app...");
 const app = express();
 
 // Setup CORS
+console.log("[Server Index] Configuring CORS...");
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
     if (!origin) return callback(null, true); // Allow requests with no origin
@@ -60,15 +63,23 @@ const corsOptions = {
     if (process.env.PORT) {
         allowedOrigins.push(`http://localhost:${process.env.PORT}`);
     }
-    
+    if (process.env.VITE_APP_PORT) { // Also check VITE_APP_PORT for client dev server
+        allowedOrigins.push(`http://localhost:${process.env.VITE_APP_PORT}`);
+    }
     if (process.env.PREVIEW_URL) {
         allowedOrigins.push(process.env.PREVIEW_URL);
     }
+    // Dynamically add the cluster URL if present
+    const clusterUrl = Object.keys(process.env).find(key => key.startsWith('GOOGLE_CLOUD_WORKSTATIONS_CLUSTER_URL_'));
+    if (clusterUrl && process.env[clusterUrl]) {
+        allowedOrigins.push(process.env[clusterUrl]!);
+    }
+
 
     if (allowedOrigins.some(allowedOrigin => origin.startsWith(allowedOrigin))) {
       return callback(null, true);
     } else {
-      console.warn(`CORS: Origin ${origin} not allowed. Allowed: ${allowedOrigins.join(', ')}`);
+      console.warn(`[Server Index] CORS Denied: Origin ${origin} not in allowed list: ${allowedOrigins.join(', ')}`);
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
@@ -77,55 +88,61 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+console.log("[Server Index] Configuring express.json middleware...");
 app.use(express.json());
 
 // Add debug logging for all /api routes
 app.use('/api', (req, res, next) => {
-  console.log(`[API Debug] ${req.method} ${req.path}`);
-  console.log('[API Debug] Headers:', JSON.stringify(req.headers, null, 2));
+  console.log(`[Server Index - API Debug Entry] INCOMING: ${req.method} ${req.originalUrl}`);
+  // console.log('[API Debug] Headers:', JSON.stringify(req.headers, null, 2));
   next();
 });
 
 // Initialize agent registry
+console.log("[Server Index] Registering Tavily agent...");
 registerAgent(tavilyAgentDeclaration);
-console.log("Tavily agent registered.");
+console.log("[Server Index] Tavily agent registered.");
 
 // Set port for the server
 const PORT = parseInt(process.env.SERVER_PORT || "5080", 10);
+console.log(`[Server Index] Server port set to: ${PORT}`);
 
 // Register API routes
+console.log("[Server Index] Calling registerRoutes(app)...");
 registerRoutes(app);
+console.log("[Server Index] registerRoutes(app) finished.");
 
 // Debug handler for unhandled /api routes
 app.use('/api/:path*', (req, res, next) => {
-  console.log(`[DEBUG] Unhandled /api path: ${req.originalUrl} - THIS SHOULD NOT HAPPEN FOR DEFINED ROUTES`);
-  res.status(404).json({ error: 'API route not found by Express, fell to debug handler' });
+  console.warn(`[Server Index - Unhandled API Route] 404: ${req.method} ${req.originalUrl} - This route was not handled by registerRoutes.`);
+  res.status(404).json({ error: 'API route not found by Express. This means it was not defined in server/routes.ts or a sub-router.', path: req.originalUrl });
 });
 
-// Error handling middleware
+// General Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error("[Server Error Handler] An unexpected error occurred:", err.stack);
+  console.error("[Server Index - General Error Handler] An unexpected error occurred:", err);
   const status = err.status || err.statusCode || 500;
-  res.status(status).send({ message: err.message || 'Something broke!' });
+  res.status(status).send({ message: err.message || 'Something broke unexpectedly on the server!', stack: process.env.NODE_ENV === 'development' ? err.stack : undefined });
 });
 
 // Setup Vite and static file serving
 async function startServer() {
+  console.log(`[Server Index] Starting server in ${process.env.NODE_ENV} mode...`);
   if (process.env.NODE_ENV === "development") {
     const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Backend server listening on port ${PORT}`);
-      console.log("Development mode. Vite HMR will be set up by server/vite.ts.");
+      console.log(`[Server Index] Development Backend server listening on http://0.0.0.0:${PORT}`);
+      console.log("[Server Index] Vite HMR will be set up by server/vite.ts.");
     });
     await setupVite(app, server);
   } else {
     serveStatic(app);
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Production server listening on port ${PORT}`);
+      console.log(`[Server Index] Production server listening on http://0.0.0.0:${PORT}`);
     });
   }
 }
 
 startServer().catch(error => {
-  console.error("Failed to start server:", error);
+  console.error("[Server Index] FATAL: Failed to start server:", error);
   process.exit(1);
 });
