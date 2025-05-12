@@ -31,6 +31,7 @@ export async function setupVite(app: Express, server?: Server) {
     const vite = await createViteServer({
       ...viteConfig,
       configFile: false,
+      root: viteConfig.root, // Explicitly pass root from the loaded config
       customLogger: {
         ...viteLogger,
         error: (msg, options) => {
@@ -46,6 +47,7 @@ export async function setupVite(app: Express, server?: Server) {
     app.use(vite.middlewares);
     app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
+    console.log(`[Vite Fallback Handler] Received URL: ${url}`); // Diagnostic log
 
     try {
       const clientTemplate = path.resolve(
@@ -81,7 +83,7 @@ export async function setupVite(app: Express, server?: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  const distPath = path.resolve(import.meta.dirname, "..", "dist/public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(

@@ -20,12 +20,28 @@ export const FIREBASE_EMULATOR_HOST = 'localhost';
 
 // Determine if we should use emulators
 export const shouldUseEmulators = (): boolean => {
-  // Check for specific environment variables or hostname
-  const isCloudWorkspace = process.env.HOSTNAME?.includes('cloudworkstations.dev') || false;
-  const isLocalhost = process.env.NODE_ENV !== 'production';
+  console.log('[firebaseEmulators.ts] Checking if emulators should be used...');
+  const nodeEnv = process.env.NODE_ENV;
+  const hostname = process.env.HOSTNAME;
+  const firebaseEmulatorHubHost = process.env.FIREBASE_EMULATOR_HUB_HOST;
   
-  // Enable emulators for local development and cloud workspaces
-  return isLocalhost || isCloudWorkspace;
+  console.log(`[firebaseEmulators.ts] NODE_ENV: ${nodeEnv}`);
+  console.log(`[firebaseEmulators.ts] HOSTNAME: ${hostname}`);
+  console.log(`[firebaseEmulators.ts] FIREBASE_EMULATOR_HUB_HOST: ${firebaseEmulatorHubHost}`);
+
+  const isCloudWorkspace = hostname?.includes('cloudworkstations.dev') || false;
+  // It's safer to explicitly check for 'development' or if FIREBASE_EMULATOR_HUB_HOST is set.
+  const isDevelopmentMode = nodeEnv === 'development';
+  const isEmulatorHubSet = typeof firebaseEmulatorHubHost === 'string' && firebaseEmulatorHubHost.length > 0;
+
+  const useEmulators = isDevelopmentMode || isCloudWorkspace || isEmulatorHubSet;
+  
+  console.log(`[firebaseEmulators.ts] isCloudWorkspace: ${isCloudWorkspace}`);
+  console.log(`[firebaseEmulators.ts] isDevelopmentMode: ${isDevelopmentMode}`);
+  console.log(`[firebaseEmulators.ts] isEmulatorHubSet: ${isEmulatorHubSet}`);
+  console.log(`[firebaseEmulators.ts] Calculated shouldUseEmulators: ${useEmulators}`);
+  
+  return useEmulators;
 };
 
 // Get emulator URLs for use in API endpoints

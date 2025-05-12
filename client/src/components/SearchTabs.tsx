@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import AIAnswer from "./AIAnswer";
+import { AIAnswer } from "./AIAnswer";
 import { SearchResults } from "@/lib/types";
 import { useSearchStore } from "@/store/searchStore";
 import { type SearchTabType } from "@/store/searchStore";

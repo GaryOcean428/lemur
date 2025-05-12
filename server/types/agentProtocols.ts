@@ -1,9 +1,6 @@
 // server/types/agentProtocols.ts
 
 /**
-<<<<<<< HEAD
- * Represents the declaration of an agent's capabilities.
-=======
  * Standardized Message Envelope for all MCP and A2A communications.
  */
 export interface MessageEnvelope<T_Payload> {
@@ -24,7 +21,6 @@ export interface MessageEnvelope<T_Payload> {
 /**
  * Represents the declaration of an agent's capabilities.
  * To be stored persistently (e.g., in Firestore).
->>>>>>> origin/development
  */
 export interface AgentCapabilityDeclaration {
   agentId: string; // unique ID for the agent instance
@@ -32,16 +28,6 @@ export interface AgentCapabilityDeclaration {
   displayName: string; // Human-readable name
   version: string; // e.g., '1.0.0'
   description: string; // Brief description of what the agent does
-<<<<<<< HEAD
-  capabilities: Array<{
-    taskType: string; // e.g., 'web_search', 'academic_search', 'summarize_text'
-    inputSchema: any; // JSON schema for expected input (can be more specific later)
-    outputSchema: any; // JSON schema for produced output (can be more specific later)
-  }>;
-  configurationSchema?: any; // Optional: JSON schema for agent-specific configuration
-  statusEndpoint?: string; // URL for health checks, optional
-  invokeEndpoint?: string; // URL to send tasks to this agent, if it's an external service
-=======
   supportedProtocols: string[]; // e.g., ["mcp_v1.1", "a2a_v1.1"]
   dynamicCapabilities?: boolean; // True if agent can learn/add new task types at runtime
   capabilities: Array<{
@@ -58,39 +44,13 @@ export interface AgentCapabilityDeclaration {
     concurrentRequests?: number;
   };
   authenticationMethods?: Array<'oauth2' | 'apiKey' | 'internal_jwt'>; // For external or secured internal agents
-  registeredAt: string; // ISO8601 datetime string
+  registeredAt?: string; // ISO8601 datetime string
+  updatedAt?: string; // ISO8601 datetime string
   lastHeartbeatAt?: string; // ISO8601 datetime string, updated by health checks
->>>>>>> origin/development
 }
 
 /**
  * Defines a task to be assigned to an agent by the orchestrator.
-<<<<<<< HEAD
- */
-export interface TaskDefinition {
-  taskId: string; // unique ID for this specific task instance
-  parentResearchId: string; // ID of the overarching research project
-  taskType: string; // e.g., 'web_search', 'summarize_text'
-  assignedToAgentType?: string; // Optional: orchestrator can pick best agent
-  assignedToAgentId?: string; // Specific agent instance ID, if known
-  priority: number; // e.g., 0-high, 1-medium, 2-low
-  timeoutSeconds?: number; // Optional
-  inputData: any; // task-specific input, conforming to the agent's declared inputSchema
-  statusCallbackUrl?: string; // URL for the agent to post status updates
-  resultWebhookUrl?: string; // URL for the agent to post final results
-  createdAt: number; // timestamp
-  maxRetries?: number; // default 0
-}
-
-/**
- * Represents a status update from an agent regarding a task.
- */
-export interface TaskStatusUpdate {
-  taskId: string;
-  agentId: string;
-  timestamp: number;
-  status: 'received' | 'in_progress' | 'completed' | 'failed' | 'retrying';
-=======
  * To be stored persistently (e.g., in Firestore).
  */
 export interface TaskDefinition {
@@ -113,14 +73,14 @@ export interface TaskDefinition {
   outputArtifacts?: Array<{ name: string, artifactId: string, storagePath: string }>; // References to stored outputs
 }
 
-export type TaskLifecycleStatus = 
-  | 'pending_assignment' 
-  | 'assigned' 
-  | 'in_progress' 
-  | 'paused' 
-  | 'completed' 
-  | 'failed' 
-  | 'cancelled' 
+export type TaskLifecycleStatus =
+  | 'pending_assignment'
+  | 'assigned'
+  | 'in_progress'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
   | 'retrying';
 
 /**
@@ -130,7 +90,6 @@ export interface TaskStatusUpdatePayload {
   taskId: string;
   // agentId is in the envelope
   newStatus: TaskLifecycleStatus;
->>>>>>> origin/development
   progressPercentage?: number; // 0-100, optional
   message?: string; // Optional human-readable status message
   intermediateResults?: any[]; // any partial results, if applicable
@@ -139,17 +98,6 @@ export interface TaskStatusUpdatePayload {
 /**
  * Represents the final result of a task executed by an agent.
  */
-<<<<<<< HEAD
-export interface TaskResult {
-  taskId: string;
-  agentId: string;
-  timestamp: number;
-  status: 'completed' | 'failed';
-  outputData?: any; // task-specific output, conforming to the agent's declared outputSchema
-  errorDetails?: {
-    errorCode: string;
-    errorMessage: string;
-=======
 export interface TaskResultPayload {
   taskId: string;
   // agentId is in the envelope
@@ -159,37 +107,20 @@ export interface TaskResultPayload {
     errorCode: string; // Standardized error code
     errorMessage: string;
     errorStackTrace?: string; // Optional, for debugging
->>>>>>> origin/development
   }; // present if status is 'failed'
 }
 
 /**
  * Defines a message for direct Agent-to-Agent (A2A) communication.
  */
-<<<<<<< HEAD
-export interface A2AMessage {
-  messageId: string; // unique ID for the message
-  senderAgentId: string;
-  recipientAgentId: string;
-  timestamp: number;
-  conversationId?: string; // Optional, to group related messages
-  messageType: string; // e.g., 'service_request', 'service_response', 'data_query', 'data_response', 'notification'
-  payloadSchema?: string; // URI to JSON schema for the payload, optional
-  payload: any; // message-specific content
-  requiresAck?: boolean; // default false
-}
-
-// Placeholder for more specific input/output/config schemas
-// These would be defined in more detail as agents are developed.
-=======
-export type A2APerformative = 
-  | 'request' 
-  | 'inform' 
+export type A2APerformative =
+  | 'request'
+  | 'inform'
   | 'query_ref' // Query for a reference/resource
   | 'query_if'  // Query if a statement is true
-  | 'propose' 
-  | 'accept_proposal' 
-  | 'reject_proposal' 
+  | 'propose'
+  | 'accept_proposal'
+  | 'reject_proposal'
   | 'subscribe' // Request to subscribe to events/updates
   | 'notify'    // Notification of an event
   | 'failure'   // Indicates failure of a previous request
@@ -210,17 +141,12 @@ export interface A2AMessagePayload {
 }
 
 // --- Concrete Payload Examples (can be expanded significantly) ---
-
->>>>>>> origin/development
 export interface WebSearchInput {
   query: string;
   search_depth?: 'basic' | 'advanced';
   max_results?: number;
-<<<<<<< HEAD
-=======
   includeDomains?: string[];
   excludeDomains?: string[];
->>>>>>> origin/development
 }
 
 export interface WebSearchOutput {
@@ -229,15 +155,6 @@ export interface WebSearchOutput {
     url: string;
     snippet?: string;
     content?: string; // If content is fetched
-<<<<<<< HEAD
-  }>;
-  summary?: string;
-}
-
-export interface SummarizeTextInput {
-  text: string;
-  maxLength?: number;
-=======
     score?: number;
     raw_content?: any;
   }>;
@@ -251,14 +168,10 @@ export interface SummarizeTextInput {
   maxLength?: number;
   minLength?: number;
   format?: 'paragraph' | 'bullet_points';
->>>>>>> origin/development
 }
 
 export interface SummarizeTextOutput {
   summary: string;
-<<<<<<< HEAD
-}
-=======
   summaryArtifactId?: string; // Reference to summary stored in artifact store
 }
 
@@ -277,4 +190,16 @@ export interface DeepResearchProject {
   configuration?: any; // Project-specific configurations
 }
 
->>>>>>> origin/development
+// Simplified TaskResult for direct function returns within orchestrator/agent interactions
+// if not using the full MessageEnvelope for internal calls.
+export interface TaskResult {
+  taskId: string;
+  agentId: string;
+  timestamp: number; // Consider standardizing to ISO8601 string like other timestamps
+  status: 'completed' | 'failed';
+  outputData?: any;
+  errorDetails?: {
+    errorCode: string;
+    errorMessage: string;
+  };
+}

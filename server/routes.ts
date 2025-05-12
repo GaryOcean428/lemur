@@ -1,12 +1,12 @@
 // server/routes.ts
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { db, FieldValue } from "./firebaseAdmin"; // Import db and FieldValue from the modular firebaseAdmin.ts
-import { authenticateFirebaseToken } from "./index"; // Import the middleware
-import express from "express"; // Import express for raw body parsing
+import { db, FieldValue } from "./firebaseAdmin.js";
+import { authenticateFirebaseToken } from "./middleware/authMiddleware.js";
+import express from "express";
 
-import { directGroqCompoundSearch } from "./directCompound";
-import { validateGroqModel, mapModelPreference, APPROVED_MODELS } from "./utils/modelValidation";
+import { directGroqCompoundSearch } from "./directCompound.js";
+import { validateGroqModel, mapModelPreference, APPROVED_MODELS } from "./utils/modelValidation.js";
 import fetch from "node-fetch";
 
 // Stripe imports
@@ -16,8 +16,8 @@ import {
   createSubscriptionCheckoutSession,
   createBillingPortalSession,
   handleStripeWebhook,
-  PRICE_IDS, // Import PRICE_IDS for use in routes
-} from "./services/stripeService";
+  PRICE_IDS,
+} from "./services/stripeService.js";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   console.warn("Warning: Missing STRIPE_SECRET_KEY environment variable");
@@ -27,25 +27,26 @@ if (!process.env.STRIPE_SECRET_KEY) {
 let stripe: Stripe | null = null;
 try {
   if (process.env.STRIPE_SECRET_KEY) {
-    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2023-10-16", // Use the latest stable API version
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-04-30.basil",
+      typescript: true,
     });
-    console.log(`Stripe initialized successfully with API version 2023-10-16. Key starts with: ${process.env.STRIPE_SECRET_KEY.substring(0, 8)}...`);
+    console.log(`Stripe initialized successfully with API version 2025-04-30.basil. Key starts with: ${process.env.STRIPE_SECRET_KEY.substring(0, 8)}...`);
   }
 } catch (error) {
   console.error("Error initializing Stripe:", error);
 }
 
 // Serper Google Scholar import from local changes
-import { serperGoogleScholarSearch, SerperGoogleScholarSearchResponse } from "./integrations/serperGoogleScholarSearch";
+import { serperGoogleScholarSearch, SerperGoogleScholarSearchResponse } from "./integrations/serperGoogleScholarSearch.js";
 
 // Import Tavily search interfaces from the dedicated module
-import { tavilySearch, TavilySearchResult, TavilySearchResponse } from "./tavilySearch";
-import { tavilyDeepResearch, tavilyExtractContent, TavilyDeepResearchResponse } from "./utils/tavilyDeepResearch";
-import { executeAgenticResearch, ResearchState, AgenticResearchProgress } from "./utils/agenticResearch";
+import { tavilySearch, TavilySearchResult, TavilySearchResponse } from "./tavilySearch.js";
+import { tavilyDeepResearch, tavilyExtractContent, TavilyDeepResearchResponse } from "./utils/tavilyDeepResearch.js";
+import { performAgenticResearch, ResearchState, AgenticResearchProgress } from "./utils/agenticResearch.js";
 
 // Import Orchestrator routes
-import orchestratorRoutes from "./routes/orchestratorRoutes"; // Added import
+import orchestratorRoutes from "./routes/orchestratorRoutes.js";
 
 // Firebase Admin SDK is initialized in firebaseAdmin.ts, and db is imported from there.
 
@@ -173,8 +174,7 @@ async function groqSearchWithTiers(query: string, sources: TavilySearchResult[],
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Stripe Webhook - IMPORTANT: This route must be before express.json() if that middleware is global,
-  // as Stripe requires the raw body.
+  // Stripe Webhook - IMPORTANT: This route must be before express.json()
   app.post("/api/stripe/webhook", express.raw({type: "application/json"}), async (req: Request, res: Response) => {
     const sig = req.headers["stripe-signature"];
     try {
@@ -195,6 +195,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount orchestrator routes
   app.use("/api/orchestrator", orchestratorRoutes);
+
+  // Simple hello endpoint
+  app.get("/api/hello", (req: Request, res: Response) => {
+    res.json({ message: "Hello, world from the main server!" });
+  });
 
   app.post("/api/search", authenticateFirebaseToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.uid;
@@ -313,29 +318,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/user/status", authenticateFirebaseToken, async (req: Request, res: Response) => {
+    console.log("[/api/user/status] Route handler started");
     const userId = (req as any).user.uid;
+    console.log(`[/api/user/status] Processing request for user: ${userId}`);
+    
     try {
         const userRef = db.collection("users").doc(userId);
+        console.log(`[/api/user/status] Fetching user document for: ${userId}`);
         const userDoc = await userRef.get();
+        
         if (!userDoc.exists) {
+            console.log(`[/api/user/status] User document not found for: ${userId}`);
             return res.status(404).json({ error: "User not found" });
         }
+        
         const userData = userDoc.data();
-        res.json({
+        console.log(`[/api/user/status] Successfully retrieved user data for: ${userId}`);
+        
+        const response = {
             uid: userId,
             email: userData?.email,
             displayName: userData?.displayName,
             tier: userData?.tier || "free",
             searchCount: userData?.searchCount || 0,
-            searchLimit: (TIERS[ (userData?.tier?.toUpperCase() || "FREE") as keyof typeof TIERS ] || TIERS.FREE).searchLimit,
+            searchLimit: (TIERS[(userData?.tier?.toUpperCase() || "FREE") as keyof typeof TIERS] || TIERS.FREE).searchLimit,
             preferences: userData?.preferences || {},
-            stripeCustomerId: userData?.stripeCustomerId, // Send stripeCustomerId
-            stripeSubscriptionId: userData?.stripeSubscriptionId, // Send stripeSubscriptionId
-            stripeCurrentPeriodEnd: userData?.stripeCurrentPeriodEnd, // Send stripeCurrentPeriodEnd
-            stripePriceId: userData?.stripePriceId // Send stripePriceId
-        });
+            stripeCustomerId: userData?.stripeCustomerId,
+            stripeSubscriptionId: userData?.stripeSubscriptionId,
+            stripeCurrentPeriodEnd: userData?.stripeCurrentPeriodEnd,
+            stripePriceId: userData?.stripePriceId
+        };
+        
+        console.log(`[/api/user/status] Sending response for: ${userId}`);
+        res.json(response);
     } catch (error) {
-        console.error("Error fetching user status:", error);
+        console.error("[/api/user/status] Error fetching user status:", error);
         res.status(500).json({ error: "Failed to fetch user status" });
     }
   });
@@ -473,4 +490,3 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const server = createServer(app);
   return server;
 }
-

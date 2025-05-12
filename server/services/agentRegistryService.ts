@@ -1,24 +1,11 @@
 // server/services/agentRegistryService.ts
-
 import { AgentCapabilityDeclaration } from "../types/agentProtocols";
-<<<<<<< HEAD
-
-/**
- * In-memory store for registered agents. 
- * TODO: Persist this to Firestore for scalability and persistence as outlined in mcp_a2a_protocol_design.md
- */
-const agentRegistry: Map<string, AgentCapabilityDeclaration> = new Map();
-
-/**
- * Registers an agent with the system.
-=======
-import { db, FieldValue } from "../firebaseAdmin"; // Import Firestore database instance and FieldValue
+import { db } from "../firebaseAdmin"; // Import Firestore database instance
 
 const AGENTS_COLLECTION = "agents";
 
 /**
  * Registers an agent with the system in Firestore.
->>>>>>> origin/development
  * If an agent with the same agentId already exists, it will be overwritten.
  * @param declaration - The agent capability declaration.
  */
@@ -26,45 +13,30 @@ export const registerAgent = async (declaration: AgentCapabilityDeclaration): Pr
   if (!declaration.agentId) {
     throw new Error("Agent ID is required for registration.");
   }
-<<<<<<< HEAD
-  agentRegistry.set(declaration.agentId, declaration);
-  console.log(`Agent registered: ${declaration.displayName} (ID: ${declaration.agentId})`);
-};
-
-/**
- * Retrieves the capability declaration for a specific agent.
-=======
   // Add/update timestamps
   const now = new Date().toISOString();
   const agentDataToStore = {
     ...declaration,
-    registeredAt: declaration.registeredAt || now,
-    updatedAt: now, // Keep track of the last update to this record
+    registeredAt: declaration.registeredAt || now, // Keep original registration time if updating
+    updatedAt: now, // Always update the last update time
+    lastHeartbeatAt: now, // Initialize heartbeat on registration
   };
 
   try {
-    await db.collection(AGENTS_COLLECTION).doc(declaration.agentId).set(agentDataToStore);
+    await db.collection(AGENTS_COLLECTION).doc(declaration.agentId).set(agentDataToStore, { merge: true }); // Use merge:true to allow partial updates if needed
     console.log(`Agent registered/updated in Firestore: ${declaration.displayName} (ID: ${declaration.agentId})`);
   } catch (error) {
     console.error(`Error registering agent ${declaration.agentId} in Firestore:`, error);
-    throw error; // Re-throw the error for upstream handling
+    throw error;
   }
 };
 
 /**
  * Retrieves the capability declaration for a specific agent from Firestore.
->>>>>>> origin/development
  * @param agentId - The unique ID of the agent.
  * @returns The agent capability declaration, or undefined if not found.
  */
 export const getAgentDeclaration = async (agentId: string): Promise<AgentCapabilityDeclaration | undefined> => {
-<<<<<<< HEAD
-  return agentRegistry.get(agentId);
-};
-
-/**
- * Finds agents that match a specific task type.
-=======
   try {
     const agentDoc = await db.collection(AGENTS_COLLECTION).doc(agentId).get();
     if (!agentDoc.exists) {
@@ -80,31 +52,14 @@ export const getAgentDeclaration = async (agentId: string): Promise<AgentCapabil
 
 /**
  * Finds agents that match a specific task type from Firestore.
->>>>>>> origin/development
  * @param taskType - The type of task the agent should be capable of performing.
  * @returns An array of agent capability declarations that match the task type.
  */
 export const findAgentsByTaskType = async (taskType: string): Promise<AgentCapabilityDeclaration[]> => {
   const matchingAgents: AgentCapabilityDeclaration[] = [];
-<<<<<<< HEAD
-  agentRegistry.forEach(declaration => {
-    if (declaration.capabilities.some((cap: { taskType: string; inputSchema: any; outputSchema: any; }) => cap.taskType === taskType)) {
-      matchingAgents.push(declaration);
-    }
-  });
-=======
   try {
-    const snapshot = await db.collection(AGENTS_COLLECTION)
-      .where("capabilities", "array-contains-any", [{ taskType: taskType }]) // This query needs careful construction based on how capabilities are structured.
-      .get();
-    
-    // Firestore `array-contains-any` is not ideal for matching nested objects directly with a specific property value.
-    // A more robust way is to fetch all agents and filter, or structure capabilities differently.
-    // For now, let's fetch all and filter, or assume a simpler capabilities structure if possible.
-    // The design document suggests `capabilities: Array<{ taskType: string; ... }>`
-    // A direct query for a nested field like `capabilities.taskType` is not standard in Firestore without specific indexing or data duplication.
-    // We will fetch all and filter for simplicity and correctness with the current structure.
-
+    // Firestore query for arrays containing a specific value in a map requires specific indexing
+    // or client-side filtering. Filtering all agents is simpler for now.
     const allAgentsSnapshot = await db.collection(AGENTS_COLLECTION).get();
     allAgentsSnapshot.forEach(doc => {
       const declaration = doc.data() as AgentCapabilityDeclaration;
@@ -112,60 +67,14 @@ export const findAgentsByTaskType = async (taskType: string): Promise<AgentCapab
         matchingAgents.push(declaration);
       }
     });
-
   } catch (error) {
     console.error(`Error finding agents by task type "${taskType}" in Firestore:`, error);
     throw error;
   }
->>>>>>> origin/development
   return matchingAgents;
 };
 
 /**
-<<<<<<< HEAD
- * Lists all registered agents.
- * @returns An array of all registered agent capability declarations.
- */
-export const listAllAgents = async (): Promise<AgentCapabilityDeclaration[]> => {
-  return Array.from(agentRegistry.values());
-};
-
-/**
- * Unregisters an agent from the system.
- * @param agentId - The unique ID of the agent to unregister.
- * @returns True if the agent was found and unregistered, false otherwise.
- */
-export const unregisterAgent = async (agentId: string): Promise<boolean> => {
-  if (agentRegistry.has(agentId)) {
-    agentRegistry.delete(agentId);
-    console.log(`Agent unregistered: ${agentId}`);
-    return true;
-  }
-  return false;
-};
-
-// Example of how an agent might be registered (e.g., during server startup)
-// This would typically be done by each agent module itself.
-/*
-(async () => {
-  await registerAgent({
-    agentId: "tavily-search-001",
-    agentType: "tavily_web_search",
-    displayName: "Tavily Web Searcher",
-    version: "1.0.0",
-    description: "Performs web searches using the Tavily API.",
-    capabilities: [
-      {
-        taskType: "web_search",
-        inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
-        outputSchema: { type: "object", properties: { results: { type: "array" } } }
-      }
-    ],
-    invokeEndpoint: "internal/tavilySearch" // Placeholder for internal invocation path
-  });
-})();
-*/
-=======
  * Lists all registered agents from Firestore.
  * @returns An array of all registered agent capability declarations.
  */
@@ -186,17 +95,17 @@ export const listAllAgents = async (): Promise<AgentCapabilityDeclaration[]> => 
 /**
  * Unregisters an agent from the system by deleting it from Firestore.
  * @param agentId - The unique ID of the agent to unregister.
- * @returns True if the agent was found and unregistered, false otherwise (though Firestore delete won't error if doc doesn't exist).
+ * @returns True if the agent was found and unregistered, false otherwise.
  */
 export const unregisterAgent = async (agentId: string): Promise<boolean> => {
   try {
-    // Check if agent exists first to provide a more accurate boolean return, though not strictly necessary for delete.
-    const agentDoc = await db.collection(AGENTS_COLLECTION).doc(agentId).get();
+    const agentDocRef = db.collection(AGENTS_COLLECTION).doc(agentId);
+    const agentDoc = await agentDocRef.get();
     if (!agentDoc.exists) {
       console.log(`Agent with ID ${agentId} not found in Firestore for unregistration.`);
       return false;
     }
-    await db.collection(AGENTS_COLLECTION).doc(agentId).delete();
+    await agentDocRef.delete();
     console.log(`Agent unregistered from Firestore: ${agentId}`);
     return true;
   } catch (error) {
@@ -213,44 +122,18 @@ export const unregisterAgent = async (agentId: string): Promise<boolean> => {
 export const updateAgentHeartbeat = async (agentId: string): Promise<void> => {
     const agentRef = db.collection(AGENTS_COLLECTION).doc(agentId);
     try {
+        // Check if document exists before updating to prevent creating new docs on heartbeat
+        const agentDoc = await agentRef.get();
+        if (!agentDoc.exists) {
+            console.warn(`Agent ${agentId} not found. Cannot update heartbeat.`);
+            return;
+        }
         await agentRef.update({
             lastHeartbeatAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(), // Also update the general updatedAt timestamp
         });
-        console.log(`Agent heartbeat updated for ${agentId}`);
+        // console.log(`Agent heartbeat updated for ${agentId}`); // Can be too verbose
     } catch (error) {
         console.error(`Error updating heartbeat for agent ${agentId}:`, error);
-        // Decide if this should throw or just log, depending on how critical heartbeat failures are.
-        // For now, log and continue.
     }
 };
-
-// Example of how an agent might be registered (e.g., during server startup)
-// This would typically be done by each agent module itself, calling this service.
-/*
-(async () => {
-  try {
-    await registerAgent({
-      agentId: "tavily-search-001",
-      agentType: "tavily_web_search",
-      displayName: "Tavily Web Searcher",
-      version: "1.0.0",
-      description: "Performs web searches using the Tavily API.",
-      supportedProtocols: ["mcp_v1.1"],
-      capabilities: [
-        {
-          taskType: "web_search",
-          inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
-          outputSchema: { type: "object", properties: { results: { type: "array" } } }
-        }
-      ],
-      // invokeEndpoint: "internal/tavilySearch" // Placeholder for internal invocation path
-      // registeredAt and updatedAt will be handled by the service
-    });
-  } catch (e) {
-    console.error("Failed to register example agent during startup:", e);
-  }
-})();
-*/
-
->>>>>>> origin/development

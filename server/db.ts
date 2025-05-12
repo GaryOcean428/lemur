@@ -1,13 +1,17 @@
-import { createRequire } from 'module';
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import * as schema from "@shared/schema.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load environment variables from .env.local if it exists
+const dotenvPath = join(__dirname, '..', '.env.local');
 const require = createRequire(import.meta.url);
-require('dotenv').config({ path: '.env.local' });
-
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
-import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
+require('dotenv').config({ path: dotenvPath });
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -32,7 +36,7 @@ const poolOptions = {
   },
 };
 
-export const pool = new Pool(poolOptions);
+export const pool = new neon(poolOptions);
 export const db = drizzle({ client: pool, schema });
 
 // Log pool status on creation

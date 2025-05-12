@@ -29,9 +29,14 @@ export interface AppUser extends FirebaseUser {
 }
 
 interface UserStatusResponse {
-  user: AppUser | null;
-  loading: boolean;
-  error: Error | null;
+  user: AppUser | null; // This was the old structure
+  // Let's assume the API returns the AppUser fields directly or nested under a 'user' key
+  // For robustness, we can be flexible or define a strict API contract
+  tier?: 'free' | 'basic' | 'pro' | 'developer';
+  searchCount?: number;
+  searchLimit?: number; // Make sure this matches API response
+  preferences?: AppUser['preferences'];
+  // If API nests under 'user', then it would be: user: Partial<AppUser> 
 }
 
 interface EmailPasswordCredentials {
@@ -61,121 +66,114 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchAndUpdateUserStatus = useCallback(async (firebaseUser: FirebaseUser) => {
     try {
-      // First check if we're online
       if (!navigator.onLine) {
         console.log("Device is offline, using cached user data if available");
-        
-        // If we already have user data, keep using it
-        if (user) {
-          return;
-        }
-        
-        // Set basic user info we can get from Firebase auth
+        if (user) return;
+
         setUser(prevUser => ({
           ...(prevUser || {} as AppUser),
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
-          tier: "free", // Default tier when offline
+          subscriptionTier: "free",
           searchCount: 0,
-          searchLimit: 5, // Default conservative limit when offline
-          preferences: prevUser?.preferences || { theme: "system", defaultSearchFocus: "web" },
+          // searchLimit: 5, // Assuming searchLimit comes from API or a default
+          preferences: prevUser?.preferences || { theme: "system", defaultSearchFocus: "web", modelPreference: "compound-beta" },
         }));
-        
         toast({
           title: "Offline Mode",
           description: "You're currently offline. Some features may be limited.",
           variant: "default",
         });
-        
         return;
       }
       
       const token = await getIdToken(firebaseUser);
-      
-      // Always use a relative URL for API calls to avoid CSP issues
-      // This will make requests relative to the current origin
       const apiUrl = '/api/user/status';
-      
-      // Log the API URL for debugging
       console.log(`Fetching user status from: ${apiUrl}`);
-
-      // Log the token for debugging
       console.log(`Authorization token: ${token ? 'Exists' : 'Does not exist'}`);
       
       const response = await fetch(apiUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
+          'Accept': 'application/json', // Explicitly request JSON
         },
-        credentials: 'include', // Include cookies to handle cross-origin requests
+        credentials: 'include',
       });
+
+      const contentType = response.headers.get("content-type");
 
       if (!response.ok) {
         let errorMessage = `Failed to fetch user status (${response.status})`;
-        // Clone the response before trying to read it, so it can be read again if JSON parsing fails
-        const responseClone = response.clone();
-        try {
-          const errorData = await response.json(); // Attempt to parse as JSON
-          errorMessage = errorData.error || errorData.message || `API Error: ${response.status}`;
-        } catch (parseError) {
-          // If JSON parsing fails, try to get the error message as plain text from the cloned response
+        const responseClone = response.clone(); // Clone for safe reading
+        if (contentType && contentType.includes("application/json")) {
           try {
-            const textError = await responseClone.text();
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || `API Error: ${response.status}`;
+          } catch (parseError) {
+            errorMessage = `API Error: ${response.status} (failed to parse JSON error response)`;
+          }
+        } else {
+          try {
+            const textError = await responseClone.text(); // Read as text if not JSON
             errorMessage = textError || `API Error: ${response.status} - ${response.statusText}`;
           } catch (textReadError) {
-            // If reading as text also fails, use a generic message
             errorMessage = `API Error: ${response.status} - ${response.statusText} (Could not read error response)`;
           }
         }
         throw new Error(errorMessage);
       }
 
+      // Even if response.ok is true, check content type before parsing
+      if (!contentType || !contentType.includes("application/json")) {
+        const responseText = await response.text();
+        throw new Error(`Expected JSON response but received ${contentType || 'unknown content type'}. Response body: ${responseText.substring(0, 100)}...`);
+      }
+
       const statusData: UserStatusResponse = await response.json();
       
       setUser(prevUser => ({
-        ...(prevUser || {} as AppUser),
+        ...(prevUser || {} as FirebaseUser), // Base on FirebaseUser first
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
         photoURL: firebaseUser.photoURL,
-        tier: statusData.tier,
-        searchCount: statusData.searchCount,
-        searchLimit: statusData.searchLimit,
-        preferences: statusData.preferences || prevUser?.preferences || {},
-      }));
+        // Now update with API data, providing defaults if necessary
+        subscriptionTier: statusData.tier || prevUser?.subscriptionTier || 'free',
+        subscriptionExpiresAt: statusData.subscriptionExpiresAt || prevUser?.subscriptionExpiresAt,
+        username: statusData.username || prevUser?.username,
+        searchCount: statusData.searchCount !== undefined ? statusData.searchCount : prevUser?.searchCount,
+        searchCountResetAt: statusData.searchCountResetAt || prevUser?.searchCountResetAt,
+        // searchLimit: statusData.searchLimit !== undefined ? statusData.searchLimit : prevUser?.searchLimit,
+        preferences: statusData.preferences || prevUser?.preferences || { theme: "system", defaultSearchFocus: "web", modelPreference: "compound-beta" },
+      } as AppUser));
 
     } catch (e: any) {
-      console.error("Error fetching user status from API:", e);
-      
-      // If the error is due to being offline, handle it gracefully
-      if (!navigator.onLine || e.message?.includes('offline') || e.message?.includes('network')) {
-        console.log("Network error detected, using offline mode");
-        
-        // Set basic user info we can get from Firebase auth
-        setUser(prevUser => {
-          // Only update if we don't have user data already
-          if (prevUser) return prevUser;
-          
-          return {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-            tier: "free", // Default tier when offline
-            searchCount: 0,
-            searchLimit: 5, // Default conservative limit when offline
-            preferences: { theme: "system", defaultSearchFocus: "web" },
-          };
-        });
-        
-        toast({
-          title: "Offline Mode",
-          description: "You're currently offline. Some features may be limited.",
-          variant: "default",
-        });
+      console.error("Error fetching/updating user status:", e);
+      if (!navigator.onLine || e.message?.includes('offline') || e.message?.includes('network') || e.message?.includes('Failed to fetch')) {
+        console.log("Network error detected or API fetch failed, using offline mode or cached data");
+        if (user) return; // Keep existing user data if already populated
+
+        setUser(prevUser => ({
+          ...(prevUser || {} as AppUser),
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          subscriptionTier: "free", 
+          searchCount: 0,
+          // searchLimit: 5, 
+          preferences: prevUser?.preferences || { theme: "system", defaultSearchFocus: "web", modelPreference: "compound-beta" },
+        }));
+        if (e.message && !e.message.includes('offline')) { // Avoid double toast if already handled by offline check
+            toast({
+                title: "Server Unreachable",
+                description: "Could not connect to the server. Using offline data.",
+                variant: "default",
+            });
+        }
       } else {
-        // For other errors, show error toast
         setError(e);
         toast({
           title: "Could not update user status",
@@ -184,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
     }
-  }, [toast]);
+  }, [toast, user]); // Added user to dependency array for offline caching logic
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
@@ -197,25 +195,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (userSnap.exists()) {
           await updateDoc(userRef, { lastLoginAt: serverTimestamp() });
         } else {
-          // This part handles new user creation for social sign-ins
-          // For email/password, user creation in Firestore is handled by the signUp function
-          // or by the backend if we choose to create user doc there upon first API call.
-          // For now, let's assume social sign-in creates the doc here.
-          if (!firebaseUser.email) { // Email/password sign up might not have email if not set yet
-             console.warn("New user from social sign-in without email, this might be an issue.");
-          }
           const newUserFirestoreData = {
             email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
+            displayName: firebaseUser.displayName || firebaseUser.email, // Default to email if displayName is null
             photoURL: firebaseUser.photoURL,
-            tier: "free",
+            subscriptionTier: "free",
             searchCount: 0,
+            // searchLimit: 5, // Initial limit, should be confirmed by API
             createdAt: serverTimestamp(),
             lastLoginAt: serverTimestamp(),
-            preferences: { theme: "system", defaultSearchFocus: "web" },
+            preferences: { theme: "system", defaultSearchFocus: "web", modelPreference: "compound-beta" },
           };
-          await setDoc(userRef, newUserFirestoreData);
-          console.log("New user (social) created in Firestore:", newUserFirestoreData);
+          try {
+            await setDoc(userRef, newUserFirestoreData);
+            console.log("New user created in Firestore:", newUserFirestoreData);
+          } catch (dbError) {
+            console.error("Error creating new user in Firestore:", dbError);
+            // Decide if we should bail out or proceed with potentially limited functionality
+          }
         }
         await fetchAndUpdateUserStatus(firebaseUser);
       } else {
@@ -226,42 +223,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [fetchAndUpdateUserStatus]);
 
-  // Check for redirect result when the component mounts
   useEffect(() => {
     const handleRedirectResult = async () => {
+      setIsLoading(true); // Set loading true while processing redirect
       try {
         const result = await getRedirectResult(auth);
         if (result) {
+          // User is available in result.user, onAuthStateChanged will also fire.
+          // Toast for successful sign-in.
           toast({
             title: "Signed in successfully",
             description: `Welcome, ${result.user.displayName || result.user.email}!`,
           });
-          // onAuthStateChanged will handle user state update and API fetch
         }
       } catch (e: any) {
         console.error("Redirect sign-in error:", e);
         setError(e);
         toast({
           title: "Sign-in failed",
-          description: e.message || "An unknown error occurred.",
+          description: e.message || "An unknown error occurred during redirect sign-in.",
           variant: "destructive",
         });
+      } finally {
+        setIsLoading(false); // Set loading false after processing redirect or if no redirect
       }
     };
     
-    handleRedirectResult();
-  }, [toast]);
+    // Only run this once on initial mount if not already loading from onAuthStateChanged
+    if(isLoading) { // Check if onAuthStateChanged is already running
+        handleRedirectResult();
+    }
+  }, [toast]); // isLoading removed from dependencies as it causes loop
 
-  // Directly use redirect method, since popup is causing issues in many browsers
   const handleSignIn = async (provider: typeof googleProvider | typeof githubProvider) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Use redirect method directly instead of popup
-      console.log('Using redirect method for authentication');
+      console.log('Using redirect method for authentication with', provider.providerId);
       await signInWithRedirect(auth, provider);
-      // No toast here as page will refresh from redirect
-      // Result will be handled by getRedirectResult() in useEffect
     } catch (e: any) {
       console.error("Social sign-in error:", e);
       setError(e);
@@ -283,24 +282,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
-      // Create user document in Firestore
       const userRef = doc(db, "users", firebaseUser.uid);
       const newUserFirestoreData = {
         email: firebaseUser.email,
-        displayName: firebaseUser.email, // Or prompt for display name
+        displayName: firebaseUser.email, 
         photoURL: null,
-        tier: "free",
+        subscriptionTier: "free",
         searchCount: 0,
+        // searchLimit: 5,
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp(),
-        preferences: { theme: "system", defaultSearchFocus: "web" },
+        preferences: { theme: "system", defaultSearchFocus: "web", modelPreference: "compound-beta" },
       };
       await setDoc(userRef, newUserFirestoreData);
-      // onAuthStateChanged will handle setting the user state and fetching API status
       toast({
         title: "Account created successfully",
         description: `Welcome, ${firebaseUser.email}!`,
       });
+      // onAuthStateChanged will handle user state update and API fetch
     } catch (e: any) {
       console.error("Sign-up error:", e);
       setError(e);
@@ -319,11 +318,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle user state update and API fetch
       toast({
         title: "Signed in successfully",
         description: `Welcome back, ${userCredential.user.email}!`,
       });
+      // onAuthStateChanged will handle user state update and API fetch
     } catch (e: any) {
       console.error("Email sign-in error:", e);
       setError(e);
@@ -342,6 +341,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await firebaseSignOut(auth);
+      setUser(null); // Explicitly set user to null on logout
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
@@ -364,6 +364,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       await fetchAndUpdateUserStatus(auth.currentUser);
       setIsLoading(false);
+    } else {
+      // toast({ title: "Not Signed In", description: "Cannot fetch user status.", variant: "destructive" });
+      console.log("Cannot fetch user status, user not signed in.");
     }
   }, [fetchAndUpdateUserStatus]);
 

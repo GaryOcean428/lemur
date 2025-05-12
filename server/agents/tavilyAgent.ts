@@ -1,42 +1,31 @@
 // server/agents/tavilyAgent.ts
-
-<<<<<<< HEAD
-=======
-import { TavilySearchResults } from "@langchain/community/tools/tavily_search";
->>>>>>> origin/development
 import {
   AgentCapabilityDeclaration,
   TaskDefinition,
-  TaskResult,
+  TaskStatusUpdatePayload,
+  TaskResultPayload,
   WebSearchInput,
-  WebSearchOutput
-} from "../types/agentProtocols";
-<<<<<<< HEAD
-import { tavilySearch, TavilySearchResponse, TavilySearchResult } from "../tavilySearch"; // Corrected import path and added types
-=======
-import { tavilySearch } from "../server/tavilySearch"; // Assuming this is the refactored Tavily search function
->>>>>>> origin/development
+  WebSearchOutput,
+} from "../types/agentProtocols.js";
+import { tavilySearch, TavilySearchResponse, TavilySearchResult } from "../tavilySearch.js";
 
-export const TAVILY_AGENT_ID = "tavily-search-agent-v1";
-export const TAVILY_AGENT_TYPE = "tavily_web_searcher";
+export const TAVILY_AGENT_ID = "tavily-search-agent";
+export const TAVILY_AGENT_TYPE = "web-search";
 
 export const tavilyAgentDeclaration: AgentCapabilityDeclaration = {
-  agentId: TAVILY_AGENT_ID,
-  agentType: TAVILY_AGENT_TYPE,
-  displayName: "Tavily Web Search Agent",
-  version: "1.0.0",
-  description: "Performs web searches using the Tavily API and returns structured results.",
+  agentId: "tavily-search-agent",
+  agentType: "web-search",
   capabilities: [
     {
-      taskType: "web_search",
+      taskType: "web-search",
       inputSchema: {
         type: "object",
         properties: {
-          query: { type: "string", description: "The search query." },
-          search_depth: { type: "string", enum: ["basic", "advanced"], default: "basic", description: "Search depth." },
-          max_results: { type: "integer", default: 5, description: "Maximum number of results." }
+          query: { type: "string" },
+          searchDepth: { type: "string", enum: ["basic", "advanced"] },
+          maxResults: { type: "number" },
         },
-        required: ["query"]
+        required: ["query"],
       },
       outputSchema: {
         type: "object",
@@ -48,125 +37,58 @@ export const tavilyAgentDeclaration: AgentCapabilityDeclaration = {
               properties: {
                 title: { type: "string" },
                 url: { type: "string" },
-                content: { type: "string" }, // Tavily often returns content directly
+                content: { type: "string" },
                 score: { type: "number" },
-                raw_content: { type: "object", nullable: true } // Additional raw data if any
               },
-              required: ["title", "url", "content"]
-            }
-          }
-        }
-      }
-    }
+            },
+          },
+        },
+      },
+    },
   ],
-  // This agent is internal, so no invokeEndpoint is needed if called directly by orchestrator
-  // If it were an external microservice, invokeEndpoint would be its URL.
+  healthCheck: async () => {
+    try {
+      const testQuery = "test query";
+      const testResponse = await tavilySearch(testQuery, process.env.TAVILY_API_KEY!, { search_depth: "basic" });
+      return testResponse && Array.isArray(testResponse.results);
+    } catch (error) {
+      console.error("Tavily agent health check failed:", error);
+      return false;
+    }
+  },
+  handleTask: async (task: TaskDefinition): Promise<TaskResultPayload> => {
+    if (task.type !== "web-search") {
+      throw new Error(`Tavily agent cannot handle task type: ${task.type}`);
+    }
+
+    const input = task.input as WebSearchInput;
+    const apiKey = process.env.TAVILY_API_KEY;
+    if (!apiKey) {
+      throw new Error("TAVILY_API_KEY not configured");
+    }
+
+    try {
+      const searchResponse = await tavilySearch(input.query, apiKey, {
+        search_depth: input.searchDepth || "basic",
+        max_results: input.maxResults || 5,
+      });
+
+      const output: WebSearchOutput = {
+        results: searchResponse.results || [],
+      };
+
+      return {
+        taskId: task.taskId,
+        status: "completed",
+        output,
+      };
+    } catch (error) {
+      console.error("Tavily search error:", error);
+      return {
+        taskId: task.taskId,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error during search",
+      };
+    }
+  },
 };
-
-/**
- * Handles a task assigned to the Tavily Agent.
- * @param task - The task definition.
- * @returns A promise that resolves to the task result.
- */
-export const handleTavilySearchTask = async (task: TaskDefinition): Promise<TaskResult> => {
-  if (task.taskType !== "web_search") {
-    return {
-      taskId: task.taskId,
-      agentId: TAVILY_AGENT_ID,
-      timestamp: Date.now(),
-      status: "failed",
-      errorDetails: {
-        errorCode: "invalid_task_type",
-        errorMessage: `Task type ${task.taskType} is not supported by ${TAVILY_AGENT_ID}. Expected 'web_search'.`
-      }
-    };
-  }
-
-  const input = task.inputData as WebSearchInput;
-  if (!input.query) {
-    return {
-      taskId: task.taskId,
-      agentId: TAVILY_AGENT_ID,
-      timestamp: Date.now(),
-      status: "failed",
-      errorDetails: {
-        errorCode: "missing_input",
-        errorMessage: "Query is missing in inputData for web_search task."
-      }
-    };
-  }
-
-  try {
-    // Assuming tavilySearch function is adapted or can be used here.
-    // The original tavilySearch in the repo might need slight adjustments
-    // to fit this direct invocation or to accept more structured input like search_depth/max_results.
-    // For now, we'll call it with the query and map results.
-    
-    // The provided tavilySearch function in the repo is: 
-<<<<<<< HEAD
-    // export const tavilySearch = async (query: string, apiKey: string, config: Record<string, any> = {}): Promise<TavilySearchResponse> => {
-    const tavilyResponse: TavilySearchResponse = await tavilySearch(
-        input.query,
-        process.env.TAVILY_API_KEY || "", // Assuming TAVILY_API_KEY is in process.env
-        {
-            search_depth: input.search_depth || "basic",
-            max_results: input.max_results || 5
-        }
-    );
-
-    const output: WebSearchOutput = {
-      results: tavilyResponse.results.map((r: TavilySearchResult) => ({
-        title: r.title,
-        url: r.url,
-        content: r.content,
-        score: r.score, 
-        // raw_content is not directly in TavilySearchResult, handle if needed or remove
-=======
-    // export const tavilySearch = async (query: string, searchDepth: "basic" | "advanced" = "basic", maxResults: number = 5, includeDomains?: string[], excludeDomains?: string[]): Promise<TavilySearchResults[]> => {
-    const searchResults: TavilySearchResults[] = await tavilySearch(
-        input.query,
-        input.search_depth || "basic",
-        input.max_results || 5
-    );
-
-    const output: WebSearchOutput = {
-      results: searchResults.map(r => ({
-        title: r.title,
-        url: r.url,
-        content: r.content, 
-        score: r.score, 
-        raw_content: r.raw_content || null
->>>>>>> origin/development
-      }))
-    };
-
-    return {
-      taskId: task.taskId,
-      agentId: TAVILY_AGENT_ID,
-      timestamp: Date.now(),
-      status: "completed",
-      outputData: output
-    };
-  } catch (error: any) {
-    console.error(`Error processing Tavily search task ${task.taskId}:`, error);
-    return {
-      taskId: task.taskId,
-      agentId: TAVILY_AGENT_ID,
-      timestamp: Date.now(),
-      status: "failed",
-      errorDetails: {
-        errorCode: "tavily_api_error",
-        errorMessage: error.message || "An unexpected error occurred during Tavily search."
-      }
-    };
-  }
-};
-
-// Note: The original `server/tavilySearch.ts` might need to be slightly refactored
-// if its current direct usage in routes conflicts with this agent structure,
-// or this agent can call a more primitive version of it.
-// For now, we assume `tavilySearch` can be called as shown.
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/development
