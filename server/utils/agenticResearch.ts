@@ -298,9 +298,20 @@ Please analyze these sources thoroughly, using step-by-step reasoning to synthes
  */
 async function critiqueDraft(query: string, draft: string, results: TavilySearchResult[]): Promise<string> {
   try {
-    const response = await openai.chat.completions.create({
-      // Using GPT-4.1, the latest OpenAI model (as of May 2025)
-      model: "gpt-4.1",
+    console.log("Starting critique of draft...");
+    
+    // Set a reasonable timeout for the OpenAI request
+    const timeoutMs = 20000; // 20 seconds timeout
+    
+    // Create a promise that rejects after timeout
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Request timed out while critiquing draft")), timeoutMs);
+    });
+    
+    // Create the actual API call promise
+    const apiPromise = openai.chat.completions.create({
+      // Use a less resource-intensive model to reduce timeouts
+      model: "gpt-4", // Using a more stable model instead of gpt-4.1
       messages: [
         {
           role: "system",
@@ -334,10 +345,29 @@ Please critique this draft and identify specific areas for improvement.`
       max_tokens: 1000
     });
     
-    return safeGetContent(response);
+    // Race the timeout against the API call
+    try {
+      const response = await Promise.race([apiPromise, timeoutPromise]);
+      console.log("Critique draft completed successfully");
+      return safeGetContent(response);
+    } catch (raceError) {
+      // Handle timeout or API error
+      console.error(`Critique failed in race condition: ${raceError.message}`);
+      throw raceError; // Re-throw to be caught by outer catch
+    }
   } catch (error) {
     console.error("Error critiquing draft:", error);
-    return "Error occurred during critique.";
+    // Provide a meaningful default critique so the process can continue
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.log(`Providing fallback critique due to error: ${errorMessage}`);
+    
+    // Return a meaningful fallback critique that allows the process to continue
+    return `Based on an initial review, here are areas to improve:
+1. Add more specific citations to strengthen credibility
+2. Consider exploring additional perspectives on the topic
+3. Expand on key concepts that may need more explanation
+4. Ensure the conclusion addresses the original query directly
+(Note: This is a system-generated critique due to a processing limitation.)`;
   }
 }
 
