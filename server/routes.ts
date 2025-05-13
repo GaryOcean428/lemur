@@ -777,20 +777,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Initialize and manage conversation context for all queries
-      // Ensure conversation context is initialized
-      req.session.conversationContext = req.session.conversationContext || [];
+      // Initialize and manage conversation context using the utility functions
+      const isFollowUp = req.query.isFollowUp === 'true' || 
+                         (req.session.conversationContext && 
+                          isLikelyFollowUp(query, { 
+                            turns: req.session.conversationContext || [],
+                            lastUpdated: Date.now()
+                          }));
       
-      // For all queries (follow-up or new), add to context
-      req.session.conversationContext.push({
+      // Create a new turn for the current query
+      const currentTurn: ConversationTurn = {
         query,
         timestamp: Date.now()
-      });
+      };
       
-      // Limit context to last 5 queries
-      if (req.session.conversationContext.length > 5) {
-        req.session.conversationContext = req.session.conversationContext.slice(-5);
-      }
+      // Add the current turn to the conversation context
+      req.session.conversationContext = addTurnToContext(
+        { 
+          turns: req.session.conversationContext || [],
+          lastUpdated: Date.now()
+        },
+        currentTurn
+      ).turns;
       
       console.log(`${isFollowUp ? 'Follow-up' : 'New'} query added to context: "${query}". Context size: ${req.session.conversationContext.length}`);
       
@@ -1034,8 +1042,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               groqApiKey,
               preferredModel,
               filters.geo_location ? filters.geo_location.toUpperCase() : null, // Ensure proper format
-              isFollowUp || conversationContext.length > 1, // Flag to indicate if this is a contextual search
-              req.session.conversationContext || [], // Pass conversation context
+              isFollowUp, // Flag to indicate if this is a contextual search 
+              { turns: req.session.conversationContext || [], lastUpdated: Date.now() }, // Pass conversation context
               filters, // Pass search filters
               tavilyApiKey // Pass Tavily API key
             );

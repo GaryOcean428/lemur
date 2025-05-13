@@ -54,13 +54,15 @@ export interface SearchResult {
   };
 }
 
+import { ConversationContext, createContextualSystemMessage } from "./utils/context";
+
 export async function directGroqCompoundSearch(
   query: string, 
   groqApiKey: string, 
   modelPreference: string = 'auto',
   geo_location: string = 'AU',
   isContextual: boolean = false,
-  conversationContext: Array<{query: string; answer?: string; timestamp: number}> = [],
+  conversationContext: ConversationContext = { turns: [], lastUpdated: Date.now() },
   filters: Record<string, any> = {},
   tavilyApiKey: string | null = null
 ): Promise<{
@@ -212,11 +214,21 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     const messages = [systemMessage];
     
     // Add conversation context for follow-up questions if available
-    if (isContextual && conversationContext.length > 0) {
-      // Add a context message summarizing previous conversation (limited to last 2 exchanges for efficiency)
+    if (isContextual && conversationContext.turns && conversationContext.turns.length > 0) {
+      // Instead of manually constructing the context message, use our utility function
+      const isFirstTurn = conversationContext.turns.length === 1;
+      const contextSystemMessage = createContextualSystemMessage(conversationContext, isFirstTurn);
+      
+      // Replace the standard system message with our contextual one
+      messages[0] = {
+        role: "system",
+        content: contextSystemMessage
+      };
+      
+      // Add additional context message for clarity
       let contextMessage = "Previous conversation context:\n";
       // Only use last 2 conversation items to save tokens
-      const recentContext = conversationContext.slice(-2);
+      const recentContext = conversationContext.turns.slice(0, 2);
       recentContext.forEach((ctx, index) => {
         contextMessage += `User: ${ctx.query}\n`;
         if (ctx.answer) {
