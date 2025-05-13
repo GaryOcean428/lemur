@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Chart, Bar, Line } from 'react-chartjs-2';
+import { marked } from 'marked';
 
 // Register ChartJS components
 ChartJS.register(
@@ -26,9 +27,17 @@ interface AIAnswerProps {
   model: string;
   contextual?: boolean; // Indicates if this is a contextual follow-up answer
   authRequired?: boolean; // Indicates if authentication is required (for limit reached scenarios)
+  className?: string; // Additional CSS class for styling or identifying deep research
 }
 
-export default function AIAnswer({ answer, sources, model, contextual = false, authRequired = false }: AIAnswerProps) {
+export default function AIAnswer({ 
+  answer, 
+  sources, 
+  model, 
+  contextual = false, 
+  authRequired = false,
+  className = ''
+}: AIAnswerProps) {
   const [, setLocation] = useLocation();
   const [followUpQuery, setFollowUpQuery] = useState('');
   const [showFollowUpInput, setShowFollowUpInput] = useState(false);
@@ -37,72 +46,28 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
   // Check if this is a limit reached message
   const isLimitReached = model === 'limit-reached';
   
-  // Enhanced markdown rendering function with improved citation handling
+  // Enhanced markdown rendering function with citation handling
   function renderMarkdown(text: string): string {
-    // Step 1: Process citations to make them clickable with better pattern matching
+    // Step 1: Process citations to make them clickable
     let processedText = text
-      // Handle [Source X] pattern citation links with visual enhancement
+      // Handle [Source X] pattern
       .replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${match}</span></a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">[Source ${sourceIndex + 1}]</a>`;
         }
         return match;
       })
-      // Handle [X] pattern citation links with visual enhancement
+      // Handle [X] pattern
       .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-0.5 w-4 h-4 rounded-full bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span></span></a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">[${sourceIndex + 1}]</a>`;
         }
         return match;
-      })
-      // Handle (Source: title) pattern - common in AI responses
-      .replace(/\(Source: ([^\)]+)\)/g, (match, sourceTitle) => {
-        // Find source by title (partial match)
-        const sourceIndex = sources.findIndex(source => 
-          source.title.toLowerCase().includes(sourceTitle.toLowerCase()) ||
-          sourceTitle.toLowerCase().includes(source.title.toLowerCase())
-        );
-        
-        if (sourceIndex >= 0) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-1 py-0.5 rounded-md font-medium hover:bg-green-100 dark:hover:bg-green-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>(Source: ${sourceTitle})</span></a>`;
-        }
-        return match;
-      })
-      // Handle citation patterns like "according to [source name]"
-      .replace(/according to ([\w\s\-\.]+)/gi, (match, sourceName) => {
-        // Find source by domain or title (partial match)
-        const sourceIndex = sources.findIndex(source => 
-          source.title.toLowerCase().includes(sourceName.toLowerCase()) || 
-          (source.domain && source.domain.toLowerCase().includes(sourceName.toLowerCase()))
-        );
-        
-        if (sourceIndex >= 0) {
-          return `according to <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${sourceName}</span></a>`;
-        }
-        return match;
-      })
-      // Add explicit citation indicators for source metadata
-      .replace(/\bfrom ([\w\s\-\.]+)\b/gi, (match, sourceName) => {
-        // Find source by domain or title (partial match)
-        const sourceIndex = sources.findIndex(source => 
-          source.title.toLowerCase().includes(sourceName.toLowerCase()) || 
-          (source.domain && source.domain.toLowerCase().includes(sourceName.toLowerCase()))
-        );
-        
-        if (sourceIndex >= 0) {
-          return `from <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${sourceName}</span></a>`;
-        }
-        return match;
-      })
-      // Handle MLA, Chicago, and AGLC citation standards
-      .replace(/\[(MLA|Chicago|AGLC): ([^\]]+)\]/g, (match, style, citation) => {
-        const formattedCitation = formatCitation(style, citation);
-        return `<span class="citation-${style.toLowerCase()}">${formattedCitation}</span>`;
       });
     
-    // Step 2: Convert markdown to HTML
+    // Step 2: Convert markdown to HTML manually for simple markdown features
     // Headers
     processedText = processedText
       .replace(/^### (.+)$/gm, '<h3>$1</h3>')
@@ -114,17 +79,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>');
     
-    // Lists
-    // Convert ordered lists (very basic conversion)
-    processedText = processedText.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-    processedText = processedText.replace(/(<li>.+<\/li>\n)+/g, '<ol>$&</ol>');
-    
-    // Convert unordered lists (very basic conversion)
-    processedText = processedText.replace(/^- (.+)$/gm, '<li>$1</li>');
-    processedText = processedText.replace(/^\* (.+)$/gm, '<li>$1</li>');
-    processedText = processedText.replace(/(<li>.+<\/li>\n)+/g, '<ul>$&</ul>');
-    
-    // Links (only handle standard markdown links)
+    // Links
     processedText = processedText.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     
     // Code blocks
@@ -133,51 +88,76 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
     // Inline code
     processedText = processedText.replace(/`([^`]+)`/g, '<code>$1</code>');
     
-    // Paragraphs (add p tags to text blocks)
-    processedText = processedText.replace(/^(?!<[a-z][^>]*>)(.+)$/gm, '<p>$1</p>');
+    // Lists (basic implementation)
+    // Convert unordered lists
+    const unorderedListItems = processedText.match(/^[-*] (.+)$/gm);
+    if (unorderedListItems) {
+      let listHtml = '<ul>';
+      for (const item of unorderedListItems) {
+        listHtml += `<li>${item.replace(/^[-*] /, '')}</li>`;
+      }
+      listHtml += '</ul>';
+      processedText = processedText.replace(/^[-*] (.+)$/gm, ''); // Remove original list items
+      processedText += listHtml;
+    }
     
-    // Step 3: Add styling for better citation visualization
+    // Convert ordered lists
+    const orderedListItems = processedText.match(/^\d+\. (.+)$/gm);
+    if (orderedListItems) {
+      let listHtml = '<ol>';
+      for (const item of orderedListItems) {
+        listHtml += `<li>${item.replace(/^\d+\. /, '')}</li>`;
+      }
+      listHtml += '</ol>';
+      processedText = processedText.replace(/^\d+\. (.+)$/gm, ''); // Remove original list items
+      processedText += listHtml;
+    }
+    
+    // Paragraphs (wrap text in p tags if not already in a block-level element)
     processedText = processedText
-      // Add custom classes to citation links to help with styling
-      .replace(/<a href="#source-([0-9]+)"([^>]*)>([^<]+)<\/a>/g, (match, sourceNumber, attributes, text) => {
-        return `<a href="#source-${sourceNumber}" ${attributes} data-source-id="${sourceNumber}" class="source-citation-${sourceNumber} ${attributes.includes('class=') ? '' : 'citation-link'}" onmouseover="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.add('citation-highlight'))" onmouseout="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.remove('citation-highlight'))">${text}</a>`;
-      });
-
-    // Step 4: Add CSS for citation highlighting
-    processedText = `
+      .split('\n\n')
+      .map(para => {
+        if (para.trim() && 
+            !para.trim().startsWith('<h') && 
+            !para.trim().startsWith('<ul') && 
+            !para.trim().startsWith('<ol') && 
+            !para.trim().startsWith('<pre')) {
+          return `<p>${para.trim()}</p>`;
+        }
+        return para;
+      })
+      .join('\n');
+    
+    // Add styling for citations
+    const styleBlock = `
       <style>
-        .citation-highlight {
-          background-color: rgba(168, 85, 247, 0.2) !important;
-          box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.4);
-          transition: all 0.2s ease-in-out;
-        }
-        .dark .citation-highlight {
-          background-color: rgba(168, 85, 247, 0.3) !important;
-          box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
-        }
         .citation-link {
+          background-color: rgba(168, 85, 247, 0.1);
+          color: #6d28d9;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: 500;
           text-decoration: none !important;
           transition: all 0.2s ease-in-out;
+        }
+        .dark .citation-link {
+          background-color: rgba(168, 85, 247, 0.2);
+          color: #a78bfa;
         }
         .citation-link:hover {
+          background-color: rgba(168, 85, 247, 0.2);
           text-decoration: none !important;
         }
-        .citation-mla {
-          font-style: italic;
-        }
-        .citation-chicago {
-          font-weight: bold;
-        }
-        .citation-aglc {
-          text-decoration: underline;
+        .dark .citation-link:hover {
+          background-color: rgba(168, 85, 247, 0.3);
         }
       </style>
-    ` + processedText;
+    `;
     
-    // Step 5: Sanitize HTML to prevent XSS
-    return DOMPurify.sanitize(processedText, { 
+    // Sanitize the final HTML
+    return DOMPurify.sanitize(styleBlock + processedText, {
       ADD_TAGS: ['style'],
-      ADD_ATTR: ['onmouseover', 'onmouseout', 'data-source-id']
+      ADD_ATTR: ['target', 'rel']
     });
   }
 
@@ -207,8 +187,25 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
   const handleFollowUpSubmit = () => {
     if (!followUpQuery.trim()) return;
     
-    // Navigate to search results with the follow-up query and flag
-    setLocation(`/search?q=${encodeURIComponent(followUpQuery)}&isFollowUp=true`);
+    // Log the action for debugging
+    console.log(`Submitting follow-up question: ${followUpQuery}`);
+    
+    // Determine if this is a deep research question from the className prop
+    const isDeepResearch = className?.includes('deep-research') || false;
+    
+    // Build URL with parameters that preserve the current search mode
+    let searchUrl = `/search?q=${encodeURIComponent(followUpQuery)}`;
+    
+    // Always set isFollowUp=true to maintain conversation context
+    searchUrl += '&isFollowUp=true';
+    
+    // If this was a deep research answer, maintain those parameters for the follow-up
+    if (isDeepResearch) {
+      searchUrl += '&deepResearch=true&maxIterations=3&includeReasoning=true&deepDive=true';
+    }
+    
+    // Use the router's setLocation instead of window.location.href to maintain session
+    setLocation(searchUrl);
   };
 
   // Function to render charts and graphs
@@ -386,8 +383,47 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-semibold text-[hsl(var(--neutral-muted))]">Sources ({sources.length}):</h4>
-            <div className="text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium border border-green-200 dark:border-green-800">
-              {sources.length} citations used
+            <div className="flex items-center gap-2">
+              <div className="text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium border border-green-200 dark:border-green-800">
+                {sources.length} citations used
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                className="text-xs h-7 px-2 flex items-center gap-1"
+                onClick={() => {
+                  localStorage.setItem('sourceForCitation', JSON.stringify(sources));
+                  setLocation('/tools/citation-generator?from=search');
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-quote">
+                  <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                  <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+                </svg>
+                Create Citations
+              </Button>
+              
+              {!contextual && !className?.includes('deep-research') && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs h-7 px-2 flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-800/50"
+                  onClick={() => {
+                    const currentQuery = new URLSearchParams(window.location.search).get('q');
+                    if (currentQuery) {
+                      setLocation(`/search?q=${encodeURIComponent(currentQuery)}&deep=true`);
+                    }
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h13l4-4-4-3z"/>
+                    <path d="M12 19h7"/>
+                    <path d="M7 19h1"/>
+                    <path d="M11 19h1"/>
+                  </svg>
+                  Deep Research
+                </Button>
+              )}
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
@@ -448,21 +484,37 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
                           >
                             {source.title}
                           </a>
-                          {citationCount > 0 && (
-                            <span 
-                              className={`source-citation-${index + 1} text-xs px-1.5 py-0.5 rounded-full ${importanceStyle[importanceLevel]} font-medium ml-2 transition-all duration-200`}
-                              onMouseOver={() => {
-                                document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
-                                  el.classList.add('citation-highlight'))
+                          <div className="flex items-center gap-1">
+                            {citationCount > 0 && (
+                              <span 
+                                className={`source-citation-${index + 1} text-xs px-1.5 py-0.5 rounded-full ${importanceStyle[importanceLevel]} font-medium ml-2 transition-all duration-200`}
+                                onMouseOver={() => {
+                                  document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                                    el.classList.add('citation-highlight'))
+                                }}
+                                onMouseOut={() => {
+                                  document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                                    el.classList.remove('citation-highlight'))
+                                }}
+                              >
+                                {citationCount === 1 ? '1 citation' : `${citationCount} citations`}
+                              </span>
+                            )}
+                            <button
+                              className="text-xs ml-1 text-gray-400 hover:text-primary px-1 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              onClick={() => {
+                                // Store this specific source in localStorage and redirect to citation generator
+                                localStorage.setItem('sourceForCitation', JSON.stringify([source]));
+                                setLocation('/tools/citation-generator?from=search&index=' + index);
                               }}
-                              onMouseOut={() => {
-                                document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
-                                  el.classList.remove('citation-highlight'))
-                              }}
+                              title="Create citation for this source"
                             >
-                              {citationCount === 1 ? '1 citation' : `${citationCount} citations`}
-                            </span>
-                          )}
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-quote">
+                                <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                                <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         {source.domain && (
                           <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">

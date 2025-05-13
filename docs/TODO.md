@@ -4,9 +4,13 @@
 
 ### Search Core Functionality
 - [x] Fix traditional search results not appearing alongside AI answers
-- [ ] Ensure proper citation of sources in AI responses
+- [x] Ensure proper citation of sources in AI responses
+- [x] Implement dynamic citation style updates (AGLC4, Chicago, Harvard)
+- [x] Enable proper citation formatting with italics and live links
+- [x] Fix Deep Research button integration in web search results
+- [x] Optimize critique phase in deep research to reduce timeout issues
 - [ ] Fix error handling for Groq API failures, especially around tool usage
-- [ ] Improve handling of rate limits and API timeouts
+- [x] Improve handling of rate limits and API timeouts
 
 ### Documentation & Architecture
 - [ ] Create visual architecture diagram showing the flow from user query to displayed results
@@ -31,6 +35,15 @@
 - [ ] Add server-side caching for API responses
 - [ ] Optimize image loading in search results
 - [ ] Add progressive loading for search results
+- [ ] Implement caching strategies to save and reuse results for similar deep research queries
+- [ ] Add source diversity metrics to ensure varied content sources in deep research
+
+### Deep Research Enhancements
+- [ ] Implement multi-modal research to include image and video analysis for more comprehensive results
+- [ ] Add interactive reports that allow users to expand/collapse sections or rearrange report structures
+- [ ] Create custom research profiles where users can save preferences for recurring research topics
+- [ ] Implement export functionality for reports in various formats (PDF, Markdown) with citations intact
+- [ ] Further enhance visualizations with charts, topic clustering, and hierarchical views in the results
 
 ### User Experience
 - [ ] Design and implement better mobile interface for search results

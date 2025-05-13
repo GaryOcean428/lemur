@@ -11,12 +11,13 @@ import AuthPage from "@/pages/auth-page";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/hooks/use-auth";
+import { SettingsProvider } from "@/hooks/use-settings";
 import { ProtectedRoute } from "./lib/protected-route";
 import { ThemeProvider } from "@/components/theme-provider";
 
 // Import all the new pages
 import AboutPage from "@/pages/about";
-import ToolsPage from "@/pages/tools";
+import ToolsPage from "@/pages/Tools";
 import SettingsPage from "@/pages/settings";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
@@ -27,7 +28,7 @@ import HelpPage from "@/pages/help";
 import APIPage from "@/pages/api";
 import PreferencesPage from "@/pages/preferences";
 import SubscriptionPage from "@/pages/subscription";
-import SubscriptionSuccessPage from "@/pages/subscription-success";
+import SubscriptionSuccessPage from "@/pages/subscription/success";
 import ManageSubscriptionPage from "@/pages/manage-subscription";
 import AgenticResearchDebug from "@/components/AgenticResearchDebug";
 import AuthDebug from "@/pages/auth-debug";
@@ -46,7 +47,7 @@ function Router() {
       
       {/* Info pages */}
       <Route path="/about" component={AboutPage} />
-      <Route path="/tools" component={ToolsPage} />
+      <Route path="/tools/:tool?" component={ToolsPage} />
       <Route path="/settings" component={SettingsPage} />
       
       {/* User pages */}
@@ -96,17 +97,19 @@ function App() {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <HotToaster position="top-right" />
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <Router />
-              </main>
-              <Footer />
-            </div>
-          </TooltipProvider>
+          <SettingsProvider>
+            <TooltipProvider>
+              <Toaster />
+              <HotToaster position="top-right" />
+              <div className="flex flex-col min-h-screen">
+                <Header />
+                <main className="flex-grow">
+                  <Router />
+                </main>
+                <Footer />
+              </div>
+            </TooltipProvider>
+          </SettingsProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

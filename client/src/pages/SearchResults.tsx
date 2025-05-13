@@ -215,6 +215,36 @@ export default function SearchResults() {
                 <Eye className="h-4 w-4" />
                 <span className="hidden sm:inline">Insights</span>
               </Button>
+              
+              {/* Deep Research Conversion Button - Always show, disable if already in deep research or if not Pro */}
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    // Convert this search to a deep research
+                    setLocation(`/search?q=${encodeURIComponent(query)}&deepResearch=true&maxIterations=3&includeReasoning=true&deepDive=true`);
+                  }}
+                  className="flex items-center gap-1"
+                  title={
+                    deepResearch 
+                      ? "Already in deep research mode" 
+                      : (!user || (user.subscriptionTier !== 'pro' && user.subscriptionTier !== 'developer'))
+                        ? "Upgrade to Pro for deep research"
+                        : "Convert to deep research"
+                  }
+                  disabled={deepResearch || !user || (user.subscriptionTier !== 'pro' && user.subscriptionTier !== 'developer')}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 12a5 5 0 0 0 5 5 8 8 0 0 1 5 2 8 8 0 0 1 5-2 5 5 0 0 0 5-5V7H2Z"></path>
+                    <path d="M6 8v4"></path>
+                    <path d="M10 7v5"></path>
+                    <path d="M14 7v5"></path>
+                    <path d="M18 8v4"></path>
+                  </svg>
+                  <span className="hidden sm:inline">Deep Research</span>
+                </Button>
+              
               <SearchFiltersPanel />
             </div>
           </div>

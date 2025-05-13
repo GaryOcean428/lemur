@@ -665,6 +665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const query = req.query.q as string;
       const searchType = req.query.type as string || 'all'; // 'all', 'ai', or 'traditional'
       const deepResearch = req.query.deepResearch === 'true'; // Check if deep research mode is enabled
+      const disableTools = req.query.disableTools === 'true'; // Check if tools should be disabled (fallback mode)
       
       if (!query) {
         return res.status(400).json({ message: "Query parameter is required" });
@@ -678,6 +679,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.exclude_domains) filters.exclude_domains = (req.query.exclude_domains as string).split(',');
       if (req.query.search_depth) filters.search_depth = req.query.search_depth;
       if (req.query.include_images !== undefined) filters.include_images = req.query.include_images === 'true';
+      // If tools should be disabled, add it to filters
+      if (disableTools) filters.disableTools = true;
       
       // Get API keys from environment
       const tavilyApiKey = process.env.TAVILY_API_KEY || "";
@@ -777,22 +780,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Store conversation context for follow-up queries
-      if (req.query.isFollowUp === 'true') {
-        // Ensure conversation context is initialized
-        req.session.conversationContext = req.session.conversationContext || [];
-        
-        // Add the current query to the conversation context
-        req.session.conversationContext.push({
-          query,
-          timestamp: Date.now()
-        });
-        
-        // Limit conversation context to the last 5 queries
-        if (req.session.conversationContext.length > 5) {
-          req.session.conversationContext = req.session.conversationContext.slice(-5);
-        }
-      }
+      // Initialize and manage conversation context using the utility functions
+      const isFollowUp = req.query.isFollowUp === 'true' || 
+                         (req.session.conversationContext && 
+                          isLikelyFollowUp(query, { 
+                            turns: req.session.conversationContext || [],
+                            lastUpdated: Date.now()
+                          }));
+      
+      // Create a new turn for the current query
+      const currentTurn: ConversationTurn = {
+        query,
+        timestamp: Date.now()
+      };
+      
+      // Create a proper conversation context object
+      const sessionContext: ConversationContext = { 
+        turns: req.session.conversationContext || [],
+        lastUpdated: Date.now()
+      };
+      
+      // Add the current turn to the conversation context
+      const updatedContext = addTurnToContext(sessionContext, currentTurn);
+      
+      // Store just the turns in the session for compatibility
+      req.session.conversationContext = updatedContext.turns;
+      
+      console.log(`${isFollowUp ? 'Follow-up' : 'New'} query added to context: "${query}". Context size: ${req.session.conversationContext.length}`);
       
       // Check if we should use Deep Research mode - only available for pro or developer tier
       if (deepResearch) {
@@ -1034,8 +1048,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               groqApiKey,
               preferredModel,
               filters.geo_location ? filters.geo_location.toUpperCase() : null, // Ensure proper format
-              conversationContext.length > 0, // Flag to indicate if this is a contextual search
-              req.session.conversationContext || [], // Pass conversation context
+              isFollowUp, // Flag to indicate if this is a contextual search 
+              { turns: req.session.conversationContext || [], lastUpdated: Date.now() }, // Pass conversation context
               filters, // Pass search filters
               tavilyApiKey // Pass Tavily API key
             );
@@ -1143,6 +1157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const query = req.query.q as string;
       const isFollowUp = req.query.isFollowUp === 'true';
+      const disableTools = req.query.disableTools === 'true'; // Check if tools should be disabled (fallback mode)
       
       if (!query) {
         return res.status(400).json({ message: "Query parameter is required" });
@@ -1155,6 +1170,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.include_domains) filters.include_domains = (req.query.include_domains as string).split(',');
       if (req.query.exclude_domains) filters.exclude_domains = (req.query.exclude_domains as string).split(',');
       if (req.query.search_depth) filters.search_depth = req.query.search_depth;
+      // If tools should be disabled, add it to filters
+      if (disableTools) filters.disableTools = true;
       
       // Get API keys from environment
       const tavilyApiKey = process.env.TAVILY_API_KEY || "";
@@ -1249,18 +1266,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Handle conversation context for follow-up queries
-      if (isFollowUp) {
-        req.session.conversationContext = req.session.conversationContext || [];
-        req.session.conversationContext.push({
-          query,
-          timestamp: Date.now()
-        });
-        
-        if (req.session.conversationContext.length > 5) {
-          req.session.conversationContext = req.session.conversationContext.slice(-5);
-        }
+      // Initialize and manage conversation context
+      req.session.conversationContext = req.session.conversationContext || [];
+      
+      // For all queries (follow-up or new), add to context
+      req.session.conversationContext.push({
+        query,
+        timestamp: Date.now()
+      });
+      
+      // Limit context to last 5 queries
+      if (req.session.conversationContext.length > 5) {
+        req.session.conversationContext = req.session.conversationContext.slice(-5);
       }
+      
+      console.log(`${isFollowUp ? 'Follow-up' : 'New'} query added to context: "${query}". Context size: ${req.session.conversationContext.length}`);
+      
+      // Only reset context if explicitly requested (can be added as a future feature)
+      // if (req.query.resetContext === 'true') {
+      //   req.session.conversationContext = [{
+      //     query,
+      //     timestamp: Date.now()
+      //   }];
+      //   console.log(`Conversation context reset with new query: "${query}"`);
+      // }
       
       // For free tier and anonymous users, force the use of a lighter model
       if (userTier === 'free' || userTier === 'anonymous') {
@@ -1268,12 +1297,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       try {
-        // Load conversation context for follow-up queries
+        // Load conversation context for queries
         let conversationContext: string[] = [];
-        if (isFollowUp && req.session.conversationContext) {
-          conversationContext = req.session.conversationContext.map(
+        
+        // Use context even for non-follow-up queries if context exists and has previous questions
+        // This improves continuity even for queries not explicitly marked as follow-ups
+        if (req.session.conversationContext && req.session.conversationContext.length > 1) {
+          // For explicit follow-ups, use all context
+          // For regular queries, still use prior context but with reduced weight
+          const contextToUse = isFollowUp 
+            ? req.session.conversationContext 
+            : req.session.conversationContext.slice(0, -1); // Exclude current query for regular searches
+            
+          conversationContext = contextToUse.map(
             (ctx: any) => `User: ${ctx.query}${ctx.answer ? `\nAssistant: ${ctx.answer}` : ''}`
           );
+          
+          console.log(`Using conversation context with ${contextToUse.length} entries for ${isFollowUp ? 'follow-up' : 'regular'} query`);
         }
         
         let ai;
@@ -1320,16 +1360,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             preferredModel,
             // Ensure geo_location is correctly passed and log for debugging
             filters.geo_location ? filters.geo_location.toUpperCase() : null,
-            conversationContext.length > 0,
-            req.session.conversationContext || [], // Pass conversation context for better contextual responses
+            isFollowUp, // Use our follow-up flag for contextual search
+            { turns: req.session.conversationContext || [], lastUpdated: Date.now() }, // Pass properly structured conversation context
             filters, // Pass search filters
             tavilyApiKey // Pass Tavily API key
           );
           
           // Store the generated answer in the conversation context
           if (req.session.conversationContext && req.session.conversationContext.length > 0) {
-            req.session.conversationContext[req.session.conversationContext.length - 1].answer = 
-              directResult.answer.substring(0, 500);
+            // Update the most recent turn with the answer
+            const lastTurnIndex = req.session.conversationContext.length - 1;
+            
+            // Store a truncated version of the answer to manage context size
+            req.session.conversationContext[lastTurnIndex] = {
+              ...req.session.conversationContext[lastTurnIndex],
+              answer: directResult.answer.substring(0, 500),
+              sources: directResult.sources ? directResult.sources.slice(0, 3) : [],
+              model: directResult.model
+            };
+            
+            console.log(`Updated conversation context with answer for query: "${req.session.conversationContext[lastTurnIndex].query}"`);
           }
           
           ai = {
@@ -1803,7 +1853,322 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe payment routes
-  // Create a subscription setup
+  // Create a checkout session for subscription
+  app.post("/api/create-checkout-session", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      // Accept either 'tier' or 'planType' parameter for better compatibility
+      const tier = req.body.tier || req.body.planType;
+      const billingInterval = req.body.billingInterval || 'month'; // 'month' or 'year'
+      
+      if (!tier || (tier !== 'free' && tier !== 'basic' && tier !== 'pro')) {
+        return res.status(400).json({ message: "Valid subscription tier (free, basic, or pro) is required" });
+      }
+      
+      // Special case for developer account - auto-approve without payment
+      if (req.user.username === 'GaryOcean' || req.user.isDeveloper) {
+        console.log(`Auto-approving subscription for developer account: ${req.user.username}`);
+        
+        // Set expiration date (1 year from now for developer accounts)
+        const expiresAt = new Date();
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        
+        await storage.updateUserSubscription(req.user.id, tier, expiresAt);
+        return res.json({
+          success: true,
+          isDeveloperAccount: true,
+          message: `Developer account automatically subscribed to ${tier} tier`,
+          redirectUrl: `${req.headers.origin || ''}/`
+        });
+      }
+      
+      // Handle free tier differently - no Stripe subscription needed
+      if (tier === 'free') {
+        // Just update the user's subscription tier and return success
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now
+        await storage.updateUserSubscription(req.user.id, 'free', expiresAt);
+        
+        return res.json({
+          success: true,
+          message: "Free tier activated",
+          redirectUrl: `${req.headers.origin || ''}/`
+        });
+      }
+      
+      // For development mode, we'll set up a simulated checkout
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEV MODE] Simulating subscription checkout for', tier, 'tier');
+        // Set expiration based on billing interval
+        const expiresAt = new Date();
+        if (billingInterval === 'year') {
+          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        } else {
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+        }
+        
+        await storage.updateUserSubscription(req.user.id, tier, expiresAt);
+        
+        return res.json({
+          success: true,
+          devMode: true,
+          message: `Development mode: ${tier} subscription activated with ${billingInterval}ly billing`,
+          redirectUrl: `${req.headers.origin || ''}/`
+        });
+      }
+      
+      // For production, we need to ensure Stripe is configured
+      if (!stripe) {
+        return res.status(500).json({ message: "Stripe not configured" });
+      }
+      
+      // Get or create customer record
+      let customerId = req.user.stripeCustomerId;
+      const email = req.user.email;
+      
+      if (!email) {
+        return res.status(400).json({ message: "User email is required for subscription" });
+      }
+      
+      if (!customerId) {
+        console.log(`Creating new Stripe customer with email: ${email}`);
+        
+        const customer = await stripe.customers.create({
+          email,
+          name: req.user.username,
+          metadata: {
+            userId: req.user.id.toString()
+          }
+        });
+        customerId = customer.id;
+        console.log(`Created new Stripe customer with ID: ${customerId}`);
+        
+        // Update the customer ID in the database
+        await storage.updateStripeInfo(
+          req.user.id,
+          customer.id,
+          null
+        );
+      } else {
+        console.log(`Using existing Stripe customer: ${customerId}`);
+      }
+      
+      // Define the pricing for plans
+      // In production, these prices should be created in the Stripe dashboard
+      const prices = {
+        basic: {
+          month: {
+            unit_amount: 1999, // $19.99
+            name: 'Lemur - Basic (Monthly)',
+            id: process.env.STRIPE_BASIC_MONTH_PRICE_ID
+          },
+          year: {
+            unit_amount: 22789, // $19.99 * 12 * 0.95 = $227.89 (5% discount for annual)
+            name: 'Lemur - Basic (Yearly)',
+            id: process.env.STRIPE_BASIC_YEAR_PRICE_ID
+          }
+        },
+        pro: {
+          month: {
+            unit_amount: 4999, // $49.99
+            name: 'Lemur - Pro (Monthly)',
+            id: process.env.STRIPE_PRO_MONTH_PRICE_ID
+          },
+          year: {
+            unit_amount: 56989, // $49.99 * 12 * 0.95 = $569.89 (5% discount for annual)
+            name: 'Lemur - Pro (Yearly)',
+            id: process.env.STRIPE_PRO_YEAR_PRICE_ID
+          }
+        }
+      };
+      
+      // Get the price details for the selected tier and billing interval
+      const selectedPrice = prices[tier][billingInterval];
+      let priceId = selectedPrice.id;
+      
+      // If no price ID is configured in environment variables, we need to create one dynamically
+      // Note: In a production system, you would typically create these in the Stripe dashboard
+      // and store the IDs in environment variables
+      if (!priceId) {
+        console.log(`Creating dynamic price for ${tier} ${billingInterval}`);
+        
+        // First check if we need to create a product
+        const productName = `Lemur - ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+        
+        // Try to find an existing product
+        const existingProducts = await stripe.products.list({
+          active: true
+        });
+        
+        let product = existingProducts.data.find(p => p.name === productName);
+        
+        // Create the product if it doesn't exist
+        if (!product) {
+          product = await stripe.products.create({
+            name: productName,
+            description: `Lemur ${tier} subscription with ${billingInterval}ly billing`
+          });
+          console.log(`Created new product: ${product.id}`);
+        }
+        
+        // Create the price
+        const price = await stripe.prices.create({
+          product: product.id,
+          unit_amount: selectedPrice.unit_amount,
+          currency: 'usd',
+          recurring: {
+            interval: billingInterval
+          },
+          nickname: selectedPrice.name
+        });
+        
+        console.log(`Created new price: ${price.id}`);
+        priceId = price.id;
+      }
+      
+      // Create Checkout Session for subscription
+      const session = await stripe.checkout.sessions.create({
+        billing_address_collection: 'auto',
+        customer: customerId,
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${req.headers.origin || ''}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin || ''}/subscription`,
+        subscription_data: {
+          metadata: {
+            userId: req.user.id.toString(),
+            tier: tier
+          }
+        },
+        metadata: {
+          userId: req.user.id.toString(),
+          tier: tier
+        }
+      });
+      
+      console.log(`Created checkout session with ID: ${session.id}`);
+      
+      // Return the session URL to redirect to
+      return res.json({
+        success: true,
+        sessionId: session.id,
+        sessionUrl: session.url,
+      });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      return res.status(500).json({ 
+        message: "Error creating checkout session", 
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+  
+  // Verify a Stripe checkout session and activate the subscription
+  app.post("/api/verify-subscription", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const { sessionId } = req.body;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID is required" });
+      }
+      
+      if (!stripe) {
+        return res.status(500).json({ message: "Stripe not configured" });
+      }
+      
+      // Retrieve the checkout session from Stripe
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ['subscription']
+      });
+      
+      // Check that the session belongs to this user
+      if (session.metadata?.userId && parseInt(session.metadata.userId) !== req.user.id) {
+        return res.status(403).json({ message: "Session does not belong to this user" });
+      }
+      
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ 
+          success: false,
+          message: "Payment has not been completed for this session" 
+        });
+      }
+      
+      // Get the subscription details
+      const subscription = session.subscription;
+      
+      if (!subscription) {
+        return res.status(400).json({ 
+          success: false,
+          message: "No subscription found for this session" 
+        });
+      }
+      
+      // Get the tier from the metadata
+      const tier = session.metadata?.tier || 'basic';
+      
+      // Look up the actual subscription to get its current status
+      const subscriptionDetails = await stripe.subscriptions.retrieve(
+        typeof subscription === 'string' ? subscription : subscription.id
+      );
+      
+      // Calculate expiration date
+      const currentPeriodEnd = subscriptionDetails.current_period_end;
+      const expiresAt = new Date(currentPeriodEnd * 1000);
+      
+      // Update user subscription in our database
+      const customerId = session.customer;
+      const subscriptionId = typeof subscription === 'string' ? subscription : subscription.id;
+      
+      // First update the Stripe info if needed
+      if (customerId && typeof customerId === 'string') {
+        await storage.updateStripeInfo(
+          req.user.id,
+          customerId,
+          subscriptionId
+        );
+      }
+      
+      // Then update the subscription details
+      await storage.updateUserSubscription(req.user.id, tier, expiresAt);
+      
+      // Get the updated user record
+      const user = await storage.getUser(req.user.id);
+      
+      // Return success with subscription details
+      return res.json({
+        success: true,
+        message: `Subscription verified and activated`,
+        subscription: {
+          tier,
+          status: subscriptionDetails.status,
+          expiresAt: expiresAt.toISOString(),
+          customerId: typeof customerId === 'string' ? customerId : null,
+          subscriptionId
+        }
+      });
+    } catch (error) {
+      console.error("Error verifying subscription:", error);
+      return res.status(500).json({ 
+        success: false,
+        message: "Error verifying subscription", 
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+  
+  // Legacy endpoint for backward compatibility
   app.post("/api/create-subscription", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -1976,33 +2341,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "Stripe webhook signature or secret missing" });
     }
     
+    let event;
+    
     try {
-      const event = stripe.webhooks.constructEvent(
+      // Verify the event came from Stripe
+      event = stripe.webhooks.constructEvent(
         req.body, 
         sig, 
         process.env.STRIPE_WEBHOOK_SECRET
       );
       
+      console.log(`Stripe webhook received: ${event.type}`);
+      
       // Handle specific events
       switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          
+          // Check if this is a subscription checkout
+          if (session.mode === 'subscription') {
+            await handleSuccessfulSubscription(session);
+          }
+          break;
+        }
+        
         case 'customer.subscription.created':
-        case 'customer.subscription.updated':
+        case 'customer.subscription.updated': {
           const subscription = event.data.object;
-          // Update user's subscription status
-          // Logic would go here to find the user by subscription.customer
-          // and update their subscription status
+          await handleSubscriptionUpdated(subscription);
           break;
-          
-        case 'invoice.payment_succeeded':
+        }
+        
+        case 'invoice.payment_succeeded': {
           const invoice = event.data.object;
-          // Process successful payment
-          // Update subscription status to active
+          if (invoice.subscription) {
+            // This is a subscription invoice
+            await handleSuccessfulSubscriptionPayment(invoice);
+          }
           break;
-          
-        case 'invoice.payment_failed':
-          // Handle failed payment
+        }
+        
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object;
+          if (invoice.subscription) {
+            await handleFailedSubscriptionPayment(invoice);
+          }
           break;
-          
+        }
+        
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object;
+          await handleSubscriptionCancelled(subscription);
+          break;
+        }
+        
         default:
           console.log(`Unhandled event type: ${event.type}`);
       }
@@ -2013,6 +2405,183 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: "Webhook error" });
     }
   });
+  
+  // Helper functions for webhook event handling
+  
+  // Process a successful checkout session for subscription
+  async function handleSuccessfulSubscription(session) {
+    try {
+      // Extract metadata from the session
+      const userId = session.metadata?.userId;
+      const tier = session.metadata?.tier;
+      const subscriptionId = session.subscription;
+      const customerId = session.customer;
+      
+      if (!userId || !tier || !subscriptionId) {
+        console.error('Missing required metadata in checkout session:', session.id);
+        return;
+      }
+      
+      console.log(`Processing successful subscription checkout: User ${userId}, Tier ${tier}, Subscription ${subscriptionId}`);
+      
+      // Retrieve the subscription to get more details
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      // Calculate expiration based on billing interval
+      const currentPeriodEnd = subscription.current_period_end;
+      const expiresAt = new Date(currentPeriodEnd * 1000);
+      
+      // Update user subscription in database
+      await storage.updateStripeInfo(parseInt(userId), customerId, subscriptionId);
+      await storage.updateUserSubscription(parseInt(userId), tier, expiresAt);
+      
+      console.log(`Updated user ${userId} to ${tier} tier, expires at ${expiresAt}`);
+    } catch (error) {
+      console.error('Error processing successful subscription:', error);
+    }
+  }
+  
+  // Handle subscription updated events
+  async function handleSubscriptionUpdated(subscription) {
+    try {
+      // Get the customer ID from the subscription
+      const customerId = subscription.customer;
+      
+      // Try to get the user ID from metadata
+      let userId = subscription.metadata?.userId;
+      
+      // If not found in metadata, look up by customer ID
+      if (!userId) {
+        // This requires additional query to find the user by stripeCustomerId
+        // Implement if your storage has such a method
+        console.log('User ID not found in metadata, would need to look up by customer ID:', customerId);
+        return;
+      }
+      
+      // Determine subscription status
+      const status = subscription.status;
+      const currentPeriodEnd = subscription.current_period_end;
+      const expiresAt = new Date(currentPeriodEnd * 1000);
+      
+      // Get the tier from metadata or determine from the product/price
+      let tier = subscription.metadata?.tier;
+      
+      if (!tier) {
+        // Attempt to determine tier from subscription items/products
+        // This is a simplified approach - in production you might need more robust mapping
+        const itemData = subscription.items.data[0];
+        if (itemData) {
+          const priceId = itemData.price.id;
+          // Map price IDs to tiers based on your configuration
+          if (priceId === process.env.STRIPE_BASIC_MONTH_PRICE_ID || 
+              priceId === process.env.STRIPE_BASIC_YEAR_PRICE_ID) {
+            tier = 'basic';
+          } else if (priceId === process.env.STRIPE_PRO_MONTH_PRICE_ID || 
+                     priceId === process.env.STRIPE_PRO_YEAR_PRICE_ID) {
+            tier = 'pro';
+          }
+        }
+      }
+      
+      if (!tier) {
+        console.error('Could not determine subscription tier from metadata or price');
+        return;
+      }
+      
+      // Only update if subscription is active or trialing
+      if (status === 'active' || status === 'trialing') {
+        await storage.updateUserSubscription(parseInt(userId), tier, expiresAt);
+        console.log(`Updated subscription for user ${userId}: tier=${tier}, expires=${expiresAt}`);
+      } else {
+        console.log(`Subscription ${subscription.id} for user ${userId} has status ${status}, not updating`);
+      }
+    } catch (error) {
+      console.error('Error handling subscription updated event:', error);
+    }
+  }
+  
+  // Handle successful subscription payment
+  async function handleSuccessfulSubscriptionPayment(invoice) {
+    try {
+      const subscriptionId = invoice.subscription;
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      // Process the same way as subscription update
+      await handleSubscriptionUpdated(subscription);
+    } catch (error) {
+      console.error('Error handling successful payment:', error);
+    }
+  }
+  
+  // Handle failed subscription payment
+  async function handleFailedSubscriptionPayment(invoice) {
+    try {
+      // Get the subscription
+      const subscriptionId = invoice.subscription;
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      // Get user ID from metadata
+      const userId = subscription.metadata?.userId;
+      
+      if (!userId) {
+        console.error('No user ID found in subscription metadata:', subscriptionId);
+        return;
+      }
+      
+      // Determine action based on your business logic:
+      // 1. You could downgrade the user to a free tier
+      // 2. You could mark their account as past due but keep access
+      // 3. You could send them an email notification
+      
+      // For now, we'll downgrade to free tier after repeated failures
+      const attemptCount = invoice.attempt_count || 0;
+      
+      if (attemptCount >= 3) {
+        console.log(`Payment failed ${attemptCount} times for user ${userId}, downgrading to free tier`);
+        
+        // Set expiry to 7 days from now for grace period
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+        
+        await storage.updateUserSubscription(parseInt(userId), 'free', expiresAt);
+      } else {
+        console.log(`Payment failed for user ${userId}, attempt ${attemptCount}. Waiting for retry.`);
+      }
+    } catch (error) {
+      console.error('Error handling failed payment:', error);
+    }
+  }
+  
+  // Handle subscription cancellation
+  async function handleSubscriptionCancelled(subscription) {
+    try {
+      // Get user ID from metadata
+      const userId = subscription.metadata?.userId;
+      
+      if (!userId) {
+        console.error('No user ID found in cancelled subscription metadata:', subscription.id);
+        return;
+      }
+      
+      // Set user to free tier when their current period ends
+      // Note: We could immediately downgrade them, but it's common practice to let 
+      // them keep access until the end of their current billing period
+      
+      const currentPeriodEnd = subscription.current_period_end;
+      const expiresAt = new Date(currentPeriodEnd * 1000);
+      
+      console.log(`Subscription cancelled for user ${userId}, access until ${expiresAt}`);
+      
+      // Schedule downgrade to free tier at period end
+      // For now, we'll just update the tier but keep the same expiry date
+      await storage.updateUserSubscription(parseInt(userId), 'free', expiresAt);
+      
+      // Clear subscription ID but keep customer ID for future subscriptions
+      await storage.updateStripeInfo(parseInt(userId), subscription.customer, null);
+    } catch (error) {
+      console.error('Error handling subscription cancellation:', error);
+    }
+  }
 
   // Get subscription details
   app.get("/api/subscription", async (req, res) => {

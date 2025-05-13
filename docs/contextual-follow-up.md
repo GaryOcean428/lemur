@@ -4,6 +4,14 @@
 
 Lemure now supports contextual follow-up searches, which means users can ask follow-up questions that reference previous searches without explicitly repeating all context. This creates a more natural conversation-like interaction with the search engine.
 
+## Recent Improvements
+
+- **Session-Based Context System**: Improved the reliability of conversation context preservation between queries
+- **Context Continuity**: Fixed issues with follow-up questions to ensure proper context is maintained between different types of searches (web and deep research)
+- **Cross-Tab Context**: Added support for maintaining context across multiple tabs using session storage
+- **Visual Indicators**: Enhanced the UI to clearly show when responses are contextual follow-ups
+- **Timeout Handling**: Added graceful degradation when context-based requests time out
+
 ## How It Works
 
 1. **Session-Based Context Storage**

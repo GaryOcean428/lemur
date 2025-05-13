@@ -8,10 +8,10 @@ import {
   CheckCircle2, Clock, Database, FlaskConical, Loader2, Search, ServerCrash, Waves,
   BarChart3, FileCheck, FilterX, Lightbulb, GitMerge
 } from 'lucide-react';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
 
-// Register ChartJS components
+// Register ChartJS components including Filler for area charts
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -19,7 +19,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 export interface SearchStep {
@@ -261,16 +262,29 @@ export default function SearchInsightsPanel({
   // Get the currently active step
   const activeStep = steps.find(step => step.status === 'active');
   
-  // Generate chart data for search progress
+  // Generate chart data for search progress with improved visualization
   const chartData = {
     labels: steps.map(step => step.label.split(' ')[0]), // Use just the first word of each label for brevity
     datasets: [
       {
         label: 'Progress',
         data: steps.map(step => {
-          // Convert status to a numeric value: completed = 100, active = 50, pending/error = 0
-          return step.status === 'completed' ? 100 : 
-                 step.status === 'active' ? 50 : 0;
+          // Enhanced status visualization: 
+          // completed = 100, active = 75, in-progress = 50, upcoming = 25, pending/error = 0
+          if (step.status === 'completed') return 100;
+          if (step.status === 'active') return 75;
+          
+          // For a more nuanced progress visualization, determine if this step is "coming up soon"
+          const activeStepIndex = steps.findIndex(s => s.status === 'active');
+          const thisStepIndex = steps.findIndex(s => s.id === step.id);
+          
+          // If this step is right after the active step, show it as "in progress"
+          if (activeStepIndex >= 0 && thisStepIndex === activeStepIndex + 1) return 50;
+          
+          // If this step is coming up soon (within the next 2 steps), show some progress
+          if (activeStepIndex >= 0 && thisStepIndex > activeStepIndex && thisStepIndex <= activeStepIndex + 3) return 25;
+          
+          return 0; // Default for pending/error states
         }),
         backgroundColor: 'rgba(124, 58, 237, 0.2)',
         borderColor: 'rgba(124, 58, 237, 1)',
@@ -362,7 +376,7 @@ export default function SearchInsightsPanel({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md">
+      <SheetContent className="sm:max-w-md overflow-y-auto" useGridLayout={false}>
         <SheetHeader>
           <SheetTitle>Search Insights</SheetTitle>
           <SheetDescription>
@@ -392,16 +406,41 @@ export default function SearchInsightsPanel({
             </div>
           )}
           
-          {/* Progress Chart */}
-          <Card className="border-muted mb-4 overflow-hidden">
+          {/* Enhanced Progress Chart with better labels and visualization */}
+          <Card className="border-primary/10 mb-4 overflow-hidden">
             <CardContent className="p-4">
-              <h3 className="text-sm font-medium mb-2">Progress Visualization</h3>
-              <div className="h-[120px] w-full">
+              <h3 className="text-sm font-medium mb-2 flex items-center">
+                <BarChart3 className="w-4 h-4 mr-1 text-primary" />
+                Progress Visualization
+              </h3>
+              <div className="h-[130px] w-full">
                 <Chart
                   type="line"
                   data={chartData}
                   options={chartOptions}
                 />
+              </div>
+              
+              {/* Add simple legend for clearer interpretation */}
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-muted-foreground">
+                {steps.filter(step => step.status === 'completed').length > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                    <span>Completed</span>
+                  </div>
+                )}
+                {steps.find(step => step.status === 'active') && (
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-primary rounded-full mr-1 animate-pulse"></div>
+                    <span>In Progress</span>
+                  </div>
+                )}
+                {steps.filter(step => step.status === 'pending').length > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full mr-1"></div>
+                    <span>Upcoming</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -420,71 +459,98 @@ export default function SearchInsightsPanel({
             </Card>
           )}
           
-          {/* Display reasoning log for deep research */}
-          {isDeepResearch && reasoningLog.length > 0 && (
-            <Card className="border-muted mb-4">
+          {/* Display reasoning log for deep research - Enhanced with better organization */}
+          {isDeepResearch && (
+            <Card className="border-primary/10 mb-4">
               <CardContent className="p-4">
-                <h3 className="text-sm font-medium mb-2">Reasoning Process:</h3>
-                <ScrollArea className="h-[120px] rounded-md border p-2">
-                  <div className="space-y-1">
-                    {reasoningLog.map((log, idx) => (
-                      <p key={idx} className="text-xs text-muted-foreground">
-                        {log}
-                      </p>
-                    ))}
+                <h3 className="text-sm font-medium mb-2 flex items-center">
+                  <Lightbulb className="w-4 h-4 mr-1 text-primary" />
+                  Reasoning Process:
+                </h3>
+                {reasoningLog.length > 0 ? (
+                  <ScrollArea className="h-[200px] rounded-md border p-2">
+                    <div className="space-y-2">
+                      {reasoningLog.map((log, idx) => (
+                        <div key={idx} className="pb-2 relative">
+                          {/* Small timeline dot */}
+                          <div className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-primary/70"></div>
+                          
+                          <p className="text-xs pl-4 text-foreground font-medium">
+                            Step {idx + 1}:
+                          </p>
+                          <p className="text-xs pl-4 text-muted-foreground mt-1">
+                            {log}
+                          </p>
+                          
+                          {/* Separator for all but the last item */}
+                          {idx < reasoningLog.length - 1 && (
+                            <div className="absolute left-[3px] top-3 bottom-0 w-[1px] bg-primary/30"></div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-[100px] border rounded-md bg-muted/50">
+                    <p className="text-xs text-muted-foreground">
+                      Reasoning steps will appear here as the search progresses...
+                    </p>
                   </div>
-                </ScrollArea>
+                )}
               </CardContent>
             </Card>
           )}
         </div>
         
-        <ScrollArea className="h-[60vh] rounded-md">
-          <div className="relative">
-            {/* Timeline connector */}
-            <div className="absolute left-2.5 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-800" />
-            
-            {/* Steps */}
-            <div className="space-y-6 relative">
-              {steps.map((step) => (
-                <div key={step.id} className="flex items-start gap-3">
-                  <div className={`
-                    relative z-10 flex h-6 w-6 items-center justify-center rounded-full border
-                    ${step.status === 'active' ? 'bg-primary text-white border-primary animate-pulse' : 
-                      step.status === 'completed' ? 'bg-green-500 border-green-500 text-white' : 
-                      step.status === 'error' ? 'bg-red-500 border-red-500 text-white' :
-                      'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}
-                  `}>
-                    {getStepIcon(step)}
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center">
-                      <p className={`text-sm font-medium ${
-                        step.status === 'active' ? 'text-primary' : 
-                        step.status === 'completed' ? 'text-gray-900 dark:text-gray-100' : 
-                        step.status === 'error' ? 'text-red-500' :
-                        'text-gray-500'
-                      }`}>
-                        {step.label}
-                      </p>
+        {/* Improved scrollable timeline with better height allocation */}
+        <div className="h-[calc(100vh-470px)] min-h-[200px]">
+          <ScrollArea className="h-full rounded-md pr-2">
+            <div className="relative pb-6">
+              {/* Timeline connector */}
+              <div className="absolute left-2.5 top-0 bottom-0 w-px bg-primary/20 dark:bg-primary/10" />
+              
+              {/* Steps with enhanced visual treatment */}
+              <div className="space-y-6 relative">
+                {steps.map((step) => (
+                  <div key={step.id} className="flex items-start gap-3">
+                    <div className={`
+                      relative z-10 flex h-6 w-6 items-center justify-center rounded-full border
+                      ${step.status === 'active' ? 'bg-primary text-white border-primary animate-pulse shadow-md shadow-primary/20' : 
+                        step.status === 'completed' ? 'bg-green-500 border-green-500 text-white' : 
+                        step.status === 'error' ? 'bg-red-500 border-red-500 text-white' :
+                        'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'}
+                    `}>
+                      {getStepIcon(step)}
                     </div>
                     
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {step.timestamp.toLocaleTimeString()}
-                    </p>
-                    
-                    {step.details && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                        {step.details}
+                    <div className="flex-1">
+                      <div className="flex items-center">
+                        <p className={`text-sm font-medium ${
+                          step.status === 'active' ? 'text-primary' : 
+                          step.status === 'completed' ? 'text-gray-900 dark:text-gray-100' : 
+                          step.status === 'error' ? 'text-red-500' :
+                          'text-gray-500'
+                        }`}>
+                          {step.label}
+                        </p>
+                      </div>
+                      
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {step.timestamp.toLocaleTimeString()}
                       </p>
-                    )}
+                      
+                      {step.details && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 pr-2">
+                          {step.details}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        </ScrollArea>
+          </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );

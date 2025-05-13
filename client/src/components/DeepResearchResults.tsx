@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -71,8 +71,19 @@ export default function DeepResearchResults({
 }: DeepResearchResultsProps) {
   const [expandedContent, setExpandedContent] = useState<string | null>(null);
 
+  // Add diagnostic logging
+  useEffect(() => {
+    console.log('DeepResearchResults component rendered with data:', {
+      hasResearch: !!research,
+      resultsCount: research?.results?.length || 0,
+      hasSummary: !!research?.research_summary,
+      topicClusters: research?.topic_clusters ? Object.keys(research.topic_clusters).length : 0
+    });
+  }, [research]);
+
   // Handle undefined research data gracefully
   if (!research || !research.results || research.results.length === 0) {
+    console.warn('DeepResearchResults received empty or invalid research data');
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6">
         <h3 className="text-lg font-medium mb-4">

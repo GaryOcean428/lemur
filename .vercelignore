@@ -1,0 +1,28 @@
+# Development files
+.git
+node_modules
+.replit
+.upm
+
+# Testing
+tests
+
+# Build output (Vercel will create its own)
+dist
+
+# Logs
+*.log
+npm-debug.log*
+
+# Project specific 
+replit_agent
+attached_assets
+cookies.txt
+
+# IDE config
+.idea
+.vscode
+
+# Temp files
+.DS_Store
+Thumbs.db

@@ -355,6 +355,7 @@ export default function SubscriptionPage() {
   const { user, isLoading } = useAuth();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [planType, setPlanType] = useState<'free' | 'basic' | 'pro'>('pro');
+  const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -401,8 +402,8 @@ export default function SubscriptionPage() {
     );
   }
 
-  // Handle plan selection with proper Stripe integration
-  const handleSelectPlan = async (type: 'free' | 'basic' | 'pro') => {
+  // Handle plan selection with Stripe Checkout integration
+  const handleSelectPlan = async (type: 'free' | 'basic' | 'pro', billingInterval: 'month' | 'year' = 'month') => {
     setPlanType(type);
     
     if (!user) {
@@ -417,7 +418,10 @@ export default function SubscriptionPage() {
     if (type === 'free') {
       // Free plan doesn't need payment processing
       try {
-        const response = await apiRequest('POST', '/api/change-subscription', { planType: type });
+        const response = await apiRequest('POST', '/api/create-checkout-session', { 
+          planType: type,
+          billingInterval
+        });
         const data = await response.json();
         
         if (data.success) {
@@ -425,8 +429,13 @@ export default function SubscriptionPage() {
             title: "Free Plan Activated",
             description: "You're now on the free plan with 20 searches per month."
           });
-          // Redirect to home page
-          setTimeout(() => setLocation('/'), 2000);
+          
+          // Redirect to the specified URL or home page
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+          } else {
+            setTimeout(() => setLocation('/'), 2000);
+          }
         } else {
           toast({
             title: "Subscription Error",
@@ -444,12 +453,15 @@ export default function SubscriptionPage() {
       return;
     }
     
-    // For paid plans, we need to collect payment details
+    // For paid plans, redirect to Stripe Checkout
     setIsLoadingPayment(true);
     
     try {
-      // This will create a payment intent and return a client secret
-      const response = await apiRequest('POST', '/api/create-subscription', { planType: type });
+      // This will create a Checkout Session and return the URL
+      const response = await apiRequest('POST', '/api/create-checkout-session', { 
+        planType: type,
+        billingInterval
+      });
       const data = await response.json();
       
       // Handle developer account auto-subscription
@@ -460,33 +472,60 @@ export default function SubscriptionPage() {
           variant: "default",
         });
         
-        // Reload to get updated user data
-        window.location.href = '/';
+        // Redirect to the specified URL or home page
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          window.location.href = '/';
+        }
         return;
       }
       
-      if (data.clientSecret) {
-        // Set the client secret which will display the payment form
-        setClientSecret(data.clientSecret);
+      // Handle development mode
+      if (data.devMode) {
+        toast({
+          title: "Development Mode",
+          description: data.message || `Your ${type} subscription has been activated in development mode!`
+        });
+        
+        // Redirect to the specified URL or home page
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          setTimeout(() => setLocation('/'), 2000);
+        }
+        return;
+      }
+      
+      // For normal checkout flow - redirect to the Stripe Checkout page
+      if (data.sessionUrl) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.sessionUrl;
       } else if (data.success) {
         // Some accounts might not need payment processing
         toast({
           title: "Subscription Activated",
           description: `Your ${type} subscription has been activated!`
         });
-        setTimeout(() => setLocation('/'), 2000);
+        
+        // Redirect to the specified URL or home page
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else {
+          setTimeout(() => setLocation('/'), 2000);
+        }
       } else {
         // Error case
         toast({
-          title: "Payment Setup Error",
-          description: data.message || "Could not setup payment. Please try again.",
+          title: "Checkout Error",
+          description: data.message || "Could not create checkout session. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || `Could not setup payment for ${type} plan`,
+        description: error.message || `Could not setup checkout for ${type} plan`,
         variant: "destructive",
       });
     } finally {
@@ -542,10 +581,36 @@ export default function SubscriptionPage() {
     <div className="container max-w-5xl mx-auto py-12">
       <h1 className="text-3xl font-bold mb-8">Upgrade Your Lemur Experience</h1>
       
+      {/* Billing interval toggle */}
+      <div className="flex justify-center items-center mb-10">
+        <div className="bg-muted rounded-lg p-1 flex">
+          <button
+            onClick={() => setBillingInterval('month')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              billingInterval === 'month' 
+                ? 'bg-primary text-primary-foreground' 
+                : 'hover:bg-muted-foreground/10'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingInterval('year')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              billingInterval === 'year' 
+                ? 'bg-primary text-primary-foreground' 
+                : 'hover:bg-muted-foreground/10'
+            }`}
+          >
+            Yearly <span className="text-xs text-emerald-500 font-medium">Save 5%</span>
+          </button>
+        </div>
+      </div>
+      
       <div className="grid md:grid-cols-3 gap-8 mb-12">
         <Card className="border-2 border-gray-200 dark:border-gray-700">
           <CardHeader>
-            <CardTitle>Free Plan</CardTitle>
+            <CardTitle>Lemur - Free</CardTitle>
             <CardDescription>$0/month</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -558,40 +623,33 @@ export default function SubscriptionPage() {
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => {
-                // Direct API call for free tier
-                apiRequest('POST', '/api/change-subscription', { planType: 'free' })
-                  .then(response => response.json())
-                  .then(data => {
-                    if (data.success) {
-                      toast({
-                        title: "Free Plan Activated",
-                        description: "You're now on the free plan with 20 searches per month."
-                      });
-                      // Redirect to home page
-                      setTimeout(() => setLocation('/'), 2000);
-                    }
-                  })
-                  .catch(error => {
-                    toast({
-                      title: "Error",
-                      description: error.message || "Could not activate free plan",
-                      variant: "destructive",
-                    });
-                  });
-              }}
+              onClick={() => handleSelectPlan('free', billingInterval)}
               variant="outline"
               className="w-full"
+              disabled={isLoadingPayment}
             >
-              Continue with Free
+              {isLoadingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>Continue with Free</>
+              )}
             </Button>
           </CardFooter>
         </Card>
         
         <Card className={`border-2 ${planType === 'basic' ? 'border-primary' : 'border-transparent'}`}>
           <CardHeader>
-            <CardTitle>Basic Plan</CardTitle>
-            <CardDescription>$9.99/month</CardDescription>
+            <CardTitle>Lemur - Basic</CardTitle>
+            <CardDescription>
+              {billingInterval === 'month' ? (
+                <>$19.99/month</>
+              ) : (
+                <>$227.89/year <span className="text-xs text-emerald-500">(Save 5%)</span></>
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <ul className="space-y-2">
@@ -599,12 +657,12 @@ export default function SubscriptionPage() {
               <li className="flex items-center">✓ Access to compound-beta-mini model</li>
               <li className="flex items-center">✓ Standard search capabilities</li>
               <li className="flex items-center">✓ Basic filters</li>
-              <li className="flex items-center">✓ Upgrade from 20 free searches</li>
+              <li className="flex items-center">✓ Save and organize searches</li>
             </ul>
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => handleSelectPlan('basic')} 
+              onClick={() => handleSelectPlan('basic', billingInterval)} 
               variant={planType === 'basic' ? "default" : "outline"}
               className="w-full"
               disabled={isLoadingPayment}
@@ -612,7 +670,7 @@ export default function SubscriptionPage() {
               {planType === 'basic' && isLoadingPayment ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading...
+                  Processing...
                 </>
               ) : (
                 'Select Basic'
@@ -623,21 +681,28 @@ export default function SubscriptionPage() {
         
         <Card className={`border-2 ${planType === 'pro' ? 'border-primary' : 'border-transparent'}`}>
           <CardHeader>
-            <CardTitle>Pro Plan</CardTitle>
-            <CardDescription>$29.99/month</CardDescription>
+            <CardTitle>Lemur - Pro</CardTitle>
+            <CardDescription>
+              {billingInterval === 'month' ? (
+                <>$49.99/month</>
+              ) : (
+                <>$569.89/year <span className="text-xs text-emerald-500">(Save 5%)</span></>
+              )}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-2">
             <ul className="space-y-2">
-              <li className="flex items-center">✓ 300 Searches per month</li>
-              <li className="flex items-center">✓ Access to full compound-beta model</li>
-              <li className="flex items-center">✓ Deep Research capability</li>
-              <li className="flex items-center">✓ Advanced filters and personalization</li>
+              <li className="flex items-center">✓ Unlimited searches</li>
+              <li className="flex items-center">✓ Access to compound-beta model</li>
+              <li className="flex items-center">✓ Advanced search capabilities</li>
+              <li className="flex items-center">✓ Deep Research mode</li>
+              <li className="flex items-center">✓ Advanced filters & organization</li>
               <li className="flex items-center">✓ Priority support</li>
             </ul>
           </CardContent>
           <CardFooter>
             <Button 
-              onClick={() => handleSelectPlan('pro')} 
+              onClick={() => handleSelectPlan('pro', billingInterval)} 
               variant={planType === 'pro' ? "default" : "outline"}
               className="w-full"
               disabled={isLoadingPayment}
@@ -645,7 +710,7 @@ export default function SubscriptionPage() {
               {planType === 'pro' && isLoadingPayment ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading...
+                  Processing...
                 </>
               ) : (
                 'Select Pro'

@@ -5,6 +5,8 @@ import { SearchResults } from "@/lib/types";
 import { useSearchStore } from "@/store/searchStore";
 import { type SearchTabType } from "@/store/searchStore";
 import { performSearch } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
+import DeepResearchButton from "@/components/DeepResearchButton";
 
 // Import specialized tab components
 import ImageResults from "./search-tabs/ImageResults";
@@ -25,7 +27,7 @@ interface SearchTabsProps {
 }
 
 export default function SearchTabs({ data, query, isLoading, isFollowUp = false, authRequired = false }: SearchTabsProps) {
-  // Access the search store
+  // Access the search store and auth context
   const { 
     activeTab, 
     setActiveTab, 
@@ -35,6 +37,7 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
     setResults,
     results
   } = useSearchStore();
+  const { user } = useAuth();
   
   // Set the current query in the store when it changes
   useEffect(() => {
@@ -46,13 +49,22 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
   // Store results from the 'all' tab when they arrive
   useEffect(() => {
     if (data && !isLoading) {
+      // Store data in 'all' tab results first
       setResults('all', data);
       setSearchedTab('all', true);
       
-      // Auto-switch to Research tab when deep research results are available
+      // Handle deep research results
       if (data.deepResearch === true && data.research && data.research.results && data.research.results.length > 0) {
-        console.log('Deep research results detected, switching to research tab');
-        setActiveTab('research');
+        console.log('Deep research results detected, storing and switching to research tab');
+        
+        // Explicitly store the same data in the research tab to ensure it's available
+        setResults('research', data);
+        setSearchedTab('research', true);
+        
+        // Switch to research tab after ensuring data is stored
+        setTimeout(() => {
+          setActiveTab('research');
+        }, 100); // Small delay to ensure state updates have propagated
       }
     }
   }, [data, isLoading, setResults, setSearchedTab, setActiveTab]);
@@ -148,7 +160,18 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Web Results Section - Now takes up 2/3 of the space */}
               <div className="lg:col-span-2 order-2 lg:order-1">
-                <h2 className="text-xl font-semibold dark:text-white mb-4">Web Results</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold dark:text-white">Web Results</h2>
+                  
+                  {/* Deep Research Button for All Results tab */}
+                  {user && activeTabData?.traditional && activeTabData.traditional.length > 0 && (
+                    <DeepResearchButton 
+                      query={query} 
+                      isPro={user.subscriptionTier === 'pro' || user.subscriptionTier === 'developer'}
+                      isFollowUp={isFollowUp}
+                    />
+                  )}
+                </div>
                 {activeTabData?.traditional?.map((result, index) => (
                   <div key={index} className="p-4 mb-4 bg-white dark:bg-gray-800 shadow-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     {/* Top metadata bar */}
@@ -228,6 +251,7 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
                     model={activeTabData.ai.model}
                     contextual={isFollowUp}
                     authRequired={authRequired}
+                    className={activeTabData.deepResearch ? 'deep-research' : ''}
                   />
                 )}
               </div>
@@ -243,6 +267,7 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
                 model={activeTabData.ai.model}
                 contextual={isFollowUp}
                 authRequired={authRequired}
+                className={activeTabData.deepResearch ? 'deep-research' : ''}
               />
             )}
           </TabsContent>
@@ -250,7 +275,19 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
           {/* Web Only Tab */}
           <TabsContent value="web" className="mt-0">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold dark:text-white mb-4">Web Results</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold dark:text-white">Web Results</h2>
+                
+                {/* Deep Research Button for Web Results */}
+                {user && activeTabData?.traditional && activeTabData.traditional.length > 0 && (
+                  <DeepResearchButton 
+                    query={query} 
+                    isPro={user.subscriptionTier === 'pro' || user.subscriptionTier === 'developer'}
+                    isFollowUp={isFollowUp}
+                  />
+                )}
+              </div>
+              
               {activeTabData?.traditional?.map((result, index) => (
                 <div key={index} className="p-4 mb-4 bg-white dark:bg-gray-800 shadow-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   {/* Top metadata bar */}

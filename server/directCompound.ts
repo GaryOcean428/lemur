@@ -7,6 +7,7 @@
 
 import { validateGroqModel, mapModelPreference, supportsToolCalling, APPROVED_MODELS } from "./utils/modelValidation";
 import { normalizeRegionCode, enforceRegionPreference, getRegionalInstructionForCode } from "./utils/regionUtil";
+import { ConversationContext, ConversationTurn, createContextualSystemMessage } from "./utils/context";
 
 // Using getRegionalInstructionForCode imported from regionUtil.ts
 
@@ -54,13 +55,25 @@ export interface SearchResult {
   };
 }
 
+/**
+ * Uses Groq Compound Beta's built-in search capabilities with improved error handling
+ * @param query The user's search query
+ * @param apiKey Groq API key
+ * @param modelPreference Model preference (fast, auto, comprehensive)
+ * @param geo_location Geographic location for search results (e.g., "AU" for Australia)
+ * @param isContextual Whether this query is a follow-up to previous conversation
+ * @param conversationContext Previous conversation context for contextual queries
+ * @param filters Additional search filters
+ * @param tavilyApiKey Optional Tavily API key for prefetching results
+ * @returns Object containing the answer, model used, and search tool usage information
+ */
 export async function directGroqCompoundSearch(
   query: string, 
   groqApiKey: string, 
   modelPreference: string = 'auto',
   geo_location: string = 'AU',
   isContextual: boolean = false,
-  conversationContext: Array<{query: string; answer?: string; timestamp: number}> = [],
+  conversationContext: ConversationContext = { turns: [], lastUpdated: Date.now() },
   filters: Record<string, any> = {},
   tavilyApiKey: string | null = null
 ): Promise<{
@@ -106,12 +119,14 @@ export async function directGroqCompoundSearch(
     // This is a fallback manual override until we can confirm with Groq which models support tool calling
     const supportsToolsOverride = false; // Override while we sort out tool support
     
-    // For non-tool compatible models, use a simpler system prompt without tool instructions
+    // For GROQ models, we need to check both the capability in our code and the actual API support
+    // Note: We currently temporarily disabled tool support as we're waiting for stable tools API
     const isToolModel = supportsTools && supportsToolsOverride;
     
-    // Log which model was selected
+    // Log which model was selected with more detail about tool support
     console.log(`Using Groq model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
-
+    console.log(`Model tool support status: Model capability=${supportsTools}, Override=${supportsToolsOverride}, Final decision=${isToolModel}`);
+    
     // Normalize and validate the geo_location parameter
     const normalizedGeoLocation = normalizeRegionCode(geo_location);
     // If geo_location is valid, use it; otherwise default to AU (Australia)
@@ -212,15 +227,30 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     const messages = [systemMessage];
     
     // Add conversation context for follow-up questions if available
-    if (isContextual && conversationContext.length > 0) {
-      // Add a context message summarizing previous conversation (limited to last 2 exchanges for efficiency)
+    if ((isContextual || query.startsWith("is there") || query.startsWith("what about") || query.startsWith("how about") || query.startsWith("can you")) && 
+        conversationContext && conversationContext.turns && conversationContext.turns.length > 0) {
+      console.log("Processing as contextual query due to phrasing or explicit follow-up flag");
+      
+      // Instead of manually constructing the context message, use our utility function
+      const isFirstTurn = conversationContext.turns.length === 1;
+      const contextSystemMessage = createContextualSystemMessage(conversationContext, isFirstTurn);
+      
+      // Replace the standard system message with our contextual one
+      messages[0] = {
+        role: "system",
+        content: contextSystemMessage
+      };
+      
+      // Add additional context message for clarity
       let contextMessage = "Previous conversation context:\n";
-      // Only use last 2 conversation items to save tokens
-      const recentContext = conversationContext.slice(-2);
-      recentContext.forEach((ctx, index) => {
-        contextMessage += `User: ${ctx.query}\n`;
-        if (ctx.answer) {
-          contextMessage += `Assistant: ${ctx.answer.substring(0, 100)}${ctx.answer.length > 100 ? '...' : ''}\n`;
+      
+      // Use all conversation turns for better context
+      const recentTurns = conversationContext.turns.slice(-3); // Use last 3 turns for more context
+      recentTurns.forEach((turn: ConversationTurn) => {
+        contextMessage += `User: ${turn.query}\n`;
+        if (turn.answer) {
+          // Include more of the answer for better context
+          contextMessage += `Assistant: ${turn.answer.substring(0, 250)}${turn.answer.length > 250 ? '...' : ''}\n`;
         }
       });
       
@@ -237,11 +267,18 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     };
     messages.push(userMessage);
 
-    // Prepare API request body based on whether tools are supported
-    console.log(`Tool support status: Raw Check=${supportsTools}, Override=${supportsToolsOverride}, Final=${isToolModel}`);
+    // Check for explicit disableTools flag in filters
+    const disableTools = filters?.disableTools === true;
+    if (disableTools) {
+      console.log("Tools explicitly disabled by request parameter");
+    }
     
-    // Only include tools if the model is confirmed to support them
-    const requestBody = isToolModel ? {
+    // Prepare API request body based on whether tools are supported and not explicitly disabled
+    const shouldUseTools = isToolModel && !disableTools;
+    console.log(`Tool support status: Raw Check=${supportsTools}, Override=${supportsToolsOverride}, Disable=${disableTools}, Final=${shouldUseTools}`);
+    
+    // Only include tools if the model is confirmed to support them and tools are not disabled
+    const requestBody = shouldUseTools ? {
       model,
       messages,
       temperature: 0.3,
@@ -276,7 +313,7 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
       temperature: 0.3
     };
 
-    console.log(`Making API request with${isToolModel ? '' : 'out'} tools to Groq API using model: ${model}`);
+    console.log(`Making API request with${shouldUseTools ? '' : 'out'} tools to Groq API using model: ${model}`);
     
     // Make the API request to Groq
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -291,29 +328,57 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     if (!response.ok) {
       let errorMessage = `Groq API error: ${response.status} ${response.statusText}`;
       let errorBody = "";
+      let jsonError = null;
       
       try {
         errorBody = await response.text();
         console.error('Groq API error details:', errorBody);
+        
+        // Try to parse as JSON for structured error information
+        try {
+          jsonError = JSON.parse(errorBody);
+        } catch (parseError) {
+          // Not JSON, continue with text error handling
+        }
       } catch (e) {
         console.error('Could not read error body from Groq API response');
       }
       
+      // Check for specific error codes based on status
       if (response.status === 401) {
         errorMessage = 'Groq API error: Invalid or expired API key. Please update your API key.';
       } else if (response.status === 429) {
         errorMessage = 'Groq API error: Rate limit exceeded. Please try again later.';
       } else if (response.status === 404) {
         errorMessage = `Groq API error: Model '${model}' not found or unavailable.`;
+      } else if (response.status === 500 && jsonError?.error?.message?.includes('tools')) {
+        // Special handling for tool-related errors
+        errorMessage = `Groq API tool error: The model encountered an issue with tool usage. Specific error: ${jsonError?.error?.message || 'Unknown tool error'}`;
+        console.error('Tool usage error detected, will retry without tools in future requests');
+        
+        // Store this information for future model capability detection
+        // For now we just log it, but this could be stored in a database or cache
+        console.error(`Model ${model} had tool execution error at ${new Date().toISOString()}`);
       } else if (response.status === 503) {
         // Handle service unavailable more gracefully
         errorMessage = `Groq API service unavailable (503). The Groq API is temporarily down or experiencing issues. Please try again later.`;
         console.error('Groq API service unavailable - details:', errorBody);
       } else {
-        errorMessage = `Groq API error: ${response.status}. Details: ${errorBody}`;
+        // Generic error with more detailed information if available
+        if (jsonError?.error?.message) {
+          errorMessage = `Groq API error (${response.status}): ${jsonError.error.message}`;
+        } else {
+          errorMessage = `Groq API error: ${response.status}. Details: ${errorBody}`;
+        }
       }
       
-      throw new Error(errorMessage);
+      // Create a detailed error with standardized format for easier parsing in error handling
+      const detailedError = new Error(errorMessage);
+      (detailedError as any).statusCode = response.status;
+      (detailedError as any).responseBody = errorBody;
+      (detailedError as any).isToolError = jsonError?.error?.message?.includes('tools') || false;
+      
+      throw detailedError;
     }
 
     const data = await response.json() as GroqCompoundResponse;
@@ -475,8 +540,28 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
       sources: combinedSources,
       searchResults: combinedSearchResults
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error calling Groq Compound Beta API:", error);
+    
+    // Check if this is likely a tool error based on error message
+    const isToolError = error.message?.includes('tool') || 
+                       error.message?.includes('function') || 
+                       error.toString().includes('tool_call');
+    
+    if (isToolError) {
+      console.log("Detected potential tool-related error, consider retrying without tools");
+      
+      // Add metadata to the error for better handling upstream
+      error.isToolError = true;
+      
+      // Log specific advice for handling this type of error
+      console.log("Tool errors can be mitigated by:");
+      console.log("1. Retrying the request without tools");
+      console.log("2. Using a different model that better supports tools");
+      console.log("3. Simplifying the tool definition");
+    }
+    
+    // Propagate the enhanced error
     throw error;
   }
 }

@@ -6,15 +6,21 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Add Content Security Policy middleware to allow WebAssembly
+// Add Content Security Policy and Cross-Origin Isolation headers
 app.use((req, res, next) => {
-  // Only apply to HTML requests to avoid affecting API responses
+  // Apply both CORS and CSP headers to enable SharedArrayBuffer support
+  
+  // Required for SharedArrayBuffer: Cross-Origin Isolation
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  
+  // Only apply CSP to HTML requests to avoid affecting API responses
   const acceptHeader = req.headers.accept || '';
   if (acceptHeader.includes('text/html')) {
     // Set Content-Security-Policy header to allow WebAssembly and other needed features
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://* wss://*; font-src 'self' data:; frame-src 'self'; object-src 'none'; worker-src 'self' blob:; wasm-unsafe-eval 'self'"
+      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://* wss://*; font-src 'self' data: https://fonts.gstatic.com; frame-src 'self'; object-src 'none'; worker-src 'self' blob:;"
     );
   }
   next();
