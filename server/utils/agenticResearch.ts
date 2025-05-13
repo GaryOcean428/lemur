@@ -337,8 +337,8 @@ async function critiqueDraft(query: string, draft: string, results: TavilySearch
     
     // Create the actual API call promise
     const apiPromise = openai.chat.completions.create({
-      // Use compound-beta by Groq (Llama 3.3 70B) to maintain consistent models
-      model: "compound-beta",
+      // Use compound-beta-mini which is available in the current environment
+      model: "compound-beta-mini",
       messages: [
         {
           role: "system",
@@ -372,6 +372,47 @@ Provide 2-3 specific improvement points (max 200 words).`
       // Handle timeout or API error
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Critique failed in race condition: ${errorMessage}`);
+      
+      // Check if this is a model access issue
+      if (errorMessage.includes('model') && errorMessage.includes('does not exist')) {
+        console.error(`Model access error detected: ${errorMessage}`);
+        console.log("Attempting to retry with compound-beta-mini model instead");
+        
+        try {
+          // Retry with compound-beta-mini which is known to be available
+          const retryResponse = await openai.chat.completions.create({
+            model: "compound-beta-mini",
+            messages: [
+              {
+                role: "system",
+                content: `You are a research evaluator providing quick feedback on drafts. Identify 2-3 key areas to improve:
+1. ACCURACY: Note any claims that need verification
+2. COMPLETENESS: Identify important missing aspects
+3. CLARITY: Suggest where explanations need improvement
+
+Be extremely brief and direct. Limit to 200 words maximum.`
+              },
+              {
+                role: "user",
+                content: `QUESTION: ${query}
+
+DRAFT:
+${truncatedDraft}
+
+Provide 2-3 specific improvement points (max 200 words).`
+              }
+            ],
+            temperature: 0.2,
+            max_tokens: 350
+          });
+          console.log("Critique retry with compound-beta-mini succeeded");
+          return safeGetContent(retryResponse);
+        } catch (retryError) {
+          console.error("Retry critique also failed:", retryError);
+          console.log("Using fallback critique after retry failure");
+        }
+      }
+      
       console.log("Using fallback critique instead of throwing error");
       
       // Instead of re-throwing, return a fallback critique
@@ -432,8 +473,8 @@ CONTENT: ${result.content.substring(0, 400)}${result.content.length > 400 ? '...
     
     // Create the actual API call promise
     const apiPromise = openai.chat.completions.create({
-      // Using compound-beta by Groq (Llama 3.3 70B) to maintain consistent models
-      model: "compound-beta",
+      // Use compound-beta-mini which is available in the current environment
+      model: "compound-beta-mini",
       messages: [
         {
           role: "system",
@@ -474,6 +515,54 @@ Provide improved answer with citations.`
       // Handle timeout or API error
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Refinement failed: ${errorMessage}`);
+      
+      // Check if this is a model access issue
+      if (errorMessage.includes('model') && errorMessage.includes('does not exist')) {
+        console.error(`Model access error detected: ${errorMessage}`);
+        console.log("Attempting to retry refinement with compound-beta-mini model instead");
+        
+        try {
+          // Retry with compound-beta-mini which is known to be available
+          const retryResponse = await openai.chat.completions.create({
+            model: "compound-beta-mini",
+            messages: [
+              {
+                role: "system",
+                content: `You are a research assistant refining drafts. Improve by:
+1. Addressing critique points
+2. Adding citations [1], [2], etc.
+3. Improving clarity
+4. Focusing on answering the research question directly
+
+Be concise and specific.`
+              },
+              {
+                role: "user",
+                content: `QUESTION: ${query.trim()}
+
+DRAFT:
+${truncatedDraft}
+
+CRITIQUE:
+${truncatedCritique}
+
+SOURCES:
+${formattedResults}
+
+Provide improved answer with citations.`
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 1000
+          });
+          console.log("Refinement retry with compound-beta-mini succeeded");
+          return safeGetContent(retryResponse);
+        } catch (retryError) {
+          console.error("Retry refinement also failed:", retryError);
+          console.log("Using original draft with minor improvements after retry failure");
+        }
+      }
+      
       console.log("Using original draft with minor improvements");
       
       // Return original draft with some indication that refinement failed but adding citations
