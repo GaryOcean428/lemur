@@ -777,22 +777,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Store conversation context for follow-up queries
-      if (req.query.isFollowUp === 'true') {
-        // Ensure conversation context is initialized
-        req.session.conversationContext = req.session.conversationContext || [];
-        
-        // Add the current query to the conversation context
-        req.session.conversationContext.push({
-          query,
-          timestamp: Date.now()
-        });
-        
-        // Limit conversation context to the last 5 queries
-        if (req.session.conversationContext.length > 5) {
-          req.session.conversationContext = req.session.conversationContext.slice(-5);
-        }
+      // Initialize and manage conversation context for all queries
+      // Ensure conversation context is initialized
+      req.session.conversationContext = req.session.conversationContext || [];
+      
+      // For all queries (follow-up or new), add to context
+      req.session.conversationContext.push({
+        query,
+        timestamp: Date.now()
+      });
+      
+      // Limit context to last 5 queries
+      if (req.session.conversationContext.length > 5) {
+        req.session.conversationContext = req.session.conversationContext.slice(-5);
       }
+      
+      console.log(`${isFollowUp ? 'Follow-up' : 'New'} query added to context: "${query}". Context size: ${req.session.conversationContext.length}`);
       
       // Check if we should use Deep Research mode - only available for pro or developer tier
       if (deepResearch) {
@@ -1034,7 +1034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               groqApiKey,
               preferredModel,
               filters.geo_location ? filters.geo_location.toUpperCase() : null, // Ensure proper format
-              conversationContext.length > 0, // Flag to indicate if this is a contextual search
+              isFollowUp || conversationContext.length > 1, // Flag to indicate if this is a contextual search
               req.session.conversationContext || [], // Pass conversation context
               filters, // Pass search filters
               tavilyApiKey // Pass Tavily API key
