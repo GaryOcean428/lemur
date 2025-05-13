@@ -107,12 +107,14 @@ export async function directGroqCompoundSearch(
     // This is a fallback manual override until we can confirm with Groq which models support tool calling
     const supportsToolsOverride = false; // Override while we sort out tool support
     
-    // For non-tool compatible models, use a simpler system prompt without tool instructions
+    // For GROQ models, we need to check both the capability in our code and the actual API support
+    // Note: We currently temporarily disabled tool support as we're waiting for stable tools API
     const isToolModel = supportsTools && supportsToolsOverride;
     
-    // Log which model was selected
+    // Log which model was selected with more detail about tool support
     console.log(`Using Groq model: ${model} for query: "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`);
-
+    console.log(`Model tool support status: Model capability=${supportsTools}, Override=${supportsToolsOverride}, Final decision=${isToolModel}`);
+    
     // Normalize and validate the geo_location parameter
     const normalizedGeoLocation = normalizeRegionCode(geo_location);
     // If geo_location is valid, use it; otherwise default to AU (Australia)
@@ -307,29 +309,57 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     if (!response.ok) {
       let errorMessage = `Groq API error: ${response.status} ${response.statusText}`;
       let errorBody = "";
+      let jsonError = null;
       
       try {
         errorBody = await response.text();
         console.error('Groq API error details:', errorBody);
+        
+        // Try to parse as JSON for structured error information
+        try {
+          jsonError = JSON.parse(errorBody);
+        } catch (parseError) {
+          // Not JSON, continue with text error handling
+        }
       } catch (e) {
         console.error('Could not read error body from Groq API response');
       }
       
+      // Check for specific error codes based on status
       if (response.status === 401) {
         errorMessage = 'Groq API error: Invalid or expired API key. Please update your API key.';
       } else if (response.status === 429) {
         errorMessage = 'Groq API error: Rate limit exceeded. Please try again later.';
       } else if (response.status === 404) {
         errorMessage = `Groq API error: Model '${model}' not found or unavailable.`;
+      } else if (response.status === 500 && jsonError?.error?.message?.includes('tools')) {
+        // Special handling for tool-related errors
+        errorMessage = `Groq API tool error: The model encountered an issue with tool usage. Specific error: ${jsonError?.error?.message || 'Unknown tool error'}`;
+        console.error('Tool usage error detected, will retry without tools in future requests');
+        
+        // Store this information for future model capability detection
+        // For now we just log it, but this could be stored in a database or cache
+        console.error(`Model ${model} had tool execution error at ${new Date().toISOString()}`);
       } else if (response.status === 503) {
         // Handle service unavailable more gracefully
         errorMessage = `Groq API service unavailable (503). The Groq API is temporarily down or experiencing issues. Please try again later.`;
         console.error('Groq API service unavailable - details:', errorBody);
       } else {
-        errorMessage = `Groq API error: ${response.status}. Details: ${errorBody}`;
+        // Generic error with more detailed information if available
+        if (jsonError?.error?.message) {
+          errorMessage = `Groq API error (${response.status}): ${jsonError.error.message}`;
+        } else {
+          errorMessage = `Groq API error: ${response.status}. Details: ${errorBody}`;
+        }
       }
       
-      throw new Error(errorMessage);
+      // Create a detailed error with standardized format for easier parsing in error handling
+      const detailedError = new Error(errorMessage);
+      (detailedError as any).statusCode = response.status;
+      (detailedError as any).responseBody = errorBody;
+      (detailedError as any).isToolError = jsonError?.error?.message?.includes('tools') || false;
+      
+      throw detailedError;
     }
 
     const data = await response.json() as GroqCompoundResponse;
@@ -493,6 +523,93 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     };
   } catch (error) {
     console.error("Error calling Groq Compound Beta API:", error);
+    
+    // Check if this is a tool-related error that we can recover from
+    const detailedError = error as any;
+    // Get the isToolModel value again to avoid scope issues
+    const shouldAttemptFallback = detailedError.isToolError && supportsTools && supportsToolsOverride;
+    
+    if (shouldAttemptFallback) {
+      console.log("Detected tool-related error, attempting fallback without tools...");
+      
+      try {
+        // Create a simplified request without tools
+        const fallbackRequestBody = {
+          model: model,
+          messages: messages,
+          temperature: 0.3
+        };
+        
+        console.log("Making fallback API request without tools to Groq API");
+        
+        // Make the API request to Groq (without tools)
+        const fallbackResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${groqApiKey}`
+          },
+          body: JSON.stringify(fallbackRequestBody)
+        });
+        
+        if (!fallbackResponse.ok) {
+          // If fallback also fails, throw the original error
+          throw error;
+        }
+        
+        const fallbackData = await fallbackResponse.json() as GroqCompoundResponse;
+        
+        // For fallback response, we won't have tools data, but we can still extract citations
+        let sourcesFromText: Source[] = [];
+        
+        // Check if there are citations in markdown format [1]: https://example.com
+        const answer = fallbackData.choices[0].message.content;
+        const citationRegex = /\[([0-9]+)\]:\s*(https?:\/\/[^\s]+)\s*(?:"([^"]+)")?/g;
+        let citation;
+        const citationMap = new Map<string, Source>();
+        
+        while ((citation = citationRegex.exec(answer)) !== null) {
+          const number = citation[1];
+          const url = citation[2];
+          let title = citation[3] || "";
+          
+          if (!title) {
+            try {
+              const domain = new URL(url).hostname.replace('www.', '');
+              title = domain.charAt(0).toUpperCase() + domain.slice(1);
+            } catch (e) {
+              title = "Reference " + number;
+            }
+          }
+          
+          const source: Source = {
+            title,
+            url,
+            domain: new URL(url).hostname.replace('www.', '')
+          };
+          
+          citationMap.set(number, source);
+        }
+        
+        // Convert the map to an array for sources
+        sourcesFromText = Array.from(citationMap.values());
+        
+        console.log("Fallback successful - recovered from tool error");
+        
+        return {
+          answer: fallbackData.choices[0].message.content,
+          model: fallbackData.model,
+          contextual: isContextual,
+          search_tools_used: [], // No tools used in fallback
+          sources: sourcesFromText,
+          searchResults: [] // No search results available in fallback
+        };
+      } catch (fallbackError) {
+        console.error("Fallback attempt also failed:", fallbackError);
+        // Continue to throw the original error
+      }
+    }
+    
     throw error;
   }
 }

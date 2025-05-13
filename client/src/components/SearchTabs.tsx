@@ -6,7 +6,7 @@ import { useSearchStore } from "@/store/searchStore";
 import { type SearchTabType } from "@/store/searchStore";
 import { performSearch } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
-import DeepResearchButton from "./DeepResearchButton";
+import DeepResearchButton from "@/components/DeepResearchButton";
 
 // Import specialized tab components
 import ImageResults from "./search-tabs/ImageResults";
