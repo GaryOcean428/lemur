@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Chart, Bar, Line } from 'react-chartjs-2';
+import { marked } from 'marked';
 
 // Register ChartJS components
 ChartJS.register(
@@ -45,7 +46,7 @@ export default function AIAnswer({
   // Check if this is a limit reached message
   const isLimitReached = model === 'limit-reached';
   
-  // Enhanced markdown rendering function with improved citation handling
+  // Enhanced markdown rendering function with proper markdown parsing and citation handling
   function renderMarkdown(text: string): string {
     // Step 1: Process citations to make them clickable with better pattern matching
     let processedText = text
@@ -57,7 +58,7 @@ export default function AIAnswer({
         }
         return match;
       })
-      // Handle [X] pattern citation links with visual enhancement - FIXED TO SHOW THE NUMBER IN TEXT
+      // Handle [X] pattern citation links with visual enhancement
       .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
@@ -110,83 +111,64 @@ export default function AIAnswer({
         return `<span class="citation-${style.toLowerCase()}">${formattedCitation}</span>`;
       });
     
-    // Step 2: Convert markdown to HTML
-    // Headers
-    processedText = processedText
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1>$1</h1>');
-    
-    // Bold and italic
-    processedText = processedText
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>');
-    
-    // Lists
-    // Convert ordered lists (very basic conversion)
-    processedText = processedText.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-    processedText = processedText.replace(/(<li>.+<\/li>\n)+/g, '<ol>$&</ol>');
-    
-    // Convert unordered lists (very basic conversion)
-    processedText = processedText.replace(/^- (.+)$/gm, '<li>$1</li>');
-    processedText = processedText.replace(/^\* (.+)$/gm, '<li>$1</li>');
-    processedText = processedText.replace(/(<li>.+<\/li>\n)+/g, '<ul>$&</ul>');
-    
-    // Links (only handle standard markdown links)
-    processedText = processedText.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    
-    // Code blocks
-    processedText = processedText.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-    
-    // Inline code
-    processedText = processedText.replace(/`([^`]+)`/g, '<code>$1</code>');
-    
-    // Paragraphs (add p tags to text blocks)
-    processedText = processedText.replace(/^(?!<[a-z][^>]*>)(.+)$/gm, '<p>$1</p>');
-    
-    // Step 3: Add styling for better citation visualization
-    processedText = processedText
-      // Add custom classes to citation links to help with styling
-      .replace(/<a href="#source-([0-9]+)"([^>]*)>([^<]+)<\/a>/g, (match, sourceNumber, attributes, text) => {
-        return `<a href="#source-${sourceNumber}" ${attributes} data-source-id="${sourceNumber}" class="source-citation-${sourceNumber} ${attributes.includes('class=') ? '' : 'citation-link'}" onmouseover="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.add('citation-highlight'))" onmouseout="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.remove('citation-highlight'))">${text}</a>`;
-      });
+    // Step 2: Parse markdown with the marked library
+    try {
+      // Use the marked library to properly parse markdown content
+      // Using old method to avoid Promise-based API which requires await
+      const parsedMarkdown = marked.parse(processedText);
+      
+      // Step 3: Add styling for better citation visualization
+      // Type assertion because we know the result is a string
+      let enhancedHtml = (parsedMarkdown as string)
+        // Add custom classes to citation links to help with styling
+        .replace(/<a href="#source-([0-9]+)"([^>]*)>([^<]+)<\/a>/g, (match: string, sourceNumber: string, attributes: string, text: string) => {
+          return `<a href="#source-${sourceNumber}" ${attributes} data-source-id="${sourceNumber}" class="source-citation-${sourceNumber} ${attributes.includes('class=') ? '' : 'citation-link'}" onmouseover="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.add('citation-highlight'))" onmouseout="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.remove('citation-highlight'))">${text}</a>`;
+        });
 
-    // Step 4: Add CSS for citation highlighting
-    processedText = `
-      <style>
-        .citation-highlight {
-          background-color: rgba(168, 85, 247, 0.2) !important;
-          box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.4);
-          transition: all 0.2s ease-in-out;
-        }
-        .dark .citation-highlight {
-          background-color: rgba(168, 85, 247, 0.3) !important;
-          box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
-        }
-        .citation-link {
-          text-decoration: none !important;
-          transition: all 0.2s ease-in-out;
-        }
-        .citation-link:hover {
-          text-decoration: none !important;
-        }
-        .citation-mla {
-          font-style: italic;
-        }
-        .citation-chicago {
-          font-weight: bold;
-        }
-        .citation-aglc {
-          text-decoration: underline;
-        }
-      </style>
-    ` + processedText;
-    
-    // Step 5: Sanitize HTML to prevent XSS
-    return DOMPurify.sanitize(processedText, { 
-      ADD_TAGS: ['style'],
-      ADD_ATTR: ['onmouseover', 'onmouseout', 'data-source-id']
-    });
+      // Step 4: Add CSS for citation highlighting
+      const styleBlock = `
+        <style>
+          .citation-highlight {
+            background-color: rgba(168, 85, 247, 0.2) !important;
+            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.4);
+            transition: all 0.2s ease-in-out;
+          }
+          .dark .citation-highlight {
+            background-color: rgba(168, 85, 247, 0.3) !important;
+            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
+          }
+          .citation-link {
+            text-decoration: none !important;
+            transition: all 0.2s ease-in-out;
+          }
+          .citation-link:hover {
+            text-decoration: none !important;
+          }
+          .citation-mla {
+            font-style: italic;
+          }
+          .citation-chicago {
+            font-weight: bold;
+          }
+          .citation-aglc {
+            text-decoration: underline;
+          }
+        </style>
+      `;
+      
+      // Step 5: Sanitize HTML to prevent XSS
+      return DOMPurify.sanitize(styleBlock + enhancedHtml, { 
+        ADD_TAGS: ['style'],
+        ADD_ATTR: ['onmouseover', 'onmouseout', 'data-source-id']
+      });
+    } catch (error) {
+      console.error('Error parsing markdown:', error);
+      // Fallback to basic HTML with paragraph tags if markdown parsing fails
+      return DOMPurify.sanitize(`<p>${processedText}</p>`, {
+        ADD_TAGS: ['style'],
+        ADD_ATTR: ['onmouseover', 'onmouseout', 'data-source-id']
+      });
+    }
   }
 
   // Function to format citations according to different standards
@@ -232,8 +214,8 @@ export default function AIAnswer({
       searchUrl += '&deepResearch=true&maxIterations=3&includeReasoning=true&deepDive=true';
     }
     
-    // Navigate to search results with the follow-up query and proper context
-    window.location.href = searchUrl;
+    // Use the router's setLocation instead of window.location.href to maintain session
+    setLocation(searchUrl);
   };
 
   // Function to render charts and graphs
