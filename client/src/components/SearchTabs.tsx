@@ -27,7 +27,7 @@ interface SearchTabsProps {
 }
 
 export default function SearchTabs({ data, query, isLoading, isFollowUp = false, authRequired = false }: SearchTabsProps) {
-  // Access the search store
+  // Access the search store and auth context
   const { 
     activeTab, 
     setActiveTab, 
@@ -37,6 +37,7 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
     setResults,
     results
   } = useSearchStore();
+  const { user } = useAuth();
   
   // Set the current query in the store when it changes
   useEffect(() => {
@@ -150,7 +151,18 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Web Results Section - Now takes up 2/3 of the space */}
               <div className="lg:col-span-2 order-2 lg:order-1">
-                <h2 className="text-xl font-semibold dark:text-white mb-4">Web Results</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold dark:text-white">Web Results</h2>
+                  
+                  {/* Deep Research Button for All Results tab */}
+                  {user && activeTabData?.traditional && activeTabData.traditional.length > 0 && (
+                    <DeepResearchButton 
+                      query={query} 
+                      isPro={user.subscriptionTier === 'pro' || user.subscriptionTier === 'developer'}
+                      isFollowUp={isFollowUp}
+                    />
+                  )}
+                </div>
                 {activeTabData?.traditional?.map((result, index) => (
                   <div key={index} className="p-4 mb-4 bg-white dark:bg-gray-800 shadow-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     {/* Top metadata bar */}
@@ -258,7 +270,7 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
                 <h2 className="text-xl font-semibold dark:text-white">Web Results</h2>
                 
                 {/* Deep Research Button for Web Results */}
-                {user && (activeTabData?.traditional?.length > 0) && (
+                {user && activeTabData?.traditional && activeTabData.traditional.length > 0 && (
                   <DeepResearchButton 
                     query={query} 
                     isPro={user.subscriptionTier === 'pro' || user.subscriptionTier === 'developer'}
