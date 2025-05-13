@@ -207,7 +207,11 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
   const handleFollowUpSubmit = () => {
     if (!followUpQuery.trim()) return;
     
+    // Log the action for debugging
+    console.log(`Submitting follow-up question: ${followUpQuery}`);
+    
     // Navigate to search results with the follow-up query and flag
+    // Make sure to set isFollowUp parameter to true for contextual search
     setLocation(`/search?q=${encodeURIComponent(followUpQuery)}&isFollowUp=true`);
   };
 
