@@ -213,7 +213,10 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     const messages = [systemMessage];
     
     // Add conversation context for follow-up questions if available
-    if (isContextual && conversationContext && conversationContext.turns && conversationContext.turns.length > 0) {
+    if ((isContextual || query.startsWith("is there") || query.startsWith("what about") || query.startsWith("how about") || query.startsWith("can you")) && 
+        conversationContext && conversationContext.turns && conversationContext.turns.length > 0) {
+      console.log("Processing as contextual query due to phrasing or explicit follow-up flag");
+      
       // Instead of manually constructing the context message, use our utility function
       const isFirstTurn = conversationContext.turns.length === 1;
       const contextSystemMessage = createContextualSystemMessage(conversationContext, isFirstTurn);
@@ -227,12 +230,13 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
       // Add additional context message for clarity
       let contextMessage = "Previous conversation context:\n";
       
-      // Only use last 2 conversation items to save tokens
-      const recentTurns = conversationContext.turns.slice(0, 2);
+      // Use all conversation turns for better context
+      const recentTurns = conversationContext.turns.slice(-3); // Use last 3 turns for more context
       recentTurns.forEach((turn: ConversationTurn) => {
         contextMessage += `User: ${turn.query}\n`;
         if (turn.answer) {
-          contextMessage += `Assistant: ${turn.answer.substring(0, 100)}${turn.answer.length > 100 ? '...' : ''}\n`;
+          // Include more of the answer for better context
+          contextMessage += `Assistant: ${turn.answer.substring(0, 250)}${turn.answer.length > 250 ? '...' : ''}\n`;
         }
       });
       
