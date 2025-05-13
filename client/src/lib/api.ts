@@ -258,7 +258,49 @@ export async function performSearch(
           
           // Handle specific API errors for better user experience
           if (response.status === 500 || response.status === 503) {
-            // Detect Groq API errors
+            // Detect Tool usage errors
+            if (text.includes('isToolError') || text.includes('tool') && text.includes('error')) {
+              console.error("Tool usage error detected:", text);
+              
+              // Use the traditional search result fallback option if available
+              try {
+                // For tool errors, try to resubmit the search without tools
+                const data = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=${encodeURIComponent(searchType)}&disableTools=true`).then(r => r.json());
+                if (data) {
+                  console.log("Successfully retrieved results without tools");
+                  return data as SearchResults;
+                }
+              } catch (fallbackError) {
+                console.error("Failed to perform search without tools:", fallbackError);
+                
+                // If the no-tools search fails, try traditional search as last resort
+                try {
+                  const traditionalData = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=traditional`).then(r => r.json());
+                  if (traditionalData && traditionalData.traditional && traditionalData.traditional.results) {
+                    return {
+                      query: query,
+                      traditional: traditionalData.traditional.results,
+                      ai: {
+                        answer: "I couldn't use the AI search tools for this query. Here are the traditional search results instead.",
+                        model: "error-fallback",
+                        sources: [],
+                        contextual: false
+                      },
+                      serviceStatus: {
+                        groq: "limited",
+                        tavily: "available"
+                      }
+                    } as SearchResults;
+                  }
+                } catch (traditionalFallbackError) {
+                  console.error("Failed to get traditional search fallback:", traditionalFallbackError);
+                }
+              }
+              
+              throw new Error('There was an issue with the AI tools for this search. Please try a different query or try again later.');
+            }
+            
+            // Detect other Groq API errors
             if (text.includes('Groq API error') || text.includes('Bad Gateway') || text.includes('Service Unavailable') || text.includes('Groq API service unavailable')) {
               console.error("Groq service error detected:", text);
               
