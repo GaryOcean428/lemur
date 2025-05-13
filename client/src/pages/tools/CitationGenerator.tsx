@@ -764,46 +764,72 @@ export default function CitationGenerator() {
       if (citationStyle === 'aglc4') {
         switch (sourceType) {
           case 'journalArticle':
-            citationText = `Author(s), '${formattedData.title}' (${new Date().getFullYear()}) ${formattedData.journalName}`;
+            citationText = `Author(s), '<i>${formattedData.title}</i>' (${new Date().getFullYear()}) <i>${formattedData.journalName}</i>`;
             break;
           case 'newspaperArticle':
-            citationText = `Author(s), '${formattedData.title}', ${formattedData.newspaperName} (online, ${new Date().toLocaleDateString('en-AU')}) <${formattedData.url}>`;
+            citationText = `Author(s), '<i>${formattedData.title}</i>', <i>${formattedData.newspaperName}</i> (online, ${new Date().toLocaleDateString('en-AU')}) &lt;<a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>&gt;`;
             break;
           case 'website':
           default:
-            citationText = `${formattedData.websiteName}, ${formattedData.title} (Web Page, ${new Date().toLocaleDateString('en-AU')}) <${formattedData.url}>`;
+            citationText = `<i>${formattedData.websiteName}</i>, <i>${formattedData.title}</i> (Web Page, ${new Date().toLocaleDateString('en-AU')}) &lt;<a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>&gt;`;
             break;
         }
       } else if (citationStyle === 'apa') {
         const year = new Date().getFullYear();
         switch (sourceType) {
           case 'journalArticle':
-            citationText = `(${year}). ${formattedData.title}. ${formattedData.journalName}. ${formattedData.url}`;
+            citationText = `(${year}). ${formattedData.title}. <i>${formattedData.journalName}</i>. <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>`;
             break;
           case 'newspaperArticle':
-            citationText = `(${year}, ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}). ${formattedData.title}. ${formattedData.newspaperName}. ${formattedData.url}`;
+            citationText = `(${year}, ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}). ${formattedData.title}. <i>${formattedData.newspaperName}</i>. <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>`;
             break;
           case 'website':
           default:
-            citationText = `(${year}). ${formattedData.title}. ${formattedData.websiteName}. Retrieved from ${formattedData.url}`;
+            citationText = `(${year}). ${formattedData.title}. <i>${formattedData.websiteName}</i>. Retrieved from <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>`;
             break;
         }
       } else if (citationStyle === 'mla') {
         switch (sourceType) {
           case 'journalArticle':
-            citationText = `"${formattedData.title}." ${formattedData.journalName}, ${new Date().getFullYear()}. Web. ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}.`;
+            citationText = `"${formattedData.title}." <i>${formattedData.journalName}</i>, ${new Date().getFullYear()}. Web. ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}.`;
             break;
           case 'newspaperArticle':
-            citationText = `"${formattedData.title}." ${formattedData.newspaperName}, ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}. Web.`;
+            citationText = `"${formattedData.title}." <i>${formattedData.newspaperName}</i>, ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}. Web. <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>`;
             break;
           case 'website':
           default:
-            citationText = `"${formattedData.title}." ${formattedData.websiteName}, ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}. Web.`;
+            citationText = `"${formattedData.title}." <i>${formattedData.websiteName}</i>, ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}. Web. <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>`;
+            break;
+        }
+      } else if (citationStyle === 'chicago') {
+        switch (sourceType) {
+          case 'journalArticle':
+            citationText = `Author(s). "${formattedData.title}." <i>${formattedData.journalName}</i> ${new Date().getFullYear()}. <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>.`;
+            break;
+          case 'newspaperArticle':
+            citationText = `Author(s). "${formattedData.title}." <i>${formattedData.newspaperName}</i>, ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>.`;
+            break;
+          case 'website':
+          default:
+            citationText = `"${formattedData.title}." <i>${formattedData.websiteName}</i>. Accessed ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>.`;
+            break;
+        }
+      } else if (citationStyle === 'harvard') {
+        switch (sourceType) {
+          case 'journalArticle':
+            citationText = `Author(s) (${new Date().getFullYear()}) '${formattedData.title}', <i>${formattedData.journalName}</i>. Available at: <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a> (Accessed: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}).`;
+            break;
+          case 'newspaperArticle':
+            citationText = `Author(s) (${new Date().getFullYear()}) '${formattedData.title}', <i>${formattedData.newspaperName}</i>, ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}. Available at: <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a> (Accessed: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}).`;
+            break;
+          case 'website':
+          default:
+            citationText = `${formattedData.websiteName} (${new Date().getFullYear()}) <i>${formattedData.title}</i>. Available at: <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a> (Accessed: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}).`;
             break;
         }
       } else {
         // Default format for other citation styles
-        citationText = `${formattedData.title}. (${new Date().getFullYear()}). Retrieved from ${formattedData.url}`;
+        citationText = `${formattedData.title}. (${new Date().getFullYear()}). Retrieved from <a href="${formattedData.url}" target="_blank" rel="noopener noreferrer">${formattedData.url}</a>`;
       }
       
       setTimeout(() => {

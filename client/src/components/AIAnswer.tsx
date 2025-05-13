@@ -395,7 +395,7 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
                 {sources.length} citations used
               </div>
               <Button 
-                variant="outline" 
+                variant="secondary" 
                 size="sm" 
                 className="text-xs h-7 px-2 flex items-center gap-1"
                 onClick={() => {
