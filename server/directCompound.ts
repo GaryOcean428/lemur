@@ -55,6 +55,18 @@ export interface SearchResult {
   };
 }
 
+/**
+ * Uses Groq Compound Beta's built-in search capabilities with improved error handling
+ * @param query The user's search query
+ * @param apiKey Groq API key
+ * @param modelPreference Model preference (fast, auto, comprehensive)
+ * @param geo_location Geographic location for search results (e.g., "AU" for Australia)
+ * @param isContextual Whether this query is a follow-up to previous conversation
+ * @param conversationContext Previous conversation context for contextual queries
+ * @param filters Additional search filters
+ * @param tavilyApiKey Optional Tavily API key for prefetching results
+ * @returns Object containing the answer, model used, and search tool usage information
+ */
 export async function directGroqCompoundSearch(
   query: string, 
   groqApiKey: string, 
@@ -521,95 +533,28 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
       sources: combinedSources,
       searchResults: combinedSearchResults
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error calling Groq Compound Beta API:", error);
     
-    // Check if this is a tool-related error that we can recover from
-    const detailedError = error as any;
-    // Get the isToolModel value again to avoid scope issues
-    const shouldAttemptFallback = detailedError.isToolError && supportsTools && supportsToolsOverride;
+    // Check if this is likely a tool error based on error message
+    const isToolError = error.message?.includes('tool') || 
+                       error.message?.includes('function') || 
+                       error.toString().includes('tool_call');
     
-    if (shouldAttemptFallback) {
-      console.log("Detected tool-related error, attempting fallback without tools...");
+    if (isToolError) {
+      console.log("Detected potential tool-related error, consider retrying without tools");
       
-      try {
-        // Create a simplified request without tools
-        const fallbackRequestBody = {
-          model: model,
-          messages: messages,
-          temperature: 0.3
-        };
-        
-        console.log("Making fallback API request without tools to Groq API");
-        
-        // Make the API request to Groq (without tools)
-        const fallbackResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${groqApiKey}`
-          },
-          body: JSON.stringify(fallbackRequestBody)
-        });
-        
-        if (!fallbackResponse.ok) {
-          // If fallback also fails, throw the original error
-          throw error;
-        }
-        
-        const fallbackData = await fallbackResponse.json() as GroqCompoundResponse;
-        
-        // For fallback response, we won't have tools data, but we can still extract citations
-        let sourcesFromText: Source[] = [];
-        
-        // Check if there are citations in markdown format [1]: https://example.com
-        const answer = fallbackData.choices[0].message.content;
-        const citationRegex = /\[([0-9]+)\]:\s*(https?:\/\/[^\s]+)\s*(?:"([^"]+)")?/g;
-        let citation;
-        const citationMap = new Map<string, Source>();
-        
-        while ((citation = citationRegex.exec(answer)) !== null) {
-          const number = citation[1];
-          const url = citation[2];
-          let title = citation[3] || "";
-          
-          if (!title) {
-            try {
-              const domain = new URL(url).hostname.replace('www.', '');
-              title = domain.charAt(0).toUpperCase() + domain.slice(1);
-            } catch (e) {
-              title = "Reference " + number;
-            }
-          }
-          
-          const source: Source = {
-            title,
-            url,
-            domain: new URL(url).hostname.replace('www.', '')
-          };
-          
-          citationMap.set(number, source);
-        }
-        
-        // Convert the map to an array for sources
-        sourcesFromText = Array.from(citationMap.values());
-        
-        console.log("Fallback successful - recovered from tool error");
-        
-        return {
-          answer: fallbackData.choices[0].message.content,
-          model: fallbackData.model,
-          contextual: isContextual,
-          search_tools_used: [], // No tools used in fallback
-          sources: sourcesFromText,
-          searchResults: [] // No search results available in fallback
-        };
-      } catch (fallbackError) {
-        console.error("Fallback attempt also failed:", fallbackError);
-        // Continue to throw the original error
-      }
+      // Add metadata to the error for better handling upstream
+      error.isToolError = true;
+      
+      // Log specific advice for handling this type of error
+      console.log("Tool errors can be mitigated by:");
+      console.log("1. Retrying the request without tools");
+      console.log("2. Using a different model that better supports tools");
+      console.log("3. Simplifying the tool definition");
     }
     
+    // Propagate the enhanced error
     throw error;
   }
 }
