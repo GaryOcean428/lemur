@@ -7,6 +7,7 @@
 
 import { validateGroqModel, mapModelPreference, supportsToolCalling, APPROVED_MODELS } from "./utils/modelValidation";
 import { normalizeRegionCode, enforceRegionPreference, getRegionalInstructionForCode } from "./utils/regionUtil";
+import { ConversationContext, ConversationTurn, createContextualSystemMessage } from "./utils/context";
 
 // Using getRegionalInstructionForCode imported from regionUtil.ts
 
@@ -53,8 +54,6 @@ export interface SearchResult {
     alt?: string;
   };
 }
-
-import { ConversationContext, createContextualSystemMessage } from "./utils/context";
 
 export async function directGroqCompoundSearch(
   query: string, 
@@ -214,7 +213,7 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     const messages = [systemMessage];
     
     // Add conversation context for follow-up questions if available
-    if (isContextual && conversationContext.turns && conversationContext.turns.length > 0) {
+    if (isContextual && conversationContext && conversationContext.turns && conversationContext.turns.length > 0) {
       // Instead of manually constructing the context message, use our utility function
       const isFirstTurn = conversationContext.turns.length === 1;
       const contextSystemMessage = createContextualSystemMessage(conversationContext, isFirstTurn);
@@ -227,12 +226,13 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
       
       // Add additional context message for clarity
       let contextMessage = "Previous conversation context:\n";
+      
       // Only use last 2 conversation items to save tokens
-      const recentContext = conversationContext.turns.slice(0, 2);
-      recentContext.forEach((ctx, index) => {
-        contextMessage += `User: ${ctx.query}\n`;
-        if (ctx.answer) {
-          contextMessage += `Assistant: ${ctx.answer.substring(0, 100)}${ctx.answer.length > 100 ? '...' : ''}\n`;
+      const recentTurns = conversationContext.turns.slice(0, 2);
+      recentTurns.forEach((turn: ConversationTurn) => {
+        contextMessage += `User: ${turn.query}\n`;
+        if (turn.answer) {
+          contextMessage += `Assistant: ${turn.answer.substring(0, 100)}${turn.answer.length > 100 ? '...' : ''}\n`;
         }
       });
       

@@ -791,14 +791,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: Date.now()
       };
       
+      // Create a proper conversation context object
+      const sessionContext: ConversationContext = { 
+        turns: req.session.conversationContext || [],
+        lastUpdated: Date.now()
+      };
+      
       // Add the current turn to the conversation context
-      req.session.conversationContext = addTurnToContext(
-        { 
-          turns: req.session.conversationContext || [],
-          lastUpdated: Date.now()
-        },
-        currentTurn
-      ).turns;
+      const updatedContext = addTurnToContext(sessionContext, currentTurn);
+      
+      // Store just the turns in the session for compatibility
+      req.session.conversationContext = updatedContext.turns;
       
       console.log(`${isFollowUp ? 'Follow-up' : 'New'} query added to context: "${query}". Context size: ${req.session.conversationContext.length}`);
       
