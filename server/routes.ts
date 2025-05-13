@@ -1354,16 +1354,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             preferredModel,
             // Ensure geo_location is correctly passed and log for debugging
             filters.geo_location ? filters.geo_location.toUpperCase() : null,
-            conversationContext.length > 0,
-            req.session.conversationContext || [], // Pass conversation context for better contextual responses
+            isFollowUp, // Use our follow-up flag for contextual search
+            { turns: req.session.conversationContext || [], lastUpdated: Date.now() }, // Pass properly structured conversation context
             filters, // Pass search filters
             tavilyApiKey // Pass Tavily API key
           );
           
           // Store the generated answer in the conversation context
           if (req.session.conversationContext && req.session.conversationContext.length > 0) {
-            req.session.conversationContext[req.session.conversationContext.length - 1].answer = 
-              directResult.answer.substring(0, 500);
+            // Update the most recent turn with the answer
+            const lastTurnIndex = req.session.conversationContext.length - 1;
+            
+            // Store a truncated version of the answer to manage context size
+            req.session.conversationContext[lastTurnIndex] = {
+              ...req.session.conversationContext[lastTurnIndex],
+              answer: directResult.answer.substring(0, 500),
+              sources: directResult.sources ? directResult.sources.slice(0, 3) : [],
+              model: directResult.model
+            };
+            
+            console.log(`Updated conversation context with answer for query: "${req.session.conversationContext[lastTurnIndex].query}"`);
           }
           
           ai = {
