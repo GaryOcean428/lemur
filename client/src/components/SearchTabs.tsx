@@ -5,6 +5,8 @@ import { SearchResults } from "@/lib/types";
 import { useSearchStore } from "@/store/searchStore";
 import { type SearchTabType } from "@/store/searchStore";
 import { performSearch } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
+import DeepResearchButton from "./DeepResearchButton";
 
 // Import specialized tab components
 import ImageResults from "./search-tabs/ImageResults";
@@ -252,7 +254,19 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
           {/* Web Only Tab */}
           <TabsContent value="web" className="mt-0">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold dark:text-white mb-4">Web Results</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold dark:text-white">Web Results</h2>
+                
+                {/* Deep Research Button for Web Results */}
+                {user && (activeTabData?.traditional?.length > 0) && (
+                  <DeepResearchButton 
+                    query={query} 
+                    isPro={user.subscriptionTier === 'pro' || user.subscriptionTier === 'developer'}
+                    isFollowUp={isFollowUp}
+                  />
+                )}
+              </div>
+              
               {activeTabData?.traditional?.map((result, index) => (
                 <div key={index} className="p-4 mb-4 bg-white dark:bg-gray-800 shadow-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   {/* Top metadata bar */}
