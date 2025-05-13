@@ -216,7 +216,7 @@ export default function SearchResults() {
                 <span className="hidden sm:inline">Insights</span>
               </Button>
               
-              {/* Deep Research Conversion Button - Always show, but disable if already in deep research */}
+              {/* Deep Research Conversion Button - Always show, disable if already in deep research or if not Pro */}
                 <Button 
                   variant="secondary"
                   size="sm"
@@ -225,8 +225,14 @@ export default function SearchResults() {
                     setLocation(`/search?q=${encodeURIComponent(query)}&deepResearch=true&maxIterations=3&includeReasoning=true&deepDive=true`);
                   }}
                   className="flex items-center gap-1"
-                  title={deepResearch ? "Already in deep research mode" : "Convert to deep research"}
-                  disabled={deepResearch}
+                  title={
+                    deepResearch 
+                      ? "Already in deep research mode" 
+                      : (!user || (user.subscriptionTier !== 'pro' && user.subscriptionTier !== 'developer'))
+                        ? "Upgrade to Pro for deep research"
+                        : "Convert to deep research"
+                  }
+                  disabled={deepResearch || !user || (user.subscriptionTier !== 'pro' && user.subscriptionTier !== 'developer')}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
                     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
