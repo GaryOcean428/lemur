@@ -1035,7 +1035,34 @@ export default function CitationGenerator() {
             <CardContent>
               <div className="mb-4">
                 <Label htmlFor="citation-style">Citation Style</Label>
-                <Select value={selectedStyle} onValueChange={setSelectedStyle}>
+                <Select 
+                  value={selectedStyle} 
+                  onValueChange={(newStyle) => {
+                    setSelectedStyle(newStyle);
+                    
+                    // If we have existing citation data, regenerate with the new style
+                    if (citation && selectedSourceType) {
+                      setLoading(true);
+                      
+                      // If we have search sources, use the currently selected one
+                      if (searchSources.length > 0 && selectedSearchSourceIndex >= 0) {
+                        const source = searchSources[selectedSearchSourceIndex];
+                        generateCitationForSource(source, selectedSourceType, newStyle)
+                          .then(result => {
+                            setCitation(result);
+                            setLoading(false);
+                          })
+                          .catch(err => {
+                            console.error("Error regenerating citation:", err);
+                            setLoading(false);
+                          });
+                      } 
+                      // Otherwise use the form data
+                      else {
+                        generateCitationFromForm(newStyle);
+                      }
+                    }
+                  }}>
                   <SelectTrigger id="citation-style">
                     <SelectValue placeholder="Select citation style" />
                   </SelectTrigger>
