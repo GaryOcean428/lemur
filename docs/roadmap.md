@@ -197,15 +197,20 @@ Lemur is a sophisticated AI-powered search platform that combines traditional se
 ### 7. Image Search (Priority: Low)
 **Description:** Visual search capabilities with AI-powered image analysis
 **Key Capabilities:**
-- Search by image upload
-- Visual content recognition
+- Search by image upload, URL, or camera capture
+- Visual content recognition and object detection
+- Text extraction from images (OCR)
+- Region-specific analysis with user selection
 - Similar image finding
-- Image metadata extraction
+- Contextual search based on image content
 **Technical Implementation:**
-- Integrate with Groq models for image analysis
-- Implement image data processing pipeline
-- Create UI for image upload and result display
-- Design visual similarity algorithms
+- Integrate with Groq Compound Beta (Llama 4) for comprehensive image analysis
+- Use Compound Beta Mini (Llama 3.3 70B) for simpler tasks
+- Leverage GPT-4.1 for advanced multimodal analysis when needed
+- Implement progressive image processing pipeline
+- Create UI for image upload and interactive analysis
+- Apply chain-of-thought reasoning for image understanding
+- Connect with Tavily search for web results based on image content
 
 ### 8. News Aggregator (Priority: Low)
 **Description:** Customizable news feed with filtering by source, topic, and credibility

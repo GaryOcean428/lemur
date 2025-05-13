@@ -210,6 +210,73 @@ export type InsertContentSummary = z.infer<typeof insertContentSummarySchema>;
 export type ContentSummary = typeof contentSummaries.$inferSelect;
 ```
 
+### 8. Image Searches
+
+```typescript
+// In shared/schema.ts
+
+export const imageSearches = pgTable("image_searches", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  imageHash: text("image_hash").notNull(), // Store hash instead of raw image data
+  originalFilename: text("original_filename"),
+  mimeType: text("mime_type"),
+  fileSize: integer("file_size"),
+  
+  // Analysis results and search data
+  analysisResults: json("analysis_results").default({}), // AI analysis output
+  detectedObjects: json("detected_objects").default([]), // Array of detected objects with confidence scores
+  extractedText: text("extracted_text"), // Text extracted from image (OCR)
+  searchQueries: json("search_queries").default([]), // Queries generated from image
+  searchResults: json("search_results").default([]), // Search results
+  
+  // Processing metadata
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  imageType: text("image_type").default("uploaded"), // "uploaded", "url", "camera", "screenshot"
+  processingStatus: text("processing_status").default("pending"), // "pending", "processing", "completed", "failed"
+  modelUsed: text("model_used"), // Which AI model was used for analysis
+  
+  // User interaction data
+  favorited: boolean("favorited").default(false),
+  userNotes: text("user_notes"),
+  userTags: text("user_tags").array(),
+  
+  // For region-specific analysis
+  selectedRegions: json("selected_regions").default([]), // Array of region coordinates analyzed separately
+});
+
+export const imageAnalysisRegions = pgTable("image_analysis_regions", {
+  id: serial("id").primaryKey(),
+  imageSearchId: integer("image_search_id").notNull().references(() => imageSearches.id, { onDelete: "cascade" }),
+  coordinates: json("coordinates").notNull(), // {x, y, width, height} of selected region
+  analysisResults: json("analysis_results").default({}),
+  extractedText: text("extracted_text"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertImageSearchSchema = createInsertSchema(imageSearches).pick({
+  userId: true,
+  imageHash: true,
+  originalFilename: true,
+  mimeType: true,
+  fileSize: true,
+  imageType: true,
+  userNotes: true,
+  userTags: true,
+});
+
+export const insertImageAnalysisRegionSchema = createInsertSchema(imageAnalysisRegions).pick({
+  imageSearchId: true,
+  coordinates: true,
+});
+
+export type InsertImageSearch = z.infer<typeof insertImageSearchSchema>;
+export type ImageSearch = typeof imageSearches.$inferSelect;
+export type InsertImageAnalysisRegion = z.infer<typeof insertImageAnalysisRegionSchema>;
+export type ImageAnalysisRegion = typeof imageAnalysisRegions.$inferSelect;
+```
+
 ## Storage Interface Extensions
 
 The following methods will need to be added to the `IStorage` interface in `server/storage.ts`:
@@ -255,6 +322,23 @@ export interface IStorage {
   // Content Summaries operations
   createContentSummary(summary: InsertContentSummary): Promise<ContentSummary>;
   getUserContentSummaries(userId: number): Promise<ContentSummary[]>;
+  
+  // Image Search operations
+  createImageSearch(image: InsertImageSearch): Promise<ImageSearch>;
+  getImageSearchById(id: number): Promise<ImageSearch | undefined>;
+  getUserImageSearches(userId: number): Promise<ImageSearch[]>;
+  updateImageSearchAnalysis(id: number, analysisData: {
+    analysisResults?: any,
+    detectedObjects?: any[],
+    extractedText?: string,
+    searchQueries?: any[],
+    searchResults?: any[],
+    processingStatus: string,
+    modelUsed: string
+  }): Promise<ImageSearch>;
+  updateImageSearchMetadata(id: number, updates: Partial<InsertImageSearch>): Promise<ImageSearch>;
+  createImageAnalysisRegion(region: InsertImageAnalysisRegion): Promise<ImageAnalysisRegion>;
+  getImageAnalysisRegions(imageSearchId: number): Promise<ImageAnalysisRegion[]>;
 }
 ```
 
@@ -309,6 +393,62 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updated;
+  }
+  
+  // Image Search implementation examples
+  
+  async createImageSearch(image: InsertImageSearch): Promise<ImageSearch> {
+    const [created] = await db.insert(imageSearches).values(image).returning();
+    return created;
+  }
+  
+  async getImageSearchById(id: number): Promise<ImageSearch | undefined> {
+    return await db.query.imageSearches.findFirst({
+      where: eq(imageSearches.id, id)
+    });
+  }
+  
+  async getUserImageSearches(userId: number): Promise<ImageSearch[]> {
+    return await db.query.imageSearches.findMany({
+      where: eq(imageSearches.userId, userId),
+      orderBy: [desc(imageSearches.createdAt)]
+    });
+  }
+  
+  async updateImageSearchAnalysis(id: number, analysisData: {
+    analysisResults?: any,
+    detectedObjects?: any[],
+    extractedText?: string,
+    searchQueries?: any[],
+    searchResults?: any[],
+    processingStatus: string,
+    modelUsed: string
+  }): Promise<ImageSearch> {
+    const [updated] = await db
+      .update(imageSearches)
+      .set({
+        ...analysisData,
+        lastUpdated: new Date()
+      })
+      .where(eq(imageSearches.id, id))
+      .returning();
+      
+    if (!updated) {
+      throw new Error(`Image search with id ${id} not found`);
+    }
+    
+    return updated;
+  }
+  
+  async createImageAnalysisRegion(region: InsertImageAnalysisRegion): Promise<ImageAnalysisRegion> {
+    const [created] = await db.insert(imageAnalysisRegions).values(region).returning();
+    return created;
+  }
+  
+  async getImageAnalysisRegions(imageSearchId: number): Promise<ImageAnalysisRegion[]> {
+    return await db.query.imageAnalysisRegions.findMany({
+      where: eq(imageAnalysisRegions.imageSearchId, imageSearchId)
+    });
   }
   
   // ... additional implementations for other methods ...

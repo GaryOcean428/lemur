@@ -231,20 +231,87 @@ interface ResearchProject {
 #### 1. Image Search
 
 **Frontend:**
-- Image upload interface
-- Visual search results display
-- Filtering and refinement options
-- Integration with main search
+- Multiple image input methods:
+  - Drag-and-drop file upload
+  - Image URL input
+  - Camera capture (for mobile devices)
+  - Screenshot tool (for desktop)
+- Interactive image analysis:
+  - Region selection for targeted analysis
+  - Object highlighting and identification
+  - Text extraction visualization
+- Visual search results display:
+  - Split view (image analysis + web results)
+  - Result filtering and categorization
+  - Confidence indicators for identified elements
+- Integration with main search:
+  - Image context for text searches
+  - Visual history integration
 
 **Backend:**
-- Image processing pipeline
-- Visual search API integration
-- Results aggregation and formatting
+- Image processing pipeline:
+  - Image validation and optimization
+  - Format conversion and normalization
+  - Feature extraction for comparison
+- AI model integration:
+  - Compound Beta (Llama 4) for comprehensive analysis
+  - Compound Beta Mini (Llama 3.3 70B) for simpler tasks
+  - GPT-4.1 for advanced multimodal queries when needed
+  - Chain-of-thought reasoning implementation
+- Tavily search integration:
+  - Multi-query generation from image analysis
+  - Result aggregation and ranking
+  - Contextual relevance scoring
+- Analysis components:
+  - Object detection and recognition
+  - Scene understanding and context extraction
+  - Text recognition and extraction (OCR)
+  - Visual similarity assessment
 
 **API Endpoints:**
 - `POST /api/tools/image-search/upload` - Upload image for search
 - `POST /api/tools/image-search/url` - Search by image URL
+- `POST /api/tools/image-search/camera` - Process camera capture
+- `POST /api/tools/image-search/screenshot` - Process screenshot
+- `POST /api/tools/image-search/analyze` - Analyze specific image region
 - `GET /api/tools/image-search/recent` - Get recent image searches
+- `POST /api/tools/image-search/extract-text` - Extract text from image
+- `GET /api/tools/image-search/:id/results` - Get search results for specific image
+
+**Database Extensions:**
+```typescript
+export const imageSearches = pgTable("image_searches", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  imageHash: text("image_hash").notNull(), // Store hash instead of image itself
+  analysisResults: json("analysis_results").default({}),
+  searchQueries: json("search_queries").default([]),
+  searchResults: json("search_results").default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  imageType: text("image_type").default("uploaded"), // "uploaded", "url", "camera"
+  processingStatus: text("processing_status").default("pending"),
+  modelUsed: text("model_used"), // Track which model was used
+});
+```
+
+**Implementation Phases:**
+1. Basic Infrastructure (2 weeks)
+   - Image upload and basic processing
+   - Integration with Compound Beta Mini for simple analysis
+   - Generate search terms from images
+   - Basic results display
+
+2. Advanced Analysis (2 weeks)
+   - Integration with Compound Beta (Llama 4) for complex images
+   - Region selection and focused analysis
+   - Text extraction and processing
+   - Enhanced search result integration
+
+3. Advanced Features (2 weeks)
+   - Similar image finding
+   - Integration with other tools (Research Dashboard, Citation)
+   - Advanced filtering and categorization
+   - Performance optimizations
 
 #### 2. News Aggregator
 
