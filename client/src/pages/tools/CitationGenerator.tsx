@@ -557,7 +557,7 @@ export default function CitationGenerator() {
   const [searchSources, setSearchSources] = useState<any[]>([]);
   const [selectedSearchSourceIndex, setSelectedSearchSourceIndex] = useState<number>(-1);
   
-  // Handle sources from search results
+  // Handle sources from search results and auto-generate citations
   useEffect(() => {
     // Try to get sources from localStorage (set by AIAnswer component)
     const sourcesJson = localStorage.getItem('sourceForCitation');
@@ -569,25 +569,75 @@ export default function CitationGenerator() {
         // Get the source index from URL if provided
         const urlParams = new URLSearchParams(window.location.search);
         const sourceIndex = urlParams.get('index');
+        const fromSearch = urlParams.get('from') === 'search';
         
-        if (sourceIndex !== null) {
-          const index = parseInt(sourceIndex, 10);
-          setSelectedSearchSourceIndex(index);
-          
-          // Auto-populate form with the selected source
-          if (sources[0]) {
-            const source = sources[0];
-            setInputTab('manual');
-            setSelectedSourceType('website');
-            
-            setFormData({
-              title: source.title || '',
-              url: source.url || '',
-              websiteName: source.domain || '',
-              publicationDate: new Date().toISOString().split('T')[0], // Default to today
-              authors: []
-            });
-          }
+        // Auto-generate citations for all sources if coming from search results
+        if (fromSearch) {
+          // Use a timeout to ensure state updates have completed
+          setTimeout(() => {
+            // If a specific source is selected, generate just that one
+            if (sourceIndex !== null) {
+              const index = parseInt(sourceIndex, 10);
+              setSelectedSearchSourceIndex(index);
+              
+              if (sources[0]) {
+                const source = sources[0];
+                setLoading(true);
+                
+                // Automatically detect source type based on URL and content
+                const detectedType = detectSourceType(source);
+                setSelectedSourceType(detectedType);
+                
+                // Auto-populate form with the detected source type
+                const formattedData = formatSourceData(source, detectedType);
+                setFormData(formattedData);
+                
+                // Auto-generate the citation
+                generateCitationForSource(source, detectedType, selectedStyle)
+                  .then(result => {
+                    setCitation(result);
+                    setLoading(false);
+                  })
+                  .catch(err => {
+                    console.error('Error generating citation:', err);
+                    setLoading(false);
+                    toast({
+                      title: "Error generating citation",
+                      description: "An error occurred while generating the citation. Please try again.",
+                      variant: "destructive"
+                    });
+                  });
+              }
+            } else if (sources.length > 0) {
+              // Generate citations for all sources
+              const promises = sources.map((source: any) => {
+                const detectedType = detectSourceType(source);
+                return generateCitationForSource(source, detectedType, selectedStyle);
+              });
+              
+              setLoading(true);
+              
+              Promise.all(promises)
+                .then(results => {
+                  // Combine all citations
+                  const combinedCitation = {
+                    text: results.map(r => r.text).join('\n\n'),
+                    style: selectedStyle
+                  };
+                  setCitation(combinedCitation);
+                  setLoading(false);
+                })
+                .catch(err => {
+                  console.error('Error generating multiple citations:', err);
+                  setLoading(false);
+                  toast({
+                    title: "Error generating citations",
+                    description: "An error occurred while generating citations. Please try again.",
+                    variant: "destructive"
+                  });
+                });
+            }
+          }, 100);
         }
         
         // Clear localStorage to prevent future interference
@@ -596,7 +646,174 @@ export default function CitationGenerator() {
         console.error('Error parsing sources from localStorage:', e);
       }
     }
-  }, []);
+  }, [selectedStyle]);
+  
+  // Helper function to detect source type based on URL and content
+  const detectSourceType = (source: any): string => {
+    const url = source.url || '';
+    const domain = source.domain || '';
+    const title = source.title || '';
+    
+    // Check if it's likely a journal article
+    if (
+      url.includes('doi.org') || 
+      url.includes('jstor.org') || 
+      url.includes('pubmed') ||
+      url.includes('academia.edu') ||
+      url.includes('researchgate') ||
+      url.includes('journal') ||
+      title.includes('Study') ||
+      title.includes('Research') ||
+      title.includes('Journal')
+    ) {
+      return 'journalArticle';
+    }
+    
+    // Check if it's likely a news article
+    if (
+      domain.includes('news') ||
+      domain.includes('bbc') ||
+      domain.includes('cnn') ||
+      domain.includes('nytimes') ||
+      domain.includes('guardian') ||
+      domain.includes('reuters') ||
+      domain.includes('abc.net.au') ||
+      domain.includes('smh.com.au') ||
+      title.includes('News') ||
+      url.includes('article')
+    ) {
+      return 'newspaperArticle';
+    }
+    
+    // Default to website for all other cases
+    return 'website';
+  };
+  
+  // Helper function to format source data based on detected type
+  const formatSourceData = (source: any, sourceType: string): Record<string, any> => {
+    const currentDate = new Date().toISOString().split('T')[0];
+    
+    // Base data common for all types
+    const baseData = {
+      title: source.title || '',
+      url: source.url || '',
+      publicationDate: currentDate,
+      authors: []
+    };
+    
+    // Add type-specific fields
+    switch (sourceType) {
+      case 'journalArticle':
+        return {
+          ...baseData,
+          journalName: source.domain || extractDomainName(source.url || ''),
+          volume: '',
+          issue: '',
+          pages: '',
+          doi: extractDOI(source.url || '')
+        };
+      case 'newspaperArticle':
+        return {
+          ...baseData,
+          newspaperName: source.domain || extractDomainName(source.url || ''),
+          section: ''
+        };
+      case 'website':
+      default:
+        return {
+          ...baseData,
+          websiteName: source.domain || extractDomainName(source.url || '')
+        };
+    }
+  };
+  
+  // Extract domain name from URL
+  const extractDomainName = (url: string): string => {
+    try {
+      const domain = new URL(url).hostname;
+      return domain.replace('www.', '');
+    } catch (e) {
+      return '';
+    }
+  };
+  
+  // Extract DOI from URL if available
+  const extractDOI = (url: string): string => {
+    if (url.includes('doi.org')) {
+      const match = url.match(/doi\.org\/(.+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    return '';
+  };
+  
+  // Generate citation for a specific source
+  const generateCitationForSource = async (
+    source: any, 
+    sourceType: string, 
+    citationStyle: string
+  ): Promise<{ text: string; style: string }> => {
+    return new Promise((resolve) => {
+      const formattedData = formatSourceData(source, sourceType);
+      
+      // This is where you would connect to your real citation API
+      // For now, we'll generate a simple citation based on style and source type
+      let citationText = '';
+      
+      if (citationStyle === 'aglc4') {
+        switch (sourceType) {
+          case 'journalArticle':
+            citationText = `Author(s), '${formattedData.title}' (${new Date().getFullYear()}) ${formattedData.journalName}`;
+            break;
+          case 'newspaperArticle':
+            citationText = `Author(s), '${formattedData.title}', ${formattedData.newspaperName} (online, ${new Date().toLocaleDateString('en-AU')}) <${formattedData.url}>`;
+            break;
+          case 'website':
+          default:
+            citationText = `${formattedData.websiteName}, ${formattedData.title} (Web Page, ${new Date().toLocaleDateString('en-AU')}) <${formattedData.url}>`;
+            break;
+        }
+      } else if (citationStyle === 'apa') {
+        const year = new Date().getFullYear();
+        switch (sourceType) {
+          case 'journalArticle':
+            citationText = `(${year}). ${formattedData.title}. ${formattedData.journalName}. ${formattedData.url}`;
+            break;
+          case 'newspaperArticle':
+            citationText = `(${year}, ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}). ${formattedData.title}. ${formattedData.newspaperName}. ${formattedData.url}`;
+            break;
+          case 'website':
+          default:
+            citationText = `(${year}). ${formattedData.title}. ${formattedData.websiteName}. Retrieved from ${formattedData.url}`;
+            break;
+        }
+      } else if (citationStyle === 'mla') {
+        switch (sourceType) {
+          case 'journalArticle':
+            citationText = `"${formattedData.title}." ${formattedData.journalName}, ${new Date().getFullYear()}. Web. ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}.`;
+            break;
+          case 'newspaperArticle':
+            citationText = `"${formattedData.title}." ${formattedData.newspaperName}, ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}. Web.`;
+            break;
+          case 'website':
+          default:
+            citationText = `"${formattedData.title}." ${formattedData.websiteName}, ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}. Web.`;
+            break;
+        }
+      } else {
+        // Default format for other citation styles
+        citationText = `${formattedData.title}. (${new Date().getFullYear()}). Retrieved from ${formattedData.url}`;
+      }
+      
+      setTimeout(() => {
+        resolve({
+          text: citationText,
+          style: citationStyle
+        });
+      }, 500); // Simulate API delay
+    });
+  };
   
   // Filter source types based on selected citation style
   const filteredSourceTypes = sourceTypes.filter(
@@ -989,7 +1206,50 @@ export default function CitationGenerator() {
                 </div>
               ) : citation ? (
                 <div className="p-4 border rounded-md">
-                  <p className="leading-relaxed" dangerouslySetInnerHTML={{ __html: citation.text }}></p>
+                  <div className="mb-2 flex justify-between items-center">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-primary">
+                        {citationStyles.find(s => s.id === citation.style)?.name || citation.style}
+                      </span>
+                      {citation.text.includes('\n\n') && (
+                        <span className="ml-2 px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
+                          {citation.text.split('\n\n').length} citations
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {citation.text.includes('\n\n') ? (
+                    <div className="space-y-3 font-mono text-sm">
+                      {citation.text.split('\n\n').map((citationItem, index) => (
+                        <div key={index} className="p-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1">
+                              <div className="inline-flex items-center justify-center w-5 h-5 bg-primary/10 text-primary rounded-full text-xs font-medium mr-2">
+                                {index + 1}
+                              </div>
+                              <span dangerouslySetInnerHTML={{ __html: citationItem }}></span>
+                            </div>
+                            <Button 
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(citationItem);
+                                toast({
+                                  description: `Citation ${index + 1} copied to clipboard`,
+                                });
+                              }}
+                              className="h-6 w-6 p-0 text-gray-400 hover:text-primary"
+                            >
+                              <Clipboard className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="font-mono text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: citation.text }}></div>
+                  )}
                 </div>
               ) : (
                 <div className="h-full flex items-center justify-center text-center p-8">
