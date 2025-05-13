@@ -222,15 +222,18 @@ export default function AIAnswer({
     const isDeepResearch = className?.includes('deep-research') || false;
     
     // Build URL with parameters that preserve the current search mode
-    let searchUrl = `/search?q=${encodeURIComponent(followUpQuery)}&isFollowUp=true`;
+    let searchUrl = `/search?q=${encodeURIComponent(followUpQuery)}`;
+    
+    // Always set isFollowUp=true to maintain conversation context
+    searchUrl += '&isFollowUp=true';
     
     // If this was a deep research answer, maintain those parameters for the follow-up
     if (isDeepResearch) {
-      searchUrl += '&deepResearch=true&maxIterations=3&includeReasoning=true';
+      searchUrl += '&deepResearch=true&maxIterations=3&includeReasoning=true&deepDive=true';
     }
     
     // Navigate to search results with the follow-up query and proper context
-    setLocation(searchUrl);
+    window.location.href = searchUrl;
   };
 
   // Function to render charts and graphs
