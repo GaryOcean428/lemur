@@ -213,8 +213,8 @@ const SavedSearchCard = ({
   const handleTagsSubmit = () => {
     const tagsArray = tags
       .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag);
+      .map((tag: string) => tag.trim())
+      .filter((tag: string) => tag);
     
     onUpdate(search.id, { tags: tagsArray });
     setIsEditingTags(false);
