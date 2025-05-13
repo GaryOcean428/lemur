@@ -665,6 +665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const query = req.query.q as string;
       const searchType = req.query.type as string || 'all'; // 'all', 'ai', or 'traditional'
       const deepResearch = req.query.deepResearch === 'true'; // Check if deep research mode is enabled
+      const disableTools = req.query.disableTools === 'true'; // Check if tools should be disabled (fallback mode)
       
       if (!query) {
         return res.status(400).json({ message: "Query parameter is required" });
@@ -678,6 +679,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.exclude_domains) filters.exclude_domains = (req.query.exclude_domains as string).split(',');
       if (req.query.search_depth) filters.search_depth = req.query.search_depth;
       if (req.query.include_images !== undefined) filters.include_images = req.query.include_images === 'true';
+      // If tools should be disabled, add it to filters
+      if (disableTools) filters.disableTools = true;
       
       // Get API keys from environment
       const tavilyApiKey = process.env.TAVILY_API_KEY || "";
@@ -1154,6 +1157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const query = req.query.q as string;
       const isFollowUp = req.query.isFollowUp === 'true';
+      const disableTools = req.query.disableTools === 'true'; // Check if tools should be disabled (fallback mode)
       
       if (!query) {
         return res.status(400).json({ message: "Query parameter is required" });
@@ -1166,6 +1170,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.include_domains) filters.include_domains = (req.query.include_domains as string).split(',');
       if (req.query.exclude_domains) filters.exclude_domains = (req.query.exclude_domains as string).split(',');
       if (req.query.search_depth) filters.search_depth = req.query.search_depth;
+      // If tools should be disabled, add it to filters
+      if (disableTools) filters.disableTools = true;
       
       // Get API keys from environment
       const tavilyApiKey = process.env.TAVILY_API_KEY || "";

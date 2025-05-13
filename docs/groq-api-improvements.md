@@ -48,6 +48,29 @@ For GPT-4.1 models, we've ensured that we use the appropriate Responses API to m
 3. **Authentication Errors (401)**: Better guidance for API key issues
 4. **Model Not Found (404)**: Specific handling for incorrect model references
 
+## Client-Side Error Handling
+
+1. **Enhanced Error Detection**: 
+   - Added pattern matching for tool-related errors in API responses
+   - Improved error visualization for users when tool errors occur
+
+2. **Automatic Client Fallback**:
+   - When tool errors are detected, client automatically retries with `disableTools=true` parameter
+   - Maintains conversation context during fallback retry
+   - Provides graceful degradation with traditional search results if both approaches fail
+
+## Server-Side Improvements
+
+1. **Tool Disabling Parameter**:
+   - Added `disableTools` query parameter support to `/api/search` and `/api/direct-search` endpoints
+   - Modified API requests to respect this parameter when constructing requests to Groq
+   - Improved logging to track when tools are disabled and why
+
+2. **Error Metadata Enrichment**:
+   - Added error type classification for better debugging
+   - Enhanced error messages with specific advice for different error types
+   - Centralized error handling patterns for API errors
+
 ## Future Improvements
 
 1. **Circuit Breaker Pattern**: Implement a circuit breaker to temporarily disable tool usage after multiple failures

@@ -267,11 +267,18 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
     };
     messages.push(userMessage);
 
-    // Prepare API request body based on whether tools are supported
-    console.log(`Tool support status: Raw Check=${supportsTools}, Override=${supportsToolsOverride}, Final=${isToolModel}`);
+    // Check for explicit disableTools flag in filters
+    const disableTools = filters?.disableTools === true;
+    if (disableTools) {
+      console.log("Tools explicitly disabled by request parameter");
+    }
     
-    // Only include tools if the model is confirmed to support them
-    const requestBody = isToolModel ? {
+    // Prepare API request body based on whether tools are supported and not explicitly disabled
+    const shouldUseTools = isToolModel && !disableTools;
+    console.log(`Tool support status: Raw Check=${supportsTools}, Override=${supportsToolsOverride}, Disable=${disableTools}, Final=${shouldUseTools}`);
+    
+    // Only include tools if the model is confirmed to support them and tools are not disabled
+    const requestBody = shouldUseTools ? {
       model,
       messages,
       temperature: 0.3,
@@ -306,7 +313,7 @@ ${searchContext ? 'SEARCH RESULTS CONTEXT:\n' + searchContext : ''}`
       temperature: 0.3
     };
 
-    console.log(`Making API request with${isToolModel ? '' : 'out'} tools to Groq API using model: ${model}`);
+    console.log(`Making API request with${shouldUseTools ? '' : 'out'} tools to Groq API using model: ${model}`);
     
     // Make the API request to Groq
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
