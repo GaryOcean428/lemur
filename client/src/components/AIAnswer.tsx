@@ -420,7 +420,6 @@ export default function AIAnswer({
                 size="sm" 
                 className="text-xs h-7 px-2 flex items-center gap-1"
                 onClick={() => {
-                  // Store sources in localStorage and redirect to citation generator
                   localStorage.setItem('sourceForCitation', JSON.stringify(sources));
                   setLocation('/tools/citation-generator?from=search');
                 }}
@@ -431,6 +430,28 @@ export default function AIAnswer({
                 </svg>
                 Create Citations
               </Button>
+              
+              {!contextual && !className?.includes('deep-research') && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs h-7 px-2 flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-800/50"
+                  onClick={() => {
+                    const currentQuery = new URLSearchParams(window.location.search).get('q');
+                    if (currentQuery) {
+                      setLocation(`/search?q=${encodeURIComponent(currentQuery)}&deep=true`);
+                    }
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h13l4-4-4-3z"/>
+                    <path d="M12 19h7"/>
+                    <path d="M7 19h1"/>
+                    <path d="M11 19h1"/>
+                  </svg>
+                  Deep Research
+                </Button>
+              )}
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
