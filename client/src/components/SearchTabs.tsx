@@ -244,6 +244,7 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
                 model={activeTabData.ai.model}
                 contextual={isFollowUp}
                 authRequired={authRequired}
+                className={activeTabData.deepResearch ? 'deep-research' : ''}
               />
             )}
           </TabsContent>

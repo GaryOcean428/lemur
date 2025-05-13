@@ -26,9 +26,17 @@ interface AIAnswerProps {
   model: string;
   contextual?: boolean; // Indicates if this is a contextual follow-up answer
   authRequired?: boolean; // Indicates if authentication is required (for limit reached scenarios)
+  className?: string; // Additional CSS class for styling or identifying deep research
 }
 
-export default function AIAnswer({ answer, sources, model, contextual = false, authRequired = false }: AIAnswerProps) {
+export default function AIAnswer({ 
+  answer, 
+  sources, 
+  model, 
+  contextual = false, 
+  authRequired = false,
+  className = ''
+}: AIAnswerProps) {
   const [, setLocation] = useLocation();
   const [followUpQuery, setFollowUpQuery] = useState('');
   const [showFollowUpInput, setShowFollowUpInput] = useState(false);
