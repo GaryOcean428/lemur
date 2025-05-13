@@ -24,16 +24,120 @@ import {
   Lightbulb
 } from 'lucide-react';
 
-// Lazy-loaded tool components
-const ContentSummarizer = React.lazy(() => import('@/pages/tools/ContentSummarizer'));
-const CitationGenerator = React.lazy(() => import('@/pages/tools/CitationGenerator'));
-const SavedSearches = React.lazy(() => import('@/pages/tools/SavedSearches'));
-const DomainResearch = React.lazy(() => import('@/pages/tools/DomainResearch'));
-const ResearchDashboard = React.lazy(() => import('@/pages/tools/ResearchDashboard'));
-const ContentExport = React.lazy(() => import('@/pages/tools/ContentExport'));
-const ImageSearch = React.lazy(() => import('@/pages/tools/ImageSearch'));
-const NewsAggregator = React.lazy(() => import('@/pages/tools/NewsAggregator'));
-const TrendAnalyzer = React.lazy(() => import('@/pages/tools/TrendAnalyzer'));
+// Lazy-loaded tool components - the files exist in lowercase
+const ContentSummarizerLazy = React.lazy(() => import('./tools/ContentSummarizer')); 
+const CitationGeneratorLazy = React.lazy(() => import('./tools/CitationGenerator'));
+const SavedSearchesLazy = React.lazy(() => import('./tools/SavedSearches'));
+
+// Create wrapped versions that handle Suspense internally
+const ContentSummarizer = () => (
+  <React.Suspense fallback={<div>Loading Content Summarizer...</div>}>
+    <ContentSummarizerLazy />
+  </React.Suspense>
+);
+
+const CitationGenerator = () => (
+  <React.Suspense fallback={<div>Loading Citation Generator...</div>}>
+    <CitationGeneratorLazy />
+  </React.Suspense>
+);
+
+const SavedSearches = () => (
+  <React.Suspense fallback={<div>Loading Saved Searches...</div>}>
+    <SavedSearchesLazy />
+  </React.Suspense>
+);
+
+// Placeholder components for tools not yet implemented
+const DomainResearch = () => (
+  <div className="container py-10">
+    <h1 className="text-3xl font-bold mb-6">Domain Research</h1>
+    <div className="border rounded-lg p-10 text-center">
+      <Globe className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <p className="text-xl text-muted-foreground mb-4">
+        This feature is coming soon
+      </p>
+      <p className="text-muted-foreground">
+        Domain Research will provide comprehensive analysis of websites, including authority metrics, content categorization, and technology stack identification.
+      </p>
+    </div>
+  </div>
+);
+
+const ResearchDashboard = () => (
+  <div className="container py-10">
+    <h1 className="text-3xl font-bold mb-6">Research Dashboard</h1>
+    <div className="border rounded-lg p-10 text-center">
+      <Lightbulb className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <p className="text-xl text-muted-foreground mb-4">
+        This feature is coming soon
+      </p>
+      <p className="text-muted-foreground">
+        The Research Dashboard will help you organize multiple searches and insights into a cohesive project.
+      </p>
+    </div>
+  </div>
+);
+
+const ContentExport = () => (
+  <div className="container py-10">
+    <h1 className="text-3xl font-bold mb-6">Content Export</h1>
+    <div className="border rounded-lg p-10 text-center">
+      <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <p className="text-xl text-muted-foreground mb-4">
+        This feature is coming soon
+      </p>
+      <p className="text-muted-foreground">
+        Export your search results and AI-generated content in multiple formats.
+      </p>
+    </div>
+  </div>
+);
+
+const ImageSearch = () => (
+  <div className="container py-10">
+    <h1 className="text-3xl font-bold mb-6">Visual Search</h1>
+    <div className="border rounded-lg p-10 text-center">
+      <Image className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <p className="text-xl text-muted-foreground mb-4">
+        This feature is coming soon
+      </p>
+      <p className="text-muted-foreground">
+        Upload images to search for visually similar content or extract information from images.
+      </p>
+    </div>
+  </div>
+);
+
+const NewsAggregator = () => (
+  <div className="container py-10">
+    <h1 className="text-3xl font-bold mb-6">News Aggregator</h1>
+    <div className="border rounded-lg p-10 text-center">
+      <Newspaper className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <p className="text-xl text-muted-foreground mb-4">
+        This feature is coming soon
+      </p>
+      <p className="text-muted-foreground">
+        Stay updated with customized news feeds tailored to your interests.
+      </p>
+    </div>
+  </div>
+);
+
+const TrendAnalyzer = () => (
+  <div className="container py-10">
+    <h1 className="text-3xl font-bold mb-6">Trend Analyzer</h1>
+    <div className="border rounded-lg p-10 text-center">
+      <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <p className="text-xl text-muted-foreground mb-4">
+        This feature is coming soon
+      </p>
+      <p className="text-muted-foreground">
+        Analyze and visualize trending topics and content over time.
+      </p>
+    </div>
+  </div>
+);
 
 // Tool item type
 type ToolItem = {
@@ -341,22 +445,7 @@ export default function ToolsPage() {
             <Route path="/tools/content-summarizer" component={ContentSummarizer} />
             <Route path="/tools/citation-generator" component={CitationGenerator} />
             <Route path="/tools/saved-searches" component={SavedSearches} />
-            <Route path="/tools/domain-research">
-              {() => (
-                <div className="container py-10">
-                  <h1 className="text-3xl font-bold mb-6">Domain Research</h1>
-                  <div className="border rounded-lg p-10 text-center">
-                    <Globe className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-xl text-muted-foreground mb-4">
-                      This feature is coming soon
-                    </p>
-                    <p className="text-muted-foreground">
-                      Domain Research will provide comprehensive analysis of websites, including authority metrics, content categorization, and technology stack identification.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </Route>
+            <Route path="/tools/domain-research" component={DomainResearch} />
             <Route path="/tools/research-dashboard" component={ResearchDashboard} />
             <Route path="/tools/content-export" component={ContentExport} />
             <Route path="/tools/image-search" component={ImageSearch} />

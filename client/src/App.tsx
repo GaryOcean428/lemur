@@ -17,7 +17,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 
 // Import all the new pages
 import AboutPage from "@/pages/about";
-import ToolsPage from "@/pages/tools";
+import ToolsPage from "@/pages/Tools";
 import SettingsPage from "@/pages/settings";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
