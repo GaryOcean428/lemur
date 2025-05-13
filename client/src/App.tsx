@@ -47,7 +47,7 @@ function Router() {
       
       {/* Info pages */}
       <Route path="/about" component={AboutPage} />
-      <Route path="/tools" component={ToolsPage} />
+      <Route path="/tools/:tool*" component={ToolsPage} />
       <Route path="/settings" component={SettingsPage} />
       
       {/* User pages */}
