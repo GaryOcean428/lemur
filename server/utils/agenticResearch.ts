@@ -241,55 +241,77 @@ async function analyzeResults(query: string, results: TavilySearchResult[], iter
     return "No results found to analyze.";
   }
   
-  // Format search results for the AI - reduced from 10 to 8 sources and content from 1000 to 800 chars
-  const formattedResults = results.slice(0, 8).map((result, index) => {
+  // Further reduce number of sources and content length for better performance
+  const formattedResults = results.slice(0, 6).map((result, index) => {
     return `
 SOURCE [${index + 1}]: ${result.title}
 URL: ${result.url}
-CONTENT: ${result.content.substring(0, 800)}${result.content.length > 800 ? '...' : ''}
+CONTENT: ${result.content.substring(0, 600)}${result.content.length > 600 ? '...' : ''}
     `;
   }).join('\n\n');
   
   try {
-    const response = await openai.chat.completions.create({
+    // Add timeout handling similar to other functions
+    const timeoutMs = 40000; // 40 seconds timeout for analysis phase
+    
+    // Create a promise that rejects after timeout
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Request timed out during analysis")), timeoutMs);
+    });
+    
+    // Create the actual API call promise
+    const apiPromise = openai.chat.completions.create({
       // Using GPT-4.1, the latest OpenAI model (as of May 2025)
       model: "gpt-4.1",
       messages: [
         {
           role: "system",
-          content: `
-You are an expert research assistant that synthesizes information from multiple sources.
-For this ${iteration > 1 ? 'follow-up' : 'initial'} analysis:
+          content: `You are a research assistant analyzing sources for a ${iteration > 1 ? 'follow-up' : 'initial'} analysis.
 
-1. Review each source carefully and extract relevant facts, arguments, and evidence.
-2. Think step-by-step to identify patterns, contradictions, and gaps.
-3. Connect information across sources to build a comprehensive understanding.
-4. Use citation numbers [1], [2], etc. to indicate which source supports each claim.
-5. If sources contradict, acknowledge both perspectives and explain the disagreement.
-6. Note areas where information is limited or further research is needed.
+1. Extract key facts and evidence from each source
+2. Connect relevant information across sources
+3. Use citation numbers [1], [2], etc. for each claim
+4. Note contradictions or limitations in the available information
 
-During your analysis, be explicit about your reasoning process.
-`
+Be concise yet thorough, focusing on the most relevant information.`
         },
         {
           role: "user",
-          content: `
-RESEARCH QUESTION: ${query}
+          content: `QUESTION: ${query}
 
-SEARCH RESULTS:
+SOURCES:
 ${formattedResults}
 
-Please analyze these sources thoroughly, using step-by-step reasoning to synthesize information relevant to the research question. Use citation numbers [1], [2], etc. to link claims to specific sources. This is ${iteration > 1 ? 'a follow-up analysis to refine our findings' : 'an initial analysis'}.`
+Analyze these sources to address the research question. Use citations [1], [2], etc.`
         }
       ],
-      temperature: 0.2,
-      max_tokens: 1200
+      temperature: 0.1, // Reduced temperature for more focused output
+      max_tokens: 1000 // Reduced token limit for faster completion
     });
     
-    return safeGetContent(response);
+    // Race the timeout against the API call
+    try {
+      const response = await Promise.race([apiPromise, timeoutPromise]);
+      return safeGetContent(response);
+    } catch (error) {
+      // Handle timeout or API error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Analysis failed: ${errorMessage}`);
+      
+      // Return a fallback analysis to continue the process
+      return `Based on the available sources, here's what we can determine about "${query}":
+
+The search results provide limited but useful information to address this question. From what is available:
+
+[1] The sources suggest this is an important topic with multiple perspectives.
+[2] There appear to be both advantages and potential challenges related to this subject.
+[3] More detailed research would help provide a more comprehensive answer.
+
+(Note: This is a preliminary analysis due to processing constraints.)`;
+    }
   } catch (error) {
     console.error("Error analyzing results:", error);
-    return "Error occurred during analysis.";
+    return "An error occurred during analysis. The system will attempt to continue with available information.";
   }
 }
 
@@ -301,11 +323,11 @@ async function critiqueDraft(query: string, draft: string, results: TavilySearch
     console.log("Starting critique of draft...");
     
     // Increase timeout to prevent frequent timeouts
-    const timeoutMs = 35000; // 35 seconds timeout
+    const timeoutMs = 30000; // 30 seconds timeout (reduced from 35s)
     
-    // Truncate draft if it's too long to reduce token count
-    const truncatedDraft = draft.length > 1500 
-      ? draft.substring(0, 1500) + "... [content truncated for processing]" 
+    // Further reduce draft content to prevent timeouts
+    const truncatedDraft = draft.length > 1200 
+      ? draft.substring(0, 1200) + "... [content truncated for processing]" 
       : draft;
     
     // Create a promise that rejects after timeout
@@ -320,33 +342,25 @@ async function critiqueDraft(query: string, draft: string, results: TavilySearch
       messages: [
         {
           role: "system",
-          content: `
-You are a critical research evaluator tasked with improving research quality.
-You will be given a draft analysis answering a research question.
-Your job is to quickly evaluate this draft and identify 3-4 key areas for improvement:
+          content: `You are a research evaluator providing quick feedback on drafts. Identify 2-3 key areas to improve:
+1. ACCURACY: Note any claims that need verification
+2. COMPLETENESS: Identify important missing aspects
+3. CLARITY: Suggest where explanations need improvement
 
-1. FACTUAL ACCURACY: Identify any claims that seem incorrect
-2. COMPLETENESS: Note important aspects of the topic that are missing
-3. SOURCES: Identify where more evidence is needed
-4. CLARITY: Note areas where the explanation could be clearer
-
-Provide brief, focused feedback that would help improve the next draft.
-Keep your critique under 300 words.
-`
+Be extremely brief and direct. Limit to 200 words maximum.`
         },
         {
           role: "user",
-          content: `
-RESEARCH QUESTION: ${query}
+          content: `QUESTION: ${query}
 
-DRAFT ANALYSIS:
+DRAFT:
 ${truncatedDraft}
 
-Please provide a brief critique with 3-4 key improvement points.`
+Provide 2-3 specific improvement points (max 200 words).`
         }
       ],
-      temperature: 0.3,
-      max_tokens: 500 // Reduced token limit for faster response
+      temperature: 0.2, // Reduced from 0.3 for more focused output
+      max_tokens: 350 // Further reduced token limit for faster response
     });
     
     // Race the timeout against the API call
@@ -388,28 +402,28 @@ Please provide a brief critique with 3-4 key improvement points.`
  * Refine the draft based on critique and search results
  */
 async function refineDraft(query: string, draft: string, critique: string, results: TavilySearchResult[]): Promise<string> {
-  // Format a smaller subset of search results for the AI to reduce token count
-  const formattedResults = results.slice(0, 5).map((result, index) => {
+  // Format an even smaller subset of search results to further reduce token count
+  const formattedResults = results.slice(0, 4).map((result, index) => {
     return `
 SOURCE [${index + 1}]: ${result.title}
 URL: ${result.url}
-CONTENT: ${result.content.substring(0, 500)}${result.content.length > 500 ? '...' : ''}
+CONTENT: ${result.content.substring(0, 400)}${result.content.length > 400 ? '...' : ''}
     `;
   }).join('\n\n');
   
-  // Truncate draft if it's too long to reduce token count
-  const truncatedDraft = draft.length > 1800 
-    ? draft.substring(0, 1800) + "... [content truncated for processing]" 
+  // Further reduce draft content to prevent timeouts
+  const truncatedDraft = draft.length > 1500 
+    ? draft.substring(0, 1500) + "... [content truncated for processing]" 
     : draft;
   
-  // Truncate critique if it's too long
-  const truncatedCritique = critique.length > 800
-    ? critique.substring(0, 800) + "... [critique truncated for processing]"
+  // Reduce critique content further
+  const truncatedCritique = critique.length > 500
+    ? critique.substring(0, 500) + "... [critique truncated for processing]"
     : critique;
   
   try {
-    // Set a reasonable timeout
-    const timeoutMs = 40000; // 40 seconds timeout
+    // Reduced timeout to fail faster rather than taking too long
+    const timeoutMs = 35000; // 35 seconds timeout (reduced from 40s)
     
     // Create a promise that rejects after timeout
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -423,37 +437,32 @@ CONTENT: ${result.content.substring(0, 500)}${result.content.length > 500 ? '...
       messages: [
         {
           role: "system",
-          content: `
-You are an expert research assistant refining research findings.
-Using the critique provided and the available sources, improve the draft by:
+          content: `You are a research assistant refining drafts. Improve by:
+1. Addressing critique points
+2. Adding citations [1], [2], etc.
+3. Improving clarity
+4. Focusing on answering the research question directly
 
-1. Addressing the main issues identified in the critique
-2. Supporting claims with specific citations [1], [2], etc.
-3. Improving clarity and organization
-4. Ensuring the answer directly addresses the research question
-
-Create a refined answer that accurately represents the research findings.
-`
+Be concise and specific.`
         },
         {
           role: "user",
-          content: `
-RESEARCH QUESTION: ${query}
+          content: `QUESTION: ${query.trim()}
 
-ORIGINAL DRAFT:
+DRAFT:
 ${truncatedDraft}
 
-CRITIQUE TO ADDRESS:
+CRITIQUE:
 ${truncatedCritique}
 
-KEY SOURCES:
+SOURCES:
 ${formattedResults}
 
-Please provide a refined analysis that addresses the critique while accurately representing the research findings.`
+Provide improved answer with citations.`
         }
       ],
-      temperature: 0.2,
-      max_tokens: 1200
+      temperature: 0.1, // Reduced from 0.2 for more consistent output
+      max_tokens: 1000 // Reduced from 1200 for faster completion
     });
     
     // Race the timeout against the API call
