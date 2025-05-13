@@ -210,9 +210,19 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
     // Log the action for debugging
     console.log(`Submitting follow-up question: ${followUpQuery}`);
     
-    // Navigate to search results with the follow-up query and flag
-    // Make sure to set isFollowUp parameter to true for contextual search
-    setLocation(`/search?q=${encodeURIComponent(followUpQuery)}&isFollowUp=true`);
+    // Determine if this is a deep research question from the className prop
+    const isDeepResearch = className?.includes('deep-research') || false;
+    
+    // Build URL with parameters that preserve the current search mode
+    let searchUrl = `/search?q=${encodeURIComponent(followUpQuery)}&isFollowUp=true`;
+    
+    // If this was a deep research answer, maintain those parameters for the follow-up
+    if (isDeepResearch) {
+      searchUrl += '&deepResearch=true&maxIterations=3&includeReasoning=true';
+    }
+    
+    // Navigate to search results with the follow-up query and proper context
+    setLocation(searchUrl);
   };
 
   // Function to render charts and graphs
