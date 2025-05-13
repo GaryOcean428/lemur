@@ -846,6 +846,7 @@ export default function CitationGenerator() {
     type => type.availableIn.includes(selectedStyle)
   );
   
+  // Modified URL submission handler to work with dynamic style changes
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -892,16 +893,15 @@ export default function CitationGenerator() {
     }
   };
   
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  // Function to generate citation from form data with a specific style
+  const generateCitationFromForm = async (citationStyle: string = selectedStyle): Promise<boolean> => {
     if (!selectedSourceType) {
       toast({
         title: "Missing Source Type",
         description: "Please select a source type",
         variant: "destructive"
       });
-      return;
+      return false;
     }
     
     // Check required fields based on source type
@@ -943,27 +943,22 @@ export default function CitationGenerator() {
         description: `Please enter a value for ${missingFieldName}`,
         variant: "destructive"
       });
-      return;
+      return false;
     }
-    
-    setLoading(true);
     
     try {
       // Generate citation
       const result = await generateCitation({
         ...formData,
         sourceType: selectedSourceType
-      }, selectedStyle);
+      }, citationStyle);
       
       setCitation({
         text: result.citation,
         style: result.style
       });
       
-      toast({
-        title: "Citation Generated",
-        description: "Your citation has been successfully generated"
-      });
+      return true;
     } catch (error) {
       console.error('Error generating citation:', error);
       toast({
@@ -971,9 +966,25 @@ export default function CitationGenerator() {
         description: "There was an error generating your citation. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setLoading(false);
+      return false;
     }
+  };
+
+  // Handle manual form submission
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const success = await generateCitationFromForm();
+    
+    if (success) {
+      toast({
+        title: "Citation Generated",
+        description: "Your citation has been successfully generated"
+      });
+    }
+    
+    setLoading(false);
   };
   
   const handleFieldChange = (field: string, value: any) => {
@@ -1059,7 +1070,13 @@ export default function CitationGenerator() {
                       } 
                       // Otherwise use the form data
                       else {
-                        generateCitationFromForm(newStyle);
+                        // Use the form data to regenerate citation with the new style
+                        generateCitationFromForm(newStyle)
+                          .then(() => setLoading(false))
+                          .catch(err => {
+                            console.error("Error regenerating citation:", err);
+                            setLoading(false);
+                          });
                       }
                     }
                   }}>
