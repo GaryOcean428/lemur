@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Quote, Link as LinkIcon, ExternalLink, Clipboard, RefreshCw } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Input } from "@/components/ui/input";
@@ -108,7 +109,15 @@ const generateCitation = async (
 };
 
 // Form field component for different source types
-const SourceTypeFields = ({ sourceType, formData, handleChange }) => {
+const SourceTypeFields = ({ 
+  sourceType, 
+  formData, 
+  handleChange 
+}: { 
+  sourceType: string; 
+  formData: Record<string, any>; 
+  handleChange: (field: string, value: any) => void 
+}) => {
   switch (sourceType) {
     case 'case':
       return (
@@ -858,7 +867,7 @@ export default function CitationGenerator() {
                         {url && (
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="secondary"
                             size="icon"
                             className="ml-2"
                             onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
@@ -915,7 +924,7 @@ export default function CitationGenerator() {
                     <div className="flex justify-end space-x-2">
                       <Button 
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         onClick={handleReset}
                         disabled={loading}
                       >
