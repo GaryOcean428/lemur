@@ -46,129 +46,119 @@ export default function AIAnswer({
   // Check if this is a limit reached message
   const isLimitReached = model === 'limit-reached';
   
-  // Enhanced markdown rendering function with proper markdown parsing and citation handling
+  // Enhanced markdown rendering function with citation handling
   function renderMarkdown(text: string): string {
-    // Step 1: Process citations to make them clickable with better pattern matching
+    // Step 1: Process citations to make them clickable
     let processedText = text
-      // Handle [Source X] pattern citation links with visual enhancement
+      // Handle [Source X] pattern
       .replace(/\[Source (\d+)\]/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${match}</span></a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">[Source ${sourceIndex + 1}]</a>`;
         }
         return match;
       })
-      // Handle [X] pattern citation links with visual enhancement
+      // Handle [X] pattern
       .replace(/\[(\d+)\](?!\()/g, (match, sourceNumber) => {
         const sourceIndex = parseInt(sourceNumber) - 1;
         if (sourceIndex >= 0 && sourceIndex < sources.length) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1 py-0.5 rounded-md font-medium hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-0.5 w-4 h-4 rounded-full bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>[${sourceIndex + 1}]</span></a>`;
+          return `<a href="#source-${sourceIndex + 1}" class="citation-link" title="${sources[sourceIndex].title}">[${sourceIndex + 1}]</a>`;
         }
         return match;
-      })
-      // Handle (Source: title) pattern - common in AI responses
-      .replace(/\(Source: ([^\)]+)\)/g, (match, sourceTitle) => {
-        // Find source by title (partial match)
-        const sourceIndex = sources.findIndex(source => 
-          source.title.toLowerCase().includes(sourceTitle.toLowerCase()) ||
-          sourceTitle.toLowerCase().includes(source.title.toLowerCase())
-        );
-        
-        if (sourceIndex >= 0) {
-          return `<a href="#source-${sourceIndex + 1}" class="citation-link bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-1 py-0.5 rounded-md font-medium hover:bg-green-100 dark:hover:bg-green-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>(Source: ${sourceTitle})</span></a>`;
-        }
-        return match;
-      })
-      // Handle citation patterns like "according to [source name]"
-      .replace(/according to ([\w\s\-\.]+)/gi, (match, sourceName) => {
-        // Find source by domain or title (partial match)
-        const sourceIndex = sources.findIndex(source => 
-          source.title.toLowerCase().includes(sourceName.toLowerCase()) || 
-          (source.domain && source.domain.toLowerCase().includes(sourceName.toLowerCase()))
-        );
-        
-        if (sourceIndex >= 0) {
-          return `according to <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${sourceName}</span></a>`;
-        }
-        return match;
-      })
-      // Add explicit citation indicators for source metadata
-      .replace(/\bfrom ([\w\s\-\.]+)\b/gi, (match, sourceName) => {
-        // Find source by domain or title (partial match)
-        const sourceIndex = sources.findIndex(source => 
-          source.title.toLowerCase().includes(sourceName.toLowerCase()) || 
-          (source.domain && source.domain.toLowerCase().includes(sourceName.toLowerCase()))
-        );
-        
-        if (sourceIndex >= 0) {
-          return `from <a href="#source-${sourceIndex + 1}" class="citation-link bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-md font-medium hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors" title="${sources[sourceIndex].title}"><span class="inline-flex items-center"><span class="inline-block mr-1 w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-[10px] font-bold flex items-center justify-center">${sourceIndex + 1}</span>${sourceName}</span></a>`;
-        }
-        return match;
-      })
-      // Handle MLA, Chicago, and AGLC citation standards
-      .replace(/\[(MLA|Chicago|AGLC): ([^\]]+)\]/g, (match, style, citation) => {
-        const formattedCitation = formatCitation(style, citation);
-        return `<span class="citation-${style.toLowerCase()}">${formattedCitation}</span>`;
       });
     
-    // Step 2: Parse markdown with the marked library
-    try {
-      // Use the marked library to properly parse markdown content
-      // Using old method to avoid Promise-based API which requires await
-      const parsedMarkdown = marked.parse(processedText);
-      
-      // Step 3: Add styling for better citation visualization
-      // Type assertion because we know the result is a string
-      let enhancedHtml = (parsedMarkdown as string)
-        // Add custom classes to citation links to help with styling
-        .replace(/<a href="#source-([0-9]+)"([^>]*)>([^<]+)<\/a>/g, (match: string, sourceNumber: string, attributes: string, text: string) => {
-          return `<a href="#source-${sourceNumber}" ${attributes} data-source-id="${sourceNumber}" class="source-citation-${sourceNumber} ${attributes.includes('class=') ? '' : 'citation-link'}" onmouseover="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.add('citation-highlight'))" onmouseout="document.querySelectorAll('.source-citation-${sourceNumber}').forEach(el => el.classList.remove('citation-highlight'))">${text}</a>`;
-        });
-
-      // Step 4: Add CSS for citation highlighting
-      const styleBlock = `
-        <style>
-          .citation-highlight {
-            background-color: rgba(168, 85, 247, 0.2) !important;
-            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.4);
-            transition: all 0.2s ease-in-out;
-          }
-          .dark .citation-highlight {
-            background-color: rgba(168, 85, 247, 0.3) !important;
-            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
-          }
-          .citation-link {
-            text-decoration: none !important;
-            transition: all 0.2s ease-in-out;
-          }
-          .citation-link:hover {
-            text-decoration: none !important;
-          }
-          .citation-mla {
-            font-style: italic;
-          }
-          .citation-chicago {
-            font-weight: bold;
-          }
-          .citation-aglc {
-            text-decoration: underline;
-          }
-        </style>
-      `;
-      
-      // Step 5: Sanitize HTML to prevent XSS
-      return DOMPurify.sanitize(styleBlock + enhancedHtml, { 
-        ADD_TAGS: ['style'],
-        ADD_ATTR: ['onmouseover', 'onmouseout', 'data-source-id']
-      });
-    } catch (error) {
-      console.error('Error parsing markdown:', error);
-      // Fallback to basic HTML with paragraph tags if markdown parsing fails
-      return DOMPurify.sanitize(`<p>${processedText}</p>`, {
-        ADD_TAGS: ['style'],
-        ADD_ATTR: ['onmouseover', 'onmouseout', 'data-source-id']
-      });
+    // Step 2: Convert markdown to HTML manually for simple markdown features
+    // Headers
+    processedText = processedText
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    
+    // Bold and italic
+    processedText = processedText
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+    
+    // Links
+    processedText = processedText.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    
+    // Code blocks
+    processedText = processedText.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    
+    // Inline code
+    processedText = processedText.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Lists (basic implementation)
+    // Convert unordered lists
+    const unorderedListItems = processedText.match(/^[-*] (.+)$/gm);
+    if (unorderedListItems) {
+      let listHtml = '<ul>';
+      for (const item of unorderedListItems) {
+        listHtml += `<li>${item.replace(/^[-*] /, '')}</li>`;
+      }
+      listHtml += '</ul>';
+      processedText = processedText.replace(/^[-*] (.+)$/gm, ''); // Remove original list items
+      processedText += listHtml;
     }
+    
+    // Convert ordered lists
+    const orderedListItems = processedText.match(/^\d+\. (.+)$/gm);
+    if (orderedListItems) {
+      let listHtml = '<ol>';
+      for (const item of orderedListItems) {
+        listHtml += `<li>${item.replace(/^\d+\. /, '')}</li>`;
+      }
+      listHtml += '</ol>';
+      processedText = processedText.replace(/^\d+\. (.+)$/gm, ''); // Remove original list items
+      processedText += listHtml;
+    }
+    
+    // Paragraphs (wrap text in p tags if not already in a block-level element)
+    processedText = processedText
+      .split('\n\n')
+      .map(para => {
+        if (para.trim() && 
+            !para.trim().startsWith('<h') && 
+            !para.trim().startsWith('<ul') && 
+            !para.trim().startsWith('<ol') && 
+            !para.trim().startsWith('<pre')) {
+          return `<p>${para.trim()}</p>`;
+        }
+        return para;
+      })
+      .join('\n');
+    
+    // Add styling for citations
+    const styleBlock = `
+      <style>
+        .citation-link {
+          background-color: rgba(168, 85, 247, 0.1);
+          color: #6d28d9;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: 500;
+          text-decoration: none !important;
+          transition: all 0.2s ease-in-out;
+        }
+        .dark .citation-link {
+          background-color: rgba(168, 85, 247, 0.2);
+          color: #a78bfa;
+        }
+        .citation-link:hover {
+          background-color: rgba(168, 85, 247, 0.2);
+          text-decoration: none !important;
+        }
+        .dark .citation-link:hover {
+          background-color: rgba(168, 85, 247, 0.3);
+        }
+      </style>
+    `;
+    
+    // Sanitize the final HTML
+    return DOMPurify.sanitize(styleBlock + processedText, {
+      ADD_TAGS: ['style'],
+      ADD_ATTR: ['target', 'rel']
+    });
   }
 
   // Function to format citations according to different standards
