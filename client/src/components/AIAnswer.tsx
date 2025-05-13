@@ -390,8 +390,26 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
         <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-semibold text-[hsl(var(--neutral-muted))]">Sources ({sources.length}):</h4>
-            <div className="text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium border border-green-200 dark:border-green-800">
-              {sources.length} citations used
+            <div className="flex items-center gap-2">
+              <div className="text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium border border-green-200 dark:border-green-800">
+                {sources.length} citations used
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs h-7 px-2 flex items-center gap-1"
+                onClick={() => {
+                  // Store sources in localStorage and redirect to citation generator
+                  localStorage.setItem('sourceForCitation', JSON.stringify(sources));
+                  setLocation('/tools/citation-generator?from=search');
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-quote">
+                  <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                  <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+                </svg>
+                Create Citations
+              </Button>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
@@ -452,21 +470,37 @@ export default function AIAnswer({ answer, sources, model, contextual = false, a
                           >
                             {source.title}
                           </a>
-                          {citationCount > 0 && (
-                            <span 
-                              className={`source-citation-${index + 1} text-xs px-1.5 py-0.5 rounded-full ${importanceStyle[importanceLevel]} font-medium ml-2 transition-all duration-200`}
-                              onMouseOver={() => {
-                                document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
-                                  el.classList.add('citation-highlight'))
+                          <div className="flex items-center gap-1">
+                            {citationCount > 0 && (
+                              <span 
+                                className={`source-citation-${index + 1} text-xs px-1.5 py-0.5 rounded-full ${importanceStyle[importanceLevel]} font-medium ml-2 transition-all duration-200`}
+                                onMouseOver={() => {
+                                  document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                                    el.classList.add('citation-highlight'))
+                                }}
+                                onMouseOut={() => {
+                                  document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
+                                    el.classList.remove('citation-highlight'))
+                                }}
+                              >
+                                {citationCount === 1 ? '1 citation' : `${citationCount} citations`}
+                              </span>
+                            )}
+                            <button
+                              className="text-xs ml-1 text-gray-400 hover:text-primary px-1 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              onClick={() => {
+                                // Store this specific source in localStorage and redirect to citation generator
+                                localStorage.setItem('sourceForCitation', JSON.stringify([source]));
+                                setLocation('/tools/citation-generator?from=search&index=' + index);
                               }}
-                              onMouseOut={() => {
-                                document.querySelectorAll(`.source-citation-${index + 1}`).forEach(el => 
-                                  el.classList.remove('citation-highlight'))
-                              }}
+                              title="Create citation for this source"
                             >
-                              {citationCount === 1 ? '1 citation' : `${citationCount} citations`}
-                            </span>
-                          )}
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-quote">
+                                <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                                <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         {source.domain && (
                           <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">

@@ -545,6 +545,49 @@ export default function CitationGenerator() {
   const [loading, setLoading] = useState(false);
   const [citation, setCitation] = useState<{ text: string; style: string } | null>(null);
   const [showAGLC4Guide, setShowAGLC4Guide] = useState(false);
+  const [searchSources, setSearchSources] = useState<any[]>([]);
+  const [selectedSearchSourceIndex, setSelectedSearchSourceIndex] = useState<number>(-1);
+  
+  // Handle sources from search results
+  useEffect(() => {
+    // Try to get sources from localStorage (set by AIAnswer component)
+    const sourcesJson = localStorage.getItem('sourceForCitation');
+    if (sourcesJson) {
+      try {
+        const sources = JSON.parse(sourcesJson);
+        setSearchSources(sources);
+        
+        // Get the source index from URL if provided
+        const urlParams = new URLSearchParams(window.location.search);
+        const sourceIndex = urlParams.get('index');
+        
+        if (sourceIndex !== null) {
+          const index = parseInt(sourceIndex, 10);
+          setSelectedSearchSourceIndex(index);
+          
+          // Auto-populate form with the selected source
+          if (sources[0]) {
+            const source = sources[0];
+            setInputTab('manual');
+            setSelectedSourceType('website');
+            
+            setFormData({
+              title: source.title || '',
+              url: source.url || '',
+              websiteName: source.domain || '',
+              publicationDate: new Date().toISOString().split('T')[0], // Default to today
+              authors: []
+            });
+          }
+        }
+        
+        // Clear localStorage to prevent future interference
+        localStorage.removeItem('sourceForCitation');
+      } catch (e) {
+        console.error('Error parsing sources from localStorage:', e);
+      }
+    }
+  }, []);
   
   // Filter source types based on selected citation style
   const filteredSourceTypes = sourceTypes.filter(
@@ -753,6 +796,43 @@ export default function CitationGenerator() {
                   </SelectContent>
                 </Select>
               </div>
+              
+              {/* If we have sources from search results, show them */}
+              {searchSources.length > 0 && (
+                <div className="mb-4 p-3 border rounded-md bg-blue-50 dark:bg-blue-900/20">
+                  <h3 className="text-sm font-medium mb-2 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-search mr-2">
+                      <circle cx="11" cy="11" r="8"/>
+                      <path d="m21 21-4.3-4.3"/>
+                    </svg>
+                    Sources from Search Results
+                  </h3>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {searchSources.map((source, index) => (
+                      <div 
+                        key={index}
+                        className={`p-2 text-sm rounded cursor-pointer transition-colors ${selectedSearchSourceIndex === index ? 'bg-blue-200 dark:bg-blue-800' : 'hover:bg-blue-100 dark:hover:bg-blue-800/50'}`}
+                        onClick={() => {
+                          setSelectedSearchSourceIndex(index);
+                          setInputTab('manual');
+                          setSelectedSourceType('website');
+                          
+                          setFormData({
+                            title: source.title || '',
+                            url: source.url || '',
+                            websiteName: source.domain || '',
+                            publicationDate: new Date().toISOString().split('T')[0], // Default to today
+                            authors: []
+                          });
+                        }}
+                      >
+                        <div className="font-medium text-blue-700 dark:text-blue-300">{source.title}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{source.url}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               <Tabs value={inputTab} onValueChange={setInputTab} className="w-full">
                 <TabsList className="grid grid-cols-2 mb-4">
