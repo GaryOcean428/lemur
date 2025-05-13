@@ -49,13 +49,22 @@ export default function SearchTabs({ data, query, isLoading, isFollowUp = false,
   // Store results from the 'all' tab when they arrive
   useEffect(() => {
     if (data && !isLoading) {
+      // Store data in 'all' tab results first
       setResults('all', data);
       setSearchedTab('all', true);
       
-      // Auto-switch to Research tab when deep research results are available
+      // Handle deep research results
       if (data.deepResearch === true && data.research && data.research.results && data.research.results.length > 0) {
-        console.log('Deep research results detected, switching to research tab');
-        setActiveTab('research');
+        console.log('Deep research results detected, storing and switching to research tab');
+        
+        // Explicitly store the same data in the research tab to ensure it's available
+        setResults('research', data);
+        setSearchedTab('research', true);
+        
+        // Switch to research tab after ensuring data is stored
+        setTimeout(() => {
+          setActiveTab('research');
+        }, 100); // Small delay to ensure state updates have propagated
       }
     }
   }, [data, isLoading, setResults, setSearchedTab, setActiveTab]);

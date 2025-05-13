@@ -76,6 +76,7 @@ interface SearchState {
     social: SearchResults | null;
     maps: SearchResults | null;
     academic: SearchResults | null;
+    research: SearchResults | null; // Deep research results
   };
   
   // Tracked searched tabs to avoid redundant API calls
