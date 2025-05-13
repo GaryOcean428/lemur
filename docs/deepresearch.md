@@ -134,8 +134,29 @@ To maximize Deep Research effectiveness:
 
 ### Performance Considerations
 
-Deep Research is resource-intensive. Consider these optimization strategies:
+Deep Research is resource-intensive. We've implemented several optimization strategies:
 
+#### Current Optimizations
+- **Token Reduction**: Multiple techniques to reduce token count and prevent timeouts:
+  - Truncated draft content from 1800 to 1500 characters in refinement phase
+  - Reduced critique content to 500 characters maximum
+  - Limited source content to 400 characters per source in refinement
+  - Decreased number of sources from 5 to 4 in refinement phase
+  - Simplified system prompts for more direct, focused instructions
+  - Reduced temperature settings (0.1-0.2) for more consistent outputs
+
+- **Timeout Handling**: Implemented robust timeout mechanisms:
+  - Added Promise.race() pattern with specific timeouts for each phase
+  - Created meaningful fallback responses when timeouts occur
+  - Shortened timeout periods (30-40s) to fail faster rather than hanging
+  - Added proper error logging for debugging timeout issues
+
+- **Analysis Phase Improvements**:
+  - Reduced sources from 8 to 6 in the analysis phase
+  - Added graceful fallback for analysis phase timeouts
+  - Content truncation from 800 to 600 characters per source
+
+#### Planned Optimizations
 - **Caching**: Cache research results for similar queries
 - **Progressive Loading**: Display initial findings while research continues
 - **Background Processing**: Run deep research asynchronously 

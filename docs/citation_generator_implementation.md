@@ -6,6 +6,15 @@
 
 This document provides detailed implementation guidance for the Citation Generator feature in Lemur. The feature will allow users to generate properly formatted citations for various source types in multiple citation styles, with special emphasis on the Australian Guide to Legal Citation, 4th edition (AGLC4).
 
+## Recent Improvements
+
+- **Dynamic Citation Style Updates**: Implemented functionality to automatically regenerate existing citations when users switch between citation styles (AGLC4, Chicago, Harvard, etc.)
+- **Enhanced Formatting**: Added proper styling with italics for publication names and titles as required by each citation style
+- **Live Link Support**: Implemented clickable URL links for website citations
+- **Search Import Integration**: Completed the integration with search results to allow direct import of sources
+- **Source Type Detection**: Improved automatic detection of source types from URLs and metadata
+- **Citation Regeneration**: Fixed issues with citation regeneration to maintain source data when switching styles
+
 ## Citation Styles Support
 
 The Citation Generator will support the following citation styles:
