@@ -758,7 +758,7 @@ export default function SavedSearches() {
           
           {/* Usage information */}
           <div className="mt-8">
-            <Alert variant="outline">
+            <Alert>
               <Bookmark className="h-4 w-4" />
               <AlertTitle>Usage Information</AlertTitle>
               <AlertDescription>

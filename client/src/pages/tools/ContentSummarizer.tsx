@@ -256,7 +256,7 @@ export default function ContentSummarizer() {
           
           {/* Usage limitations based on user tier */}
           <div className="mt-4">
-            <Alert variant="outline">
+            <Alert>
               <FileText className="h-4 w-4" />
               <AlertTitle>Usage Information</AlertTitle>
               <AlertDescription>

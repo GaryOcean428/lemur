@@ -952,7 +952,7 @@ export default function CitationGenerator() {
           
           {/* Usage limitations based on user tier */}
           <div className="mt-4">
-            <Alert variant="outline">
+            <Alert>
               <Quote className="h-4 w-4" />
               <AlertTitle>Usage Information</AlertTitle>
               <AlertDescription>
