@@ -9,5 +9,7 @@
   "javascript.updateImportsOnFileMove.enabled": "always",
   "typescript.updateImportsOnFileMove.enabled": "always",
   "IDX.aI.enableCodebaseIndexing": true,
-  "browse-lite.chromeExecutable": "/usr/local/bin/chrome-canary"
+  "browse-lite.chromeExecutable": "/usr/local/bin/chrome-canary",
+  "vite.port": 9000,
+  "vite.vitepressAutoRouting": true
 }

@@ -46,3 +46,7 @@ service-account.json
 *.njsproj
 *.sln
 *.sw?
+
+# Local Development
+
+.vscode/*
