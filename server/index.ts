@@ -4,12 +4,18 @@ import express, { type Request, type Response, type NextFunction } from "express
 import cors from "cors";
 import { registerRoutes } from "./routes.js";
 import { auth } from "./firebaseAdmin.js"; // Import auth from the modular firebaseAdmin.ts
-import { setupAuth } from "./auth.js";
-import { shouldUseEmulators } from "./firebaseEmulators.js";
+// import { setupAuth } from "./auth.js"; // Not used, consider removing if confirmed
+// import { shouldUseEmulators } from "./firebaseEmulators.js"; // Not used, consider removing if confirmed
 import { registerAgent } from "./services/agentRegistryService.js";
 import { tavilyAgentDeclaration } from "./agents/tavilyAgent.js";
 import { setupVite } from "./vite.js";
 import { serveStatic } from "./vite.js";
+
+// Top-level request logger
+app.use((req: Request, res: Response, next: NextFunction) => {
+  console.log(`[Server Index - Global Request Logger] Received: ${req.method} ${req.originalUrl} from ${req.ip}`);
+  next();
+});
 
 // Middleware to verify Firebase ID token
 export const authenticateFirebaseToken = async (req: Request, res: Response, next: NextFunction) => {
@@ -70,11 +76,10 @@ const corsOptions = {
         allowedOrigins.push(process.env.PREVIEW_URL);
     }
     // Dynamically add the cluster URL if present
-    const clusterUrl = Object.keys(process.env).find(key => key.startsWith('GOOGLE_CLOUD_WORKSTATIONS_CLUSTER_URL_'));
-    if (clusterUrl && process.env[clusterUrl]) {
-        allowedOrigins.push(process.env[clusterUrl]!);
+    const clusterUrlKey = Object.keys(process.env).find(key => key.startsWith('GOOGLE_CLOUD_WORKSTATIONS_CLUSTER_URL_') && key.endsWith(process.env.PORT || '9000'));
+    if (clusterUrlKey && process.env[clusterUrlKey]) {
+        allowedOrigins.push(process.env[clusterUrlKey]!);
     }
-
 
     if (allowedOrigins.some(allowedOrigin => origin.startsWith(allowedOrigin))) {
       return callback(null, true);
@@ -129,15 +134,22 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 async function startServer() {
   console.log(`[Server Index] Starting server in ${process.env.NODE_ENV} mode...`);
   if (process.env.NODE_ENV === "development") {
+    // When Vite's own dev server (e.g., on port 9000) proxies /api to this server (e.g., on 5080),
+    // this Express server primarily acts as an API backend.
+    // The setupVite(app, server) call here would integrate Vite's middleware into this Express app,
+    // which might be redundant or an alternative way if not using Vite's separate dev server + proxy.
+    // For now, keeping it to see logs, but this could be simplified if proxy is the main dev workflow.
     const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`[Server Index] Development Backend server listening on http://0.0.0.0:${PORT}`);
-      console.log("[Server Index] Vite HMR will be set up by server/vite.ts.");
+      console.log(`[Server Index] Development Backend server (Express on ${PORT}) listening on http://0.0.0.0:${PORT}`);
+      // console.log("[Server Index] Vite HMR will be set up by server/vite.ts if setupVite is called.");
     });
-    await setupVite(app, server);
+    await setupVite(app, server); // This integrates Vite's dev middleware into the Express app.
+                                 // If vite.config.js proxy is used, this Express app (5080)
+                                 // mainly serves API, and Vite dev server (9000) serves client.
   } else {
-    serveStatic(app);
+    serveStatic(app); // In production, Express serves static client files and API routes.
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`[Server Index] Production server listening on http://0.0.0.0:${PORT}`);
+      console.log(`[Server Index] Production server (Express on ${PORT}) listening on http://0.0.0.0:${PORT}`);
     });
   }
 }

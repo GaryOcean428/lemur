@@ -12,6 +12,7 @@ build
 .DS_Store
 vite.config.ts.*
 *.tar.gz
+.vscode/*
 
 # Environment variables - critical for security
 .env

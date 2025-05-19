@@ -1,145 +1,77 @@
-# Firebase Studio Configuration with 2025 Best Practices
-# https://firebase.google.com/docs/studio/customize-workspace
+# .idx/dev.nix - Firebase Studio 2025 Configuration
 {pkgs}: {
-  # Use latest stable channel for maximum compatibility
-  channel = "unstable";
+  channel = "stable-24.11";
 
-  # Comprehensive development tools
   packages = [
     pkgs.nodejs_22
-    pkgs.typescript
-    pkgs.git
+    pkgs.yarn
     pkgs.firebase-tools
-    pkgs.jq               # JSON processing for Firebase configs
-    pkgs.gh               # GitHub CLI for CI/CD integration
-    pkgs.python311        # For AI-powered tooling
-    pkgs.concurrently     # Run multiple commands concurrently
+    pkgs.typescript
+    pkgs.jq
+    pkgs.gh
+    pkgs.python311
+    pkgs.concurrently
+    pkgs.google-cloud-sdk
   ];
 
-  # Environment variables with enhanced security
-  env = {
-    # Development configuration
-    TS_NODE_PROJECT = "./client/tsconfig.json";
-    NODE_ENV = "development";
+  idx = {
+    extensions = [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "firebase.vscode-firebase",
+      "github.copilot",
+      "saoudrizwan.claude-dev",
+      "antfu.vite",
+      "bradlc.vscode-tailwindcss",
+      "DavidAnson.vscode-markdownlint",
+      "eamodio.gitlens",
+      "GitHub.vscode-codeql",
+      "github.vscode-github-actions",
+      "jnoortheen.nix-ide",
+      "mikestead.dotenv",
+      "ms-azuretools.vscode-docker",
+      "ms-vscode.vscode-typescript-next",
+      "PKief.material-icon-theme",
+      "Redis.redis-for-vscode",
+      "rvest.vs-code-prettier-eslint",
+      "Selemondev.shadcn-vue",
+      "svelte.svelte-vscode",
+      "vitest.explorer",
+      "Vue.volar"
+    ];
 
-    # Port configuration for consistent development
-    PORT = "9000";
-    VITE_PORT = "9000";
-    API_PORT = "5080";
-
-    # Enable Firebase Emulator detection
-    FIREBASE_EMULATOR_MODE = "true";
-    FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
-    FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
-
-    # NOTE: Sensitive values like API keys and project IDs should be stored in .env.local
-    # which is gitignored and not in dev.nix which is committed to version control
-  };
-
-  # Configure preview environments for full-stack development (Firebase Studio 2025)
-  idx.previews = {
-    enable = true;
     previews = {
-      # Main client application
-      web = {
-        command = [ "npm" "run" "dev:client" "--" "--port" "$PORT" "--host" "0.0.0.0" "--disable-host-check" ];
+      client = {
+        command = "yarn client:dev"; # Starts your client development server
         manager = "web";
-        port = 9000;
-        # Pattern to detect when the process is ready
-        processReadyPattern = "Local:";
-      };
-
-      # Firebase Emulators UI
-      emulators = {
-        command = [ "npm" "run" "emulators" ];
-        manager = "web";
-        port = 4000;
-        processReadyPattern = "All emulators ready";
-      };
-
-      # API Server
-      api = {
-        command = [ "npm" "run" "dev" ];
-        manager = "web";
-        port = 5080;
-        processReadyPattern = "server started";
+        env = { PORT = "$PORT"; }; # IDX injects the port for the preview
       };
     };
-  };
 
-  idx = {
-    # Extensions for optimal Firebase development (2025 recommended)
-    extensions = [
-      # Core development tools
-      "dbaeumer.vscode-eslint"              # JavaScript/TypeScript linting
-      "esbenp.prettier-vscode"              # Consistent code formatting
-      "ms-azuretools.vscode-docker"         # Container management
-      "pkief.material-icon-theme"           # Enhanced file icons
-      "mikestead.dotenv"                    # Environment file support
-      "eamodio.gitlens"                     # Git integration
-      "bradlc.vscode-tailwindcss"           # Tailwind CSS support
-
-      # Firebase-specific extensions
-      "firebase.vscode-firebase"            # Firebase integration
-
-      # AI development tools (2025 features)
-      "github.copilot"                      # AI code assistance
-      "github.copilot-chat"                 # AI development chat
-      "firebase.genkit-ai"                  # Firebase Genkit AI integration
-
-      # Documentation and quality
-      "DavidAnson.vscode-markdownlint"
-
-      # CI/CD and deployment
-      "GitHub.vscode-codeql"
-      "github.vscode-github-actions"
-      "ms-azuretools.vscode-docker"
-
-      # TypeScript/JavaScript
-      "ms-vscode.vscode-typescript-next"
-      "rvest.vs-code-prettier-eslint"
-
-      # AI assistance
-      "saoudrizwan.claude-dev"
-    ];
+    processes = {
+      # Starts Firebase emulators for auth, firestore, functions, and storage
+      "firebase-emulators" = "firebase emulators:start --only auth,firestore,functions,storage";
+      # Starts your API development server
+      "api-server" = "yarn api:dev";
+    };
 
     workspace = {
       onCreate = {
-        install-client-deps = "cd client && npm install";
-        open-main-file = {
-          openFiles = ["client/src/main.tsx"];
-        };
+        install-deps = "yarn install";
+        open-main-file.openFiles = ["packages/client/src/main.tsx"]; # Original path maintained
       };
       onStart = {
-        type-check = "cd client && npx tsc --noEmit";
+        # 'start-all' functionality is now handled by idx.previews and idx.processes
+        type-check = "yarn workspaces foreach run type-check";
       };
     };
 
-    # Enable previews and customize configuration
-    previews = {
-      enable = true;
-      previews = {
-        web = {
-          # Modified to ensure vite is properly available through npx
-          command = [
-            "bash"
-            "-c"
-            "cd client && npm install && npx vite --clearScreen false --port $PORT --host 0.0.0.0"
-          ];
-          manager = "web";
-          env = {
-            # Networking configuration
-            PORT = "$PORT";
-            BROWSER = "none";
-            HOST = "0.0.0.0";
+  };
 
-            # Firebase emulator configuration
-            FIREBASE_AUTH_EMULATOR_HOST = "localhost:9099";
-            FIRESTORE_EMULATOR_HOST = "localhost:8080";
-            FIREBASE_STORAGE_EMULATOR_HOST = "localhost:9199";
-          };
-        };
-      };
-    };
+  env = {
+    NODE_ENV = "development";
+    FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
+    FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+    FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199"; # Added for storage emulator
   };
 }

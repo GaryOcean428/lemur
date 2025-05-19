@@ -1,5 +1,4 @@
-git add .idx/dev.nix
-git commit -m "fix: update IDX configuration to use workspace instead of preview"/**
+/**
  * Postinstall Script for Firebase Project 2025 Best Practices
  *
  * Chain of Draft: Check → Setup → Link → Configure

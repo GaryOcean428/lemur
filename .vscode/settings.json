@@ -1,13 +1,4 @@
 {
-  "typescript.tsdk": "./client/node_modules/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true,
-  "typescript.preferences.importModuleSpecifier": "relative",
-  "editor.formatOnSave": true,
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
-  },
-  "javascript.updateImportsOnFileMove.enabled": "always",
-  "typescript.updateImportsOnFileMove.enabled": "always",
-  "IDX.aI.enableCodebaseIndexing": true,
-  "browse-lite.chromeExecutable": "/usr/local/bin/chrome-canary"
+    "terminal.integrated.sendKeybindingsToShell": true,
+    "IDX.aI.enableCodebaseIndexing": true
 }
