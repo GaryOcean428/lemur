@@ -1,0 +1,22 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode@10.1.0",
+    "google.geminicodeassist@1.0.8",
+    "googlecloudtools.cloudcode@2.4.0",
+    "ms-vscode.js-debug@1.86.1",
+    "mtxr.sqltools@0.28.1",
+    "denoland.vscode-deno@3.28.0",
+    "msjsdiag.vscode-react-native@1.12.0",
+    "react-native-directory.vscode-react-native-directory@1.2.0",
+    "rvest.vs-code-prettier-eslint@4.2.0",
+    "redhat.java@1.28.1",
+    "svelte.svelte-vscode@108.2.7",
+    "vitest.explorer@0.10.1",
+    "vue.volar@2.0.9",
+    "github.vscode-pull-request-github@0.88.0",
+    "redhat.vscode-yaml@1.14.0",
+    "eamodio.gitlens@14.5.2",
+    "googlecloudtools.firebase-dataconnect-vscode@2.0.5",
+    "dbaeumer.vscode-eslint@2.4.2"
+  ]
+}
