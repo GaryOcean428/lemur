@@ -11,6 +11,16 @@ This guide will help you get started with developing for the Lemur search engine
 - Node.js 20.x or later
 - PostgreSQL database
 - Git
+- Visual Studio Code (recommended)
+
+### Visual Studio Code Setup
+
+We recommend using Visual Studio Code for development with the following extensions:
+
+1. Open the project in VSCode
+2. Install the recommended extensions when prompted
+   - The `.vscode/extensions.json` file contains all the recommended extensions with specific versions
+   - If you have older versions installed, VSCode will prompt to update them
 
 ### Installation
 
@@ -39,6 +49,7 @@ This guide will help you get started with developing for the Lemur search engine
 ## Project Structure
 
 ```
+├── .vscode/             # VSCode configuration
 ├── client/              # Frontend code
 │   ├── src/
 │   │   ├── assets/      # Static assets
@@ -62,6 +73,19 @@ This guide will help you get started with developing for the Lemur search engine
 ```
 
 ## Development Workflow
+
+### Debugging
+
+The project includes VSCode launch configurations for debugging:
+
+- **Launch Server**: Starts the Node.js server with debugging enabled
+- **Launch Chrome against localhost**: Opens Chrome with debugging enabled for frontend code
+- **Debug Current Test File**: Runs the currently open test file with debugging
+
+To use these:
+1. Open the "Run and Debug" panel in VSCode
+2. Select the desired configuration from the dropdown
+3. Click the green play button to start debugging
 
 ### Branching Strategy
 
