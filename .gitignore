@@ -8,6 +8,13 @@ vite.config.ts.*
 .env.local
 /attached_assets/*
 
+# Yarn cache and PnP files
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
 # Logs
 *.log
 npm-debug.log*
