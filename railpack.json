@@ -1,5 +1,5 @@
 {
-  "packageManager": "npm",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install"
+  "packageManager": "yarn",
+  "buildCommand": "yarn run build",
+  "installCommand": "yarn install"
 }
